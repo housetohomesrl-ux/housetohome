@@ -1,0 +1,35 @@
+{
+  "name": "flipplan",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:api": "pnpm --filter @flipplan/api dev",
+    "dev:web": "pnpm --filter @flipplan/web dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "db:generate": "pnpm --filter @flipplan/db generate",
+    "db:migrate": "pnpm --filter @flipplan/db migrate:dev",
+    "db:seed": "pnpm --filter @flipplan/db seed",
+    "db:seed:demo": "pnpm --filter @flipplan/db seed:demo",
+    "db:studio": "pnpm --filter @flipplan/db studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild"
+    ]
+  }
+}

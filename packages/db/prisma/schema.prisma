@@ -1,0 +1,524 @@
+// FlipPlan — schema dati
+//
+// Principio guida: i campi persistiti sono INPUT dell'utente (o riferimenti).
+// I valori derivati (IVA calcolata, totali, margini, ROI, piano di ammortamento
+// interest-only/francese, ecc.) NON sono colonne in DB: vengono calcolati sempre
+// dal motore di calcolo condiviso (packages/shared) a partire dagli input, per
+// evitare che un numero mostrato in UI possa "andare fuori sync" da come è stato
+// calcolato. Fa eccezione LoanPayment, che è persistito SOLO quando il piano di
+// rate è "MANUAL" (l'utente riporta un piano di ammortamento reale fornito dalla banca).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Tenant / utenti / auth
+// ---------------------------------------------------------------------------
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  plan      String   @default("free")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users               User[]
+  deals               Deal[]
+  vendors             Vendor[]
+  costCategories      CostCategory[]
+  priceListItems      PriceListItem[]
+  companyProfile      CompanyProfile?
+  businessPlanTemplates BusinessPlanTemplate[]
+  businessPlans       BusinessPlan[]
+  attachments         Attachment[]
+
+  @@map("tenants")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole @default(OWNER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions      Session[]
+  createdDeals  Deal[]        @relation("DealCreatedBy")
+  notes         Note[]
+  attachments   Attachment[]
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+// Sessioni custom (cookie httpOnly, token hashato in DB). Struttura pensata
+// per poter aggiungere in futuro una tabella "Account" in stile Auth.js per
+// il login OAuth, senza dover toccare User/Session.
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Deal
+// ---------------------------------------------------------------------------
+
+enum DealStatus {
+  VALUTAZIONE
+  ACQUISIZIONE
+  RISTRUTTURAZIONE
+  VENDITA
+  CHIUSO
+  ARCHIVIATO
+}
+
+model Deal {
+  id            String     @id @default(cuid())
+  tenantId      String
+  tenant        Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdById   String
+  createdBy     User       @relation("DealCreatedBy", fields: [createdById], references: [id])
+  name          String
+  address       String?
+  propertyType  String?
+  status        DealStatus @default(VALUTAZIONE)
+  isDemo        Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  acquisitionDetails AcquisitionDetails?
+  fiscalSettings     FiscalSettings?
+  renovationSettings RenovationSettings?
+  holdingCosts       HoldingCostsConfig?
+  costLineItems      CostLineItem[]
+  loans              Loan[]
+  partners           Partner[]
+  saleScenarios      SaleScenario[]
+  notes              Note[]
+  attachments        Attachment[]
+  businessPlanDeals  BusinessPlanDeal[]
+
+  @@index([tenantId, status])
+  @@map("deals")
+}
+
+// Prezzo di acquisto isolato dagli altri costi di acquisizione (notaio,
+// agenzia, due diligence, ecc. sono CostLineItem con categoria group=ACQUISIZIONE):
+// serve come base imponibile per la plusvalenza e per il breakeven.
+model AcquisitionDetails {
+  dealId        String   @id
+  deal          Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  purchasePrice Decimal  @db.Decimal(14, 2)
+  notes         String?
+  updatedAt     DateTime @updatedAt
+
+  @@map("acquisition_details")
+}
+
+enum FiscalRegimeType {
+  SOCIETA_CAPITALI
+  PERSONA_FISICA
+  ALTRO
+}
+
+// Configurazione fiscale del deal: IVA su vendita/costi, e regime imposte
+// sull'operazione (IRES+IRAP per società di capitali, plusvalenza sostitutiva
+// per persona fisica, parametrico per altri regimi).
+model FiscalSettings {
+  dealId                  String           @id
+  deal                    Deal             @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  regimeType              FiscalRegimeType @default(PERSONA_FISICA)
+  saleSubjectToVat        Boolean          @default(false)
+  costsVatRecoverable     Boolean          @default(false)
+  iresRatePct             Decimal          @db.Decimal(5, 2) @default(24)
+  irapRatePct             Decimal          @db.Decimal(5, 2) @default(3.9)
+  capitalGainsTaxRatePct  Decimal          @db.Decimal(5, 2) @default(26)
+  notes                   String?
+  updatedAt               DateTime         @updatedAt
+
+  @@map("fiscal_settings")
+}
+
+model RenovationSettings {
+  dealId         String   @id
+  deal           Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  contingencyPct Decimal  @db.Decimal(5, 2) @default(12)
+  updatedAt      DateTime @updatedAt
+
+  @@map("renovation_settings")
+}
+
+// ---------------------------------------------------------------------------
+// Costi (righe unificate per tutti i moduli: Acquisto e Spese, Materiali,
+// Lavorazioni *, Enti Esterni — le categorie sono liberamente configurabili
+// dall'utente, raggruppate per "group" ai fini di subtotali/sensitivity)
+// ---------------------------------------------------------------------------
+
+enum CostCategoryGroup {
+  ACQUISIZIONE
+  MATERIALI
+  LAVORAZIONI
+  ENTI_ESTERNI
+  ALTRO
+}
+
+// tenantId nullable = categoria di sistema (seed globale, visibile a tutti i tenant)
+model CostCategory {
+  id       String            @id @default(cuid())
+  tenantId String?
+  tenant   Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  group    CostCategoryGroup
+  name     String
+  order    Int               @default(0)
+
+  costLineItems  CostLineItem[]
+  priceListItems PriceListItem[]
+
+  @@index([tenantId])
+  @@map("cost_categories")
+}
+
+enum CostLineItemStatus {
+  DA_FARE
+  IN_CORSO
+  COMPLETATO
+}
+
+model CostLineItem {
+  id               String             @id @default(cuid())
+  dealId           String
+  deal             Deal               @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  categoryId       String
+  category         CostCategory       @relation(fields: [categoryId], references: [id])
+  description      String
+  taxableAmount    Decimal            @db.Decimal(14, 2) // imponibile — input
+  vatRatePct       Decimal            @db.Decimal(5, 2)  @default(22) // input: 22 / 10 / 0 / altro
+  paidAmount       Decimal            @db.Decimal(14, 2) @default(0)  // input
+  status           CostLineItemStatus @default(DA_FARE)
+  isMemo           Boolean            @default(false) // true = esclusa dai totali (solo tracciabilità)
+  isUnbilled       Boolean            @default(false) // true = contanti/non fatturato: inclusa nei totali ma segnalata
+  vendorId         String?
+  vendor           Vendor?            @relation(fields: [vendorId], references: [id])
+  selectedQuoteId  String?            @unique
+  selectedQuote    Quote?             @relation("SelectedQuote", fields: [selectedQuoteId], references: [id])
+  priceListItemId  String?
+  priceListItem    PriceListItem?     @relation(fields: [priceListItemId], references: [id])
+  notes            String?
+  order            Int                @default(0)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  quotes Quote[] @relation("ItemQuotes")
+
+  @@index([dealId])
+  @@index([categoryId])
+  @@map("cost_line_items")
+}
+
+model Quote {
+  id             String   @id @default(cuid())
+  costLineItemId String
+  costLineItem   CostLineItem @relation("ItemQuotes", fields: [costLineItemId], references: [id], onDelete: Cascade)
+  vendorId       String?
+  vendor         Vendor?  @relation(fields: [vendorId], references: [id])
+  amount         Decimal  @db.Decimal(14, 2)
+  fileUrl        String?
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  selectedFor CostLineItem? @relation("SelectedQuote")
+
+  @@index([costLineItemId])
+  @@map("quotes")
+}
+
+model Vendor {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  contact   String?
+  specialty String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  costLineItems CostLineItem[]
+  quotes        Quote[]
+
+  @@index([tenantId])
+  @@map("vendors")
+}
+
+// Libreria prezzi riutilizzabile — l'asset che cresce di valore nel tempo
+model PriceListItem {
+  id         String       @id @default(cuid())
+  tenantId   String
+  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   CostCategory @relation(fields: [categoryId], references: [id])
+  name       String
+  unit       String? // mq, cad, ml, a corpo...
+  unitPrice  Decimal      @db.Decimal(14, 2)
+  notes      String?
+  updatedAt  DateTime     @updatedAt
+
+  costLineItems CostLineItem[]
+
+  @@index([tenantId])
+  @@map("price_list_items")
+}
+
+// ---------------------------------------------------------------------------
+// Finanziamento
+// ---------------------------------------------------------------------------
+
+enum LoanType {
+  MUTUO_PONTE
+  PRESTITO_SOCI
+  ALTRO
+}
+
+enum AmortizationType {
+  INTEREST_ONLY
+  FRENCH
+  MANUAL
+}
+
+model Loan {
+  id                    String           @id @default(cuid())
+  dealId                String
+  deal                  Deal             @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  name                  String
+  type                  LoanType         @default(MUTUO_PONTE)
+  principalAmount       Decimal          @db.Decimal(14, 2)
+  annualInterestRatePct Decimal          @db.Decimal(6, 3)
+  durationMonths        Int
+  amortizationType      AmortizationType @default(INTEREST_ONLY)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  // Persistito solo se amortizationType = MANUAL (piano reale fornito dalla banca).
+  // Per INTEREST_ONLY / FRENCH il piano è calcolato dal motore di calcolo condiviso.
+  manualPayments LoanPayment[]
+
+  @@index([dealId])
+  @@map("loans")
+}
+
+model LoanPayment {
+  id               String  @id @default(cuid())
+  loanId           String
+  loan             Loan    @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  month            Int
+  principalPortion Decimal @db.Decimal(14, 2)
+  interestPortion  Decimal @db.Decimal(14, 2)
+
+  @@unique([loanId, month])
+  @@map("loan_payments")
+}
+
+// Capitale proprio (equity) e soci/co-investitori — non genera interessi,
+// partecipa a utili tramite profitSharePct
+model Partner {
+  id                 String  @id @default(cuid())
+  dealId             String
+  deal               Deal    @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  name               String
+  contributionAmount Decimal @db.Decimal(14, 2)
+  profitSharePct     Decimal @db.Decimal(5, 2)
+  linkedUserId       String?
+  notes              String?
+
+  @@index([dealId])
+  @@map("partners")
+}
+
+// Costi di detenzione ricorrenti NON legati a un finanziamento (l'interesse
+// sul debito viene dal modulo Loan, per non duplicarlo)
+model HoldingCostsConfig {
+  dealId              String   @id
+  deal                Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  durationMonths      Int      @default(6)
+  monthlyInsurance    Decimal  @db.Decimal(14, 2) @default(0)
+  monthlyUtilities    Decimal  @db.Decimal(14, 2) @default(0)
+  monthlyPropertyTax  Decimal  @db.Decimal(14, 2) @default(0)
+  monthlyCondoFees    Decimal  @db.Decimal(14, 2) @default(0)
+  otherMonthlyCosts   Decimal  @db.Decimal(14, 2) @default(0)
+  updatedAt           DateTime @updatedAt
+
+  @@map("holding_costs_config")
+}
+
+// ---------------------------------------------------------------------------
+// Vendita
+// ---------------------------------------------------------------------------
+
+enum SaleScenarioType {
+  PRUDENTE
+  REALISTICO
+  OTTIMISTICO
+}
+
+model SaleScenario {
+  id                  String           @id @default(cuid())
+  dealId              String
+  deal                Deal             @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  scenario            SaleScenarioType
+  estimatedSalePrice  Decimal          @db.Decimal(14, 2) // imponibile — IVA calcolata a parte se saleSubjectToVat
+  vatRatePct          Decimal          @db.Decimal(5, 2)  @default(0)
+  agencyFeesSellPct   Decimal          @db.Decimal(5, 2)  @default(3)
+  marketingStagingCosts Decimal        @db.Decimal(14, 2) @default(0)
+  closingCosts        Decimal          @db.Decimal(14, 2) @default(0)
+  updatedAt           DateTime         @updatedAt
+
+  @@unique([dealId, scenario])
+  @@map("sale_scenarios")
+}
+
+// ---------------------------------------------------------------------------
+// Note / avvertenze
+// ---------------------------------------------------------------------------
+
+enum NoteSeverity {
+  INFO
+  AVVISO
+  CRITICO
+}
+
+model Note {
+  id                String       @id @default(cuid())
+  dealId            String
+  deal              Deal         @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  relatedEntityType String?      // es. "CostLineItem", "Loan", "SaleScenario"
+  relatedEntityId   String?
+  text              String
+  severity          NoteSeverity @default(INFO)
+  isResolved        Boolean      @default(false)
+  createdById       String
+  createdBy         User         @relation(fields: [createdById], references: [id])
+  createdAt         DateTime     @default(now())
+  resolvedAt        DateTime?
+
+  @@index([dealId, isResolved])
+  @@map("notes")
+}
+
+// ---------------------------------------------------------------------------
+// Business plan
+// ---------------------------------------------------------------------------
+
+model CompanyProfile {
+  tenantId      String   @id
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyName   String?
+  logoUrl       String?
+  primaryColor  String?
+  secondaryColor String?
+  teamBio       String?
+  website       String?
+  updatedAt     DateTime @updatedAt
+
+  @@map("company_profiles")
+}
+
+model BusinessPlanTemplate {
+  id           String  @id @default(cuid())
+  tenantId     String?
+  tenant       Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  layoutConfig Json
+  isDefault    Boolean @default(false)
+
+  businessPlans BusinessPlan[]
+
+  @@index([tenantId])
+  @@map("business_plan_templates")
+}
+
+enum BusinessPlanStatus {
+  BOZZA
+  FINALE
+}
+
+model BusinessPlan {
+  id                  String              @id @default(cuid())
+  tenantId            String
+  tenant              Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  templateId          String
+  template            BusinessPlanTemplate @relation(fields: [templateId], references: [id])
+  title               String
+  executiveSummary    String?
+  investorProfileText String?
+  status              BusinessPlanStatus  @default(BOZZA)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  deals BusinessPlanDeal[]
+
+  @@index([tenantId])
+  @@map("business_plans")
+}
+
+model BusinessPlanDeal {
+  businessPlanId String
+  businessPlan   BusinessPlan @relation(fields: [businessPlanId], references: [id], onDelete: Cascade)
+  dealId         String
+  deal           Deal         @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@id([businessPlanId, dealId])
+  @@map("business_plan_deals")
+}
+
+// ---------------------------------------------------------------------------
+// Allegati
+// ---------------------------------------------------------------------------
+
+enum AttachmentType {
+  LOGO
+  QUOTE_FILE
+  EXPORT_PDF
+  EXPORT_DOCX
+  OTHER
+}
+
+model Attachment {
+  id             String         @id @default(cuid())
+  tenantId       String
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  dealId         String?
+  deal           Deal?          @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  type           AttachmentType
+  fileUrl        String
+  fileName       String
+  mimeType       String
+  uploadedById   String
+  uploadedBy     User           @relation(fields: [uploadedById], references: [id])
+  createdAt      DateTime       @default(now())
+
+  @@index([tenantId])
+  @@index([dealId])
+  @@map("attachments")
+}

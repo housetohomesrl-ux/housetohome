@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+/* Convenzione editing (ispirata al foglio Excel originale):
+   giallo = campo di input editabile
+   verde  = campo collegato/derivato da un'altra sezione (di sola lettura ma "vivo")
+   grigio/nero = valore calcolato dal motore di calcolo, mai modificabile a mano */
+.field-input {
+  @apply border border-amber-300 bg-amber-50 focus:border-brand-500 focus:ring-1 focus:ring-brand-500;
+}
+.field-linked {
+  @apply border border-emerald-300 bg-emerald-50 text-emerald-900;
+}
+.field-calculated {
+  @apply border border-slate-200 bg-slate-100 text-slate-600 cursor-not-allowed;
+}
