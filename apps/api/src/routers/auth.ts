@@ -10,8 +10,12 @@ import { protectedProcedure, publicProcedure, router } from "../trpc.js";
 function setSessionCookie(res: import("fastify").FastifyReply, token: string, expiresAt: Date) {
   res.setCookie(config.sessionCookieName, token, {
     httpOnly: true,
+    // In produzione frontend (Vercel) e backend (Railway/Render) vivono su domini diversi: un cookie
+    // cross-site richiede sameSite "none" + secure (richiede HTTPS, presente su entrambe le piattaforme).
+    // In sviluppo locale (http://localhost) "secure" andrebbe rifiutato dal browser insieme a "none",
+    // ma web e api sono sullo stesso "site" (localhost), quindi "lax" basta ed è più permissivo in http.
     secure: config.isProduction,
-    sameSite: "lax",
+    sameSite: config.isProduction ? "none" : "lax",
     path: "/",
     expires: expiresAt,
   });

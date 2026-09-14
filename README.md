@@ -7,6 +7,9 @@ Questa è la **Fase 1**: schema dati multi-tenant, CRUD completo di un deal, mot
 fiscalità italiana IVA/IRES/IRAP/plusvalenza, quota capitale/interessi sui finanziamenti, tracciamento pagamenti,
 fonti e impieghi) e dashboard risultati.
 
+> **Vuoi un link pubblico per usare l'app dal browser?** Vedi [DEPLOYMENT.md](./DEPLOYMENT.md) per la guida al
+> deploy su Railway (API+DB) e Vercel (frontend) — richiede un tuo account su questi servizi.
+
 ## Stack tecnico
 
 | Livello | Scelta |
