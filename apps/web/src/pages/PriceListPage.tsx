@@ -39,6 +39,7 @@ export default function PriceListPage() {
   const categories = trpc.costCategory.list.useQuery();
   const vendors = trpc.vendor.list.useQuery();
   const [form, setForm] = useState(EMPTY_FORM);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const create = trpc.priceListItem.create.useMutation({
     onSuccess: () => {
@@ -47,7 +48,35 @@ export default function PriceListPage() {
     },
   });
   const remove = trpc.priceListItem.delete.useMutation({ onSuccess: () => utils.priceListItem.list.invalidate() });
-  const update = trpc.priceListItem.update.useMutation({ onSuccess: () => utils.priceListItem.list.invalidate() });
+  const update = trpc.priceListItem.update.useMutation({
+    onSuccess: () => {
+      utils.priceListItem.list.invalidate();
+      setForm(EMPTY_FORM);
+      setEditingId(null);
+    },
+  });
+
+  function startEdit(item: NonNullable<typeof items.data>[number]) {
+    setEditingId(item.id);
+    setForm({
+      categoryId: item.categoryId,
+      name: item.name,
+      unit: item.unit ?? "",
+      unitPrice: item.unitPrice.toString(),
+      vendorId: item.vendorId ?? "",
+      specification: item.specification ?? "",
+      referenceQuantity: item.referenceQuantity ?? "",
+      notes: item.notes ?? "",
+      includeInPreventivo: item.includeInPreventivo,
+      includeInBusinessPlan: item.includeInBusinessPlan,
+    });
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+  }
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importRows, setImportRows] = useState<ImportRow[] | null>(null);
@@ -212,8 +241,14 @@ export default function PriceListPage() {
                       </div>
                     </td>
                     <td className="py-2 pr-2 text-xs text-slate-400">{formatDate(item.updatedAt)}</td>
-                    <td className="py-2 pr-2 text-right">
-                      <button className="text-xs text-red-500 hover:underline" onClick={() => remove.mutate({ id: item.id })}>
+                    <td className="py-2 pr-2 text-right whitespace-nowrap">
+                      <button className="text-xs text-brand-700 hover:underline" onClick={() => startEdit(item)}>
+                        Modifica
+                      </button>
+                      <button
+                        className="ml-2 text-xs text-red-500 hover:underline"
+                        onClick={() => remove.mutate({ id: item.id })}
+                      >
                         Elimina
                       </button>
                     </td>
@@ -223,6 +258,9 @@ export default function PriceListPage() {
             </table>
           </div>
 
+          <h3 className="mb-2 text-sm font-medium text-slate-700">
+            {editingId ? "Modifica voce" : "Aggiungi voce"}
+          </h3>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <Label>Categoria</Label>
@@ -286,12 +324,12 @@ export default function PriceListPage() {
               />
               Aggiungi a business plan
             </label>
-            <div className="sm:col-span-2 lg:col-span-4">
+            <div className="sm:col-span-2 lg:col-span-4 flex items-center gap-3">
               <Button
                 variant="secondary"
-                disabled={!form.categoryId || !form.name || create.isPending}
-                onClick={() =>
-                  create.mutate({
+                disabled={!form.categoryId || !form.name || create.isPending || update.isPending}
+                onClick={() => {
+                  const data = {
                     categoryId: form.categoryId,
                     name: form.name,
                     unit: form.unit || undefined,
@@ -301,11 +339,21 @@ export default function PriceListPage() {
                     referenceQuantity: form.referenceQuantity || undefined,
                     includeInPreventivo: form.includeInPreventivo,
                     includeInBusinessPlan: form.includeInBusinessPlan,
-                  })
-                }
+                  };
+                  if (editingId) {
+                    update.mutate({ id: editingId, ...data });
+                  } else {
+                    create.mutate(data);
+                  }
+                }}
               >
-                Aggiungi voce
+                {editingId ? "Salva modifiche" : "Aggiungi voce"}
               </Button>
+              {editingId && (
+                <button type="button" className="text-sm text-slate-500 hover:underline" onClick={cancelEdit}>
+                  Annulla modifica
+                </button>
+              )}
             </div>
           </div>
         </CardBody>
