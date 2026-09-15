@@ -44,7 +44,7 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
   const [newItem, setNewItem] = useState(EMPTY_NEW_ITEM);
   const selectedPriceListItem = priceList.data?.find((p) => p.id === newItem.priceListItemId) ?? null;
   const categoryPriceList = newItem.categoryId
-    ? (priceList.data ?? []).filter((p) => p.categoryId === newItem.categoryId)
+    ? (priceList.data ?? []).filter((p) => p.categoryId === newItem.categoryId && p.includeInPreventivo)
     : [];
 
   const saveContingency = trpc.dealSettings.updateRenovationSettings.useMutation({

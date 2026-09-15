@@ -126,6 +126,8 @@ export const priceListItemCreateSchema = z.object({
   specification: z.string().optional(),
   referenceQuantity: z.string().optional(),
   notes: z.string().optional(),
+  includeInPreventivo: z.boolean().optional(),
+  includeInBusinessPlan: z.boolean().optional(),
 });
 
 export const priceListBulkImportSchema = z.object({
@@ -141,6 +143,8 @@ export const priceListBulkImportSchema = z.object({
         specification: z.string().optional(),
         referenceQuantity: z.string().optional(),
         notes: z.string().optional(),
+        includeInPreventivo: z.boolean().optional(),
+        includeInBusinessPlan: z.boolean().optional(),
       }),
     )
     .min(1)

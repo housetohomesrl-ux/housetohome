@@ -288,6 +288,8 @@ model PriceListItem {
   specification     String? // descrizione estesa / capitolato (marca, modello, caratteristiche tecniche)
   referenceQuantity String? // a cosa si applica il prezzo, es. "a corpo per bagno fino a 5mq", "al pezzo"
   notes             String?
+  includeInPreventivo   Boolean  @default(true) // richiamabile nel form "Aggiungi voce" del preventivo di un deal
+  includeInBusinessPlan Boolean  @default(false) // taggata per l'inclusione nel business plan (Fase 3)
   updatedAt         DateTime     @updatedAt
 
   costLineItems CostLineItem[]

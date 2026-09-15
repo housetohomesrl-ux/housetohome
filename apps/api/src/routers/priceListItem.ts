@@ -99,6 +99,8 @@ export const priceListItemRouter = router({
             specification: row.specification,
             referenceQuantity: row.referenceQuantity,
             notes: row.notes,
+            includeInPreventivo: row.includeInPreventivo ?? true,
+            includeInBusinessPlan: row.includeInBusinessPlan ?? false,
           },
         });
         existingNames.add(row.name);

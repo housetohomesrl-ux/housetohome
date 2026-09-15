@@ -29,6 +29,8 @@ const EMPTY_FORM = {
   specification: "",
   referenceQuantity: "",
   notes: "",
+  includeInPreventivo: true,
+  includeInBusinessPlan: false,
 };
 
 export default function PriceListPage() {
@@ -45,6 +47,7 @@ export default function PriceListPage() {
     },
   });
   const remove = trpc.priceListItem.delete.useMutation({ onSuccess: () => utils.priceListItem.list.invalidate() });
+  const update = trpc.priceListItem.update.useMutation({ onSuccess: () => utils.priceListItem.list.invalidate() });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importRows, setImportRows] = useState<ImportRow[] | null>(null);
@@ -171,6 +174,7 @@ export default function PriceListPage() {
                   <th className="py-2 pr-2">Fornitore</th>
                   <th className="py-2 pr-2">Unità / rif.</th>
                   <th className="py-2 pr-2 text-right">Prezzo</th>
+                  <th className="py-2 pr-2">Usa per</th>
                   <th className="py-2 pr-2">Aggiornato</th>
                   <th className="py-2 pr-2" />
                 </tr>
@@ -189,6 +193,24 @@ export default function PriceListPage() {
                       {item.referenceQuantity && <div className="mt-0.5 text-xs text-slate-400">{item.referenceQuantity}</div>}
                     </td>
                     <td className="py-2 pr-2 text-right font-medium">{formatCurrency(item.unitPrice, true)}</td>
+                    <td className="py-2 pr-2">
+                      <div className="flex flex-wrap gap-1">
+                        <button
+                          className="cursor-pointer"
+                          title="Clic per attivare/disattivare"
+                          onClick={() => update.mutate({ id: item.id, includeInPreventivo: !item.includeInPreventivo })}
+                        >
+                          <Badge tone={item.includeInPreventivo ? "success" : "neutral"}>Preventivo</Badge>
+                        </button>
+                        <button
+                          className="cursor-pointer"
+                          title="Clic per attivare/disattivare"
+                          onClick={() => update.mutate({ id: item.id, includeInBusinessPlan: !item.includeInBusinessPlan })}
+                        >
+                          <Badge tone={item.includeInBusinessPlan ? "info" : "neutral"}>Business plan</Badge>
+                        </button>
+                      </div>
+                    </td>
                     <td className="py-2 pr-2 text-xs text-slate-400">{formatDate(item.updatedAt)}</td>
                     <td className="py-2 pr-2 text-right">
                       <button className="text-xs text-red-500 hover:underline" onClick={() => remove.mutate({ id: item.id })}>
@@ -248,6 +270,22 @@ export default function PriceListPage() {
               <Label>Descrizione estesa / capitolato</Label>
               <Textarea value={form.specification} onChange={(e) => setForm({ ...form, specification: e.target.value })} />
             </div>
+            <label className="mt-6 flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={form.includeInPreventivo}
+                onChange={(e) => setForm({ ...form, includeInPreventivo: e.target.checked })}
+              />
+              Aggiungi a preventivo
+            </label>
+            <label className="mt-6 flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={form.includeInBusinessPlan}
+                onChange={(e) => setForm({ ...form, includeInBusinessPlan: e.target.checked })}
+              />
+              Aggiungi a business plan
+            </label>
             <div className="sm:col-span-2 lg:col-span-4">
               <Button
                 variant="secondary"
@@ -261,6 +299,8 @@ export default function PriceListPage() {
                     vendorId: form.vendorId || null,
                     specification: form.specification || undefined,
                     referenceQuantity: form.referenceQuantity || undefined,
+                    includeInPreventivo: form.includeInPreventivo,
+                    includeInBusinessPlan: form.includeInBusinessPlan,
                   })
                 }
               >
