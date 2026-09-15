@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@flipplan/db";
-import { priceListItemCreateSchema } from "@flipplan/shared";
+import { priceListBulkImportSchema, priceListItemCreateSchema } from "@flipplan/shared";
 import { protectedProcedure, router } from "../trpc.js";
 import { serializeDecimals } from "../lib/serialize.js";
 
@@ -38,5 +38,59 @@ export const priceListItemRouter = router({
     if (item.tenantId !== ctx.user.tenantId) throw new TRPCError({ code: "NOT_FOUND" });
     await prisma.priceListItem.delete({ where: { id: input.id } });
     return { success: true };
+  }),
+
+  // Import in blocco da CSV (vedi apps/web PriceListPage): per ogni riga trova o
+  // crea la categoria (tenant-scoped, riusa quella di sistema se il nome combacia),
+  // poi crea la voce di listino. Salta le voci con un nome già presente per il
+  // tenant, per poter re-importare lo stesso file senza duplicare nulla.
+  bulkImport: protectedProcedure.input(priceListBulkImportSchema).mutation(async ({ ctx, input }) => {
+    const tenantId = ctx.user.tenantId;
+
+    const existingCategories = await prisma.costCategory.findMany({
+      where: { OR: [{ tenantId: null }, { tenantId }] },
+    });
+    const categoryByName = new Map(existingCategories.map((c) => [c.name, c]));
+
+    const existingItems = await prisma.priceListItem.findMany({ where: { tenantId }, select: { name: true } });
+    const existingNames = new Set(existingItems.map((i) => i.name));
+
+    let created = 0;
+    let skipped = 0;
+    let categoriesCreated = 0;
+    const failed: Array<{ name: string; error: string }> = [];
+
+    for (const row of input.items) {
+      if (existingNames.has(row.name)) {
+        skipped++;
+        continue;
+      }
+      try {
+        let category = categoryByName.get(row.categoryName);
+        if (!category) {
+          category = await prisma.costCategory.create({
+            data: { tenantId, group: row.categoryGroup, name: row.categoryName, order: 50 },
+          });
+          categoryByName.set(row.categoryName, category);
+          categoriesCreated++;
+        }
+        await prisma.priceListItem.create({
+          data: {
+            tenantId,
+            categoryId: category.id,
+            name: row.name,
+            unit: row.unit,
+            unitPrice: row.unitPrice,
+            notes: row.notes,
+          },
+        });
+        existingNames.add(row.name);
+        created++;
+      } catch (err) {
+        failed.push({ name: row.name, error: err instanceof Error ? err.message : "errore sconosciuto" });
+      }
+    }
+
+    return { created, skipped, categoriesCreated, failed };
   }),
 });

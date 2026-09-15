@@ -125,6 +125,22 @@ export const priceListItemCreateSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const priceListBulkImportSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        categoryGroup: costCategoryGroupSchema,
+        categoryName: z.string().min(1),
+        name: z.string().min(1),
+        unit: z.string().optional(),
+        unitPrice: z.number().nonnegative(),
+        notes: z.string().optional(),
+      }),
+    )
+    .min(1)
+    .max(1000),
+});
+
 export const costCategoryCreateSchema = z.object({
   group: costCategoryGroupSchema,
   name: z.string().min(1),
