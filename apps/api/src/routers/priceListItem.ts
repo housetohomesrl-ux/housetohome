@@ -9,7 +9,7 @@ export const priceListItemRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     const items = await prisma.priceListItem.findMany({
       where: { tenantId: ctx.user.tenantId },
-      include: { category: true },
+      include: { category: true, vendor: true },
       orderBy: { name: "asc" },
     });
     return serializeDecimals(items);
@@ -18,7 +18,7 @@ export const priceListItemRouter = router({
   create: protectedProcedure.input(priceListItemCreateSchema).mutation(async ({ ctx, input }) => {
     const created = await prisma.priceListItem.create({
       data: { ...input, tenantId: ctx.user.tenantId },
-      include: { category: true },
+      include: { category: true, vendor: true },
     });
     return serializeDecimals(created);
   }),
@@ -29,7 +29,7 @@ export const priceListItemRouter = router({
       const { id, ...data } = input;
       const item = await prisma.priceListItem.findUniqueOrThrow({ where: { id } });
       if (item.tenantId !== ctx.user.tenantId) throw new TRPCError({ code: "NOT_FOUND" });
-      const updated = await prisma.priceListItem.update({ where: { id }, data, include: { category: true } });
+      const updated = await prisma.priceListItem.update({ where: { id }, data, include: { category: true, vendor: true } });
       return serializeDecimals(updated);
     }),
 
@@ -52,12 +52,16 @@ export const priceListItemRouter = router({
     });
     const categoryByName = new Map(existingCategories.map((c) => [c.name, c]));
 
+    const existingVendors = await prisma.vendor.findMany({ where: { tenantId } });
+    const vendorByName = new Map(existingVendors.map((v) => [v.name, v]));
+
     const existingItems = await prisma.priceListItem.findMany({ where: { tenantId }, select: { name: true } });
     const existingNames = new Set(existingItems.map((i) => i.name));
 
     let created = 0;
     let skipped = 0;
     let categoriesCreated = 0;
+    let vendorsCreated = 0;
     const failed: Array<{ name: string; error: string }> = [];
 
     for (const row of input.items) {
@@ -74,6 +78,16 @@ export const priceListItemRouter = router({
           categoryByName.set(row.categoryName, category);
           categoriesCreated++;
         }
+        let vendorId: string | undefined;
+        if (row.vendorName) {
+          let vendor = vendorByName.get(row.vendorName);
+          if (!vendor) {
+            vendor = await prisma.vendor.create({ data: { tenantId, name: row.vendorName } });
+            vendorByName.set(row.vendorName, vendor);
+            vendorsCreated++;
+          }
+          vendorId = vendor.id;
+        }
         await prisma.priceListItem.create({
           data: {
             tenantId,
@@ -81,6 +95,9 @@ export const priceListItemRouter = router({
             name: row.name,
             unit: row.unit,
             unitPrice: row.unitPrice,
+            vendorId,
+            specification: row.specification,
+            referenceQuantity: row.referenceQuantity,
             notes: row.notes,
           },
         });
@@ -91,6 +108,6 @@ export const priceListItemRouter = router({
       }
     }
 
-    return { created, skipped, categoriesCreated, failed };
+    return { created, skipped, categoriesCreated, vendorsCreated, failed };
   }),
 });

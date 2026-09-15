@@ -25,18 +25,22 @@ function rowTotals(item: CostLineItemDetail) {
   return { vat, total, due };
 }
 
+const EMPTY_NEW_ITEM = {
+  categoryId: "",
+  description: "",
+  taxableAmount: "0",
+  vatRatePct: "22",
+  isMemo: false,
+  isUnbilled: false,
+  priceListItemId: "" as string | null,
+};
+
 export default function RenovationTab({ deal }: { deal: DealDetail }) {
   const utils = trpc.useUtils();
   const categories = trpc.costCategory.list.useQuery();
+  const priceList = trpc.priceListItem.list.useQuery();
   const [contingencyPct, setContingencyPct] = useState(deal.renovationSettings?.contingencyPct.toString() ?? "12");
-  const [newItem, setNewItem] = useState({
-    categoryId: "",
-    description: "",
-    taxableAmount: "0",
-    vatRatePct: "22",
-    isMemo: false,
-    isUnbilled: false,
-  });
+  const [newItem, setNewItem] = useState(EMPTY_NEW_ITEM);
 
   const saveContingency = trpc.dealSettings.updateRenovationSettings.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
@@ -44,7 +48,7 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
   const createItem = trpc.costLineItem.create.useMutation({
     onSuccess: () => {
       utils.deal.get.invalidate({ id: deal.id });
-      setNewItem({ categoryId: "", description: "", taxableAmount: "0", vatRatePct: "22", isMemo: false, isUnbilled: false });
+      setNewItem(EMPTY_NEW_ITEM);
     },
   });
   const updateItem = trpc.costLineItem.update.useMutation({ onSuccess: () => utils.deal.get.invalidate({ id: deal.id }) });
@@ -159,6 +163,47 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
               <details className="rounded-md border border-dashed border-slate-300 p-3">
                 <summary className="cursor-pointer text-sm font-medium text-brand-700">+ Aggiungi voce a "{label}"</summary>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {(() => {
+                    const groupPriceList = (priceList.data ?? []).filter((p) => p.category.group === group);
+                    if (groupPriceList.length === 0) return null;
+                    return (
+                      <div className="sm:col-span-2 lg:col-span-3">
+                        <Label>Scegli da libreria prezzi (opzionale)</Label>
+                        <Select
+                          value={newItem.priceListItemId ?? ""}
+                          onChange={(e) => {
+                            const p = groupPriceList.find((x) => x.id === e.target.value);
+                            if (!p) {
+                              setNewItem({ ...newItem, priceListItemId: null });
+                              return;
+                            }
+                            setNewItem({
+                              ...newItem,
+                              priceListItemId: p.id,
+                              categoryId: p.categoryId,
+                              description: p.specification ? `${p.name} — ${p.specification}` : p.name,
+                              taxableAmount: p.unitPrice.toString(),
+                            });
+                          }}
+                        >
+                          <option value="">Nessuna — voce libera</option>
+                          {groupPriceList.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name} · {formatCurrency(p.unitPrice, true)}
+                              {p.unit ? ` / ${p.unit}` : ""}
+                              {p.vendor ? ` · ${p.vendor.name}` : ""}
+                            </option>
+                          ))}
+                        </Select>
+                        {newItem.priceListItemId &&
+                          groupPriceList.find((p) => p.id === newItem.priceListItemId)?.referenceQuantity && (
+                            <p className="mt-1 text-xs text-slate-400">
+                              {groupPriceList.find((p) => p.id === newItem.priceListItemId)?.referenceQuantity}
+                            </p>
+                          )}
+                      </div>
+                    );
+                  })()}
                   <div>
                     <Label>Categoria</Label>
                     <Select value={newItem.categoryId} onChange={(e) => setNewItem({ ...newItem, categoryId: e.target.value })}>
@@ -211,6 +256,7 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
                           vatRatePct: Number(newItem.vatRatePct),
                           isMemo: newItem.isMemo,
                           isUnbilled: newItem.isUnbilled,
+                          priceListItemId: newItem.priceListItemId || undefined,
                         })
                       }
                     >

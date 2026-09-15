@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
 import { trpc } from "../lib/trpc";
-import { formatCurrency } from "../lib/format";
+import { formatCurrency, formatDate } from "../lib/format";
 import { parseCsvWithHeader } from "../lib/csv";
 import { costCategoryGroupSchema } from "@flipplan/shared";
 import { Card, CardBody, CardHeader } from "../components/ui/Card";
-import { Input, Label, Select } from "../components/ui/Field";
+import { Input, Label, Select, Textarea } from "../components/ui/Field";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 
@@ -14,19 +14,34 @@ interface ImportRow {
   name: string;
   unit?: string;
   unitPrice: number;
+  vendorName?: string;
+  specification?: string;
+  referenceQuantity?: string;
   notes?: string;
 }
+
+const EMPTY_FORM = {
+  categoryId: "",
+  name: "",
+  unit: "",
+  unitPrice: "0",
+  vendorId: "",
+  specification: "",
+  referenceQuantity: "",
+  notes: "",
+};
 
 export default function PriceListPage() {
   const utils = trpc.useUtils();
   const items = trpc.priceListItem.list.useQuery();
   const categories = trpc.costCategory.list.useQuery();
-  const [form, setForm] = useState({ categoryId: "", name: "", unit: "", unitPrice: "0" });
+  const vendors = trpc.vendor.list.useQuery();
+  const [form, setForm] = useState(EMPTY_FORM);
 
   const create = trpc.priceListItem.create.useMutation({
     onSuccess: () => {
       utils.priceListItem.list.invalidate();
-      setForm({ categoryId: "", name: "", unit: "", unitPrice: "0" });
+      setForm(EMPTY_FORM);
     },
   });
   const remove = trpc.priceListItem.delete.useMutation({ onSuccess: () => utils.priceListItem.list.invalidate() });
@@ -34,12 +49,19 @@ export default function PriceListPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importRows, setImportRows] = useState<ImportRow[] | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
-  const [importResult, setImportResult] = useState<{ created: number; skipped: number; categoriesCreated: number; failed: { name: string; error: string }[] } | null>(null);
+  const [importResult, setImportResult] = useState<{
+    created: number;
+    skipped: number;
+    categoriesCreated: number;
+    vendorsCreated: number;
+    failed: { name: string; error: string }[];
+  } | null>(null);
 
   const bulkImport = trpc.priceListItem.bulkImport.useMutation({
     onSuccess: (result) => {
       utils.priceListItem.list.invalidate();
       utils.costCategory.list.invalidate();
+      utils.vendor.list.invalidate();
       setImportResult(result);
       setImportRows(null);
     },
@@ -68,6 +90,9 @@ export default function PriceListPage() {
             name: r.name,
             unit: r.unit || undefined,
             unitPrice,
+            vendorName: r.vendor || undefined,
+            specification: r.specification || undefined,
+            referenceQuantity: r.referenceQuantity || undefined,
             notes: r.notes || undefined,
           };
         });
@@ -85,12 +110,13 @@ export default function PriceListPage() {
       <h1 className="text-xl font-semibold text-slate-900">Libreria prezzi</h1>
       <p className="mt-1 text-sm text-slate-500">
         Il tuo listino personale per categoria di lavoro: si arricchisce nel tempo e velocizza i preventivi futuri.
+        Ogni voce può essere richiamata direttamente quando aggiungi un costo a un deal.
       </p>
 
       <Card className="mt-4">
         <CardHeader
           title="Importa da CSV"
-          subtitle="Colonne richieste: group, category, name, unit, unitPrice, notes (le ultime due opzionali)."
+          subtitle="Colonne: group, category, name, unit, unitPrice, vendor, specification, referenceQuantity, notes (tutte opzionali tranne le prime quattro)."
         />
         <CardBody>
           <input
@@ -104,11 +130,7 @@ export default function PriceListPage() {
             <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
               Scegli file CSV
             </Button>
-            {importRows && (
-              <span className="text-sm text-slate-600">
-                {importRows.length} righe pronte da importare
-              </span>
-            )}
+            {importRows && <span className="text-sm text-slate-600">{importRows.length} righe pronte da importare</span>}
             {importRows && (
               <Button disabled={bulkImport.isPending} onClick={() => bulkImport.mutate({ items: importRows })}>
                 {bulkImport.isPending ? "Importazione..." : `Conferma importazione (${importRows.length})`}
@@ -120,6 +142,7 @@ export default function PriceListPage() {
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Badge tone="success">{importResult.created} create</Badge>
               {importResult.categoriesCreated > 0 && <Badge tone="info">{importResult.categoriesCreated} nuove categorie</Badge>}
+              {importResult.vendorsCreated > 0 && <Badge tone="info">{importResult.vendorsCreated} nuovi fornitori</Badge>}
               {importResult.skipped > 0 && <Badge tone="neutral">{importResult.skipped} già presenti (saltate)</Badge>}
               {importResult.failed.length > 0 && <Badge tone="danger">{importResult.failed.length} fallite</Badge>}
             </div>
@@ -139,34 +162,46 @@ export default function PriceListPage() {
       <Card className="mt-4">
         <CardHeader title="Voci di listino" />
         <CardBody>
-          <table className="mb-4 w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
-                <th className="py-2 pr-2">Voce</th>
-                <th className="py-2 pr-2">Categoria</th>
-                <th className="py-2 pr-2">Unità</th>
-                <th className="py-2 pr-2 text-right">Prezzo unitario</th>
-                <th className="py-2 pr-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {items.data?.map((item) => (
-                <tr key={item.id} className="border-b border-slate-100">
-                  <td className="py-2 pr-2">{item.name}</td>
-                  <td className="py-2 pr-2 text-slate-500">{item.category.name}</td>
-                  <td className="py-2 pr-2 text-slate-500">{item.unit}</td>
-                  <td className="py-2 pr-2 text-right">{formatCurrency(item.unitPrice, true)}</td>
-                  <td className="py-2 pr-2 text-right">
-                    <button className="text-xs text-red-500 hover:underline" onClick={() => remove.mutate({ id: item.id })}>
-                      Elimina
-                    </button>
-                  </td>
+          <div className="mb-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
+                  <th className="py-2 pr-2">Voce</th>
+                  <th className="py-2 pr-2">Categoria</th>
+                  <th className="py-2 pr-2">Fornitore</th>
+                  <th className="py-2 pr-2">Unità / rif.</th>
+                  <th className="py-2 pr-2 text-right">Prezzo</th>
+                  <th className="py-2 pr-2">Aggiornato</th>
+                  <th className="py-2 pr-2" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {items.data?.map((item) => (
+                  <tr key={item.id} className="border-b border-slate-100 align-top">
+                    <td className="py-2 pr-2">
+                      <div>{item.name}</div>
+                      {item.specification && <div className="mt-0.5 text-xs text-slate-400">{item.specification}</div>}
+                    </td>
+                    <td className="py-2 pr-2 text-slate-500">{item.category.name}</td>
+                    <td className="py-2 pr-2 text-slate-500">{item.vendor?.name ?? "—"}</td>
+                    <td className="py-2 pr-2 text-slate-500">
+                      <div>{item.unit}</div>
+                      {item.referenceQuantity && <div className="mt-0.5 text-xs text-slate-400">{item.referenceQuantity}</div>}
+                    </td>
+                    <td className="py-2 pr-2 text-right font-medium">{formatCurrency(item.unitPrice, true)}</td>
+                    <td className="py-2 pr-2 text-xs text-slate-400">{formatDate(item.updatedAt)}</td>
+                    <td className="py-2 pr-2 text-right">
+                      <button className="text-xs text-red-500 hover:underline" onClick={() => remove.mutate({ id: item.id })}>
+                        Elimina
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <Label>Categoria</Label>
               <Select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
@@ -183,18 +218,51 @@ export default function PriceListPage() {
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
-              <Label>Unità (mq, cad, ml...)</Label>
-              <Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+              <Label>Fornitore (opzionale)</Label>
+              <Select value={form.vendorId} onChange={(e) => setForm({ ...form, vendorId: e.target.value })}>
+                <option value="">Nessuno</option>
+                {vendors.data?.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </Select>
             </div>
             <div>
               <Label>Prezzo unitario (€)</Label>
               <Input type="number" value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} />
             </div>
-            <div className="sm:col-span-4">
+            <div>
+              <Label>Unità (mq, cad, ml...)</Label>
+              <Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+            </div>
+            <div>
+              <Label>Quantità di riferimento</Label>
+              <Input
+                placeholder='es. "a corpo fino a 5mq"'
+                value={form.referenceQuantity}
+                onChange={(e) => setForm({ ...form, referenceQuantity: e.target.value })}
+              />
+            </div>
+            <div className="sm:col-span-2 lg:col-span-2">
+              <Label>Descrizione estesa / capitolato</Label>
+              <Textarea value={form.specification} onChange={(e) => setForm({ ...form, specification: e.target.value })} />
+            </div>
+            <div className="sm:col-span-2 lg:col-span-4">
               <Button
                 variant="secondary"
                 disabled={!form.categoryId || !form.name || create.isPending}
-                onClick={() => create.mutate({ ...form, unitPrice: Number(form.unitPrice) })}
+                onClick={() =>
+                  create.mutate({
+                    categoryId: form.categoryId,
+                    name: form.name,
+                    unit: form.unit || undefined,
+                    unitPrice: Number(form.unitPrice),
+                    vendorId: form.vendorId || null,
+                    specification: form.specification || undefined,
+                    referenceQuantity: form.referenceQuantity || undefined,
+                  })
+                }
               >
                 Aggiungi voce
               </Button>

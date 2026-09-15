@@ -1,4 +1,4 @@
-import { type InputHTMLAttributes, type SelectHTMLAttributes, forwardRef } from "react";
+import { type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes, forwardRef } from "react";
 import clsx from "clsx";
 
 // Variante visiva che replica la convenzione dell'Excel originale:
@@ -49,6 +49,20 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ),
 );
 Select.displayName = "Select";
+
+type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & { variant?: FieldVariant };
+
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, variant = "input", rows = 2, ...props }, ref) => (
+    <textarea
+      ref={ref}
+      rows={rows}
+      className={clsx("w-full resize-y rounded-md px-3 py-2 text-sm outline-none", variantClass[variant], className)}
+      {...props}
+    />
+  ),
+);
+Textarea.displayName = "Textarea";
 
 /** Campo di sola visualizzazione per un valore calcolato (con etichetta ed eventuale unità). */
 export function CalculatedValue({ label, value, hint }: { label: string; value: string; hint?: string }) {

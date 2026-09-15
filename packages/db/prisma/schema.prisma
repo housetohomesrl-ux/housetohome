@@ -265,8 +265,9 @@ model Vendor {
   notes     String?
   createdAt DateTime @default(now())
 
-  costLineItems CostLineItem[]
-  quotes        Quote[]
+  costLineItems  CostLineItem[]
+  quotes         Quote[]
+  priceListItems PriceListItem[]
 
   @@index([tenantId])
   @@map("vendors")
@@ -274,20 +275,25 @@ model Vendor {
 
 // Libreria prezzi riutilizzabile — l'asset che cresce di valore nel tempo
 model PriceListItem {
-  id         String       @id @default(cuid())
-  tenantId   String
-  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  categoryId String
-  category   CostCategory @relation(fields: [categoryId], references: [id])
-  name       String
-  unit       String? // mq, cad, ml, a corpo...
-  unitPrice  Decimal      @db.Decimal(14, 2)
-  notes      String?
-  updatedAt  DateTime     @updatedAt
+  id                String       @id @default(cuid())
+  tenantId          String
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  categoryId        String
+  category          CostCategory @relation(fields: [categoryId], references: [id])
+  name              String
+  unit              String? // mq, cad, ml, a corpo...
+  unitPrice         Decimal      @db.Decimal(14, 2)
+  vendorId          String?
+  vendor            Vendor?      @relation(fields: [vendorId], references: [id])
+  specification     String? // descrizione estesa / capitolato (marca, modello, caratteristiche tecniche)
+  referenceQuantity String? // a cosa si applica il prezzo, es. "a corpo per bagno fino a 5mq", "al pezzo"
+  notes             String?
+  updatedAt         DateTime     @updatedAt
 
   costLineItems CostLineItem[]
 
   @@index([tenantId])
+  @@index([vendorId])
   @@map("price_list_items")
 }
 

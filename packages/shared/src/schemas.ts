@@ -122,6 +122,9 @@ export const priceListItemCreateSchema = z.object({
   name: z.string().min(1),
   unit: z.string().optional(),
   unitPrice: z.number().nonnegative(),
+  vendorId: z.string().nullable().optional(),
+  specification: z.string().optional(),
+  referenceQuantity: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -134,6 +137,9 @@ export const priceListBulkImportSchema = z.object({
         name: z.string().min(1),
         unit: z.string().optional(),
         unitPrice: z.number().nonnegative(),
+        vendorName: z.string().optional(),
+        specification: z.string().optional(),
+        referenceQuantity: z.string().optional(),
         notes: z.string().optional(),
       }),
     )
