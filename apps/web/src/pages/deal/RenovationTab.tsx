@@ -28,6 +28,7 @@ function rowTotals(item: CostLineItemDetail) {
 const EMPTY_NEW_ITEM = {
   categoryId: "",
   description: "",
+  quantity: "1",
   taxableAmount: "0",
   vatRatePct: "22",
   isMemo: false,
@@ -41,6 +42,10 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
   const priceList = trpc.priceListItem.list.useQuery();
   const [contingencyPct, setContingencyPct] = useState(deal.renovationSettings?.contingencyPct.toString() ?? "12");
   const [newItem, setNewItem] = useState(EMPTY_NEW_ITEM);
+  const selectedPriceListItem = priceList.data?.find((p) => p.id === newItem.priceListItemId) ?? null;
+  const categoryPriceList = newItem.categoryId
+    ? (priceList.data ?? []).filter((p) => p.categoryId === newItem.categoryId)
+    : [];
 
   const saveContingency = trpc.dealSettings.updateRenovationSettings.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
@@ -163,50 +168,21 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
               <details className="rounded-md border border-dashed border-slate-300 p-3">
                 <summary className="cursor-pointer text-sm font-medium text-brand-700">+ Aggiungi voce a "{label}"</summary>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {(() => {
-                    const groupPriceList = (priceList.data ?? []).filter((p) => p.category.group === group);
-                    if (groupPriceList.length === 0) return null;
-                    return (
-                      <div className="sm:col-span-2 lg:col-span-3">
-                        <Label>Scegli da libreria prezzi (opzionale)</Label>
-                        <Select
-                          value={newItem.priceListItemId ?? ""}
-                          onChange={(e) => {
-                            const p = groupPriceList.find((x) => x.id === e.target.value);
-                            if (!p) {
-                              setNewItem({ ...newItem, priceListItemId: null });
-                              return;
-                            }
-                            setNewItem({
-                              ...newItem,
-                              priceListItemId: p.id,
-                              categoryId: p.categoryId,
-                              description: p.specification ? `${p.name} — ${p.specification}` : p.name,
-                              taxableAmount: p.unitPrice.toString(),
-                            });
-                          }}
-                        >
-                          <option value="">Nessuna — voce libera</option>
-                          {groupPriceList.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name} · {formatCurrency(p.unitPrice, true)}
-                              {p.unit ? ` / ${p.unit}` : ""}
-                              {p.vendor ? ` · ${p.vendor.name}` : ""}
-                            </option>
-                          ))}
-                        </Select>
-                        {newItem.priceListItemId &&
-                          groupPriceList.find((p) => p.id === newItem.priceListItemId)?.referenceQuantity && (
-                            <p className="mt-1 text-xs text-slate-400">
-                              {groupPriceList.find((p) => p.id === newItem.priceListItemId)?.referenceQuantity}
-                            </p>
-                          )}
-                      </div>
-                    );
-                  })()}
                   <div>
                     <Label>Categoria</Label>
-                    <Select value={newItem.categoryId} onChange={(e) => setNewItem({ ...newItem, categoryId: e.target.value })}>
+                    <Select
+                      value={newItem.categoryId}
+                      onChange={(e) =>
+                        setNewItem({
+                          ...newItem,
+                          categoryId: e.target.value,
+                          priceListItemId: null,
+                          description: "",
+                          quantity: "1",
+                          taxableAmount: "0",
+                        })
+                      }
+                    >
                       <option value="">Seleziona...</option>
                       {groupCategories.map((c) => (
                         <option key={c.id} value={c.id}>
@@ -216,6 +192,63 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
                     </Select>
                   </div>
                   <div>
+                    <Label>Voce</Label>
+                    {newItem.categoryId && categoryPriceList.length > 0 ? (
+                      <Select
+                        value={newItem.priceListItemId ?? ""}
+                        onChange={(e) => {
+                          const p = categoryPriceList.find((x) => x.id === e.target.value);
+                          if (!p) {
+                            setNewItem({ ...newItem, priceListItemId: null, description: "", taxableAmount: "0" });
+                            return;
+                          }
+                          const qty = Number(newItem.quantity) || 1;
+                          setNewItem({
+                            ...newItem,
+                            priceListItemId: p.id,
+                            quantity: newItem.quantity || "1",
+                            description: p.specification ? `${p.name} — ${p.specification}` : p.name,
+                            taxableAmount: (qty * p.unitPrice).toFixed(2),
+                          });
+                        }}
+                      >
+                        <option value="">Voce libera — scrivi a mano</option>
+                        {categoryPriceList.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} · {formatCurrency(p.unitPrice, true)}
+                            {p.unit ? ` / ${p.unit}` : ""}
+                            {p.vendor ? ` · ${p.vendor.name}` : ""}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <p className="py-2 text-xs text-slate-400">
+                        {newItem.categoryId ? "Nessuna voce in libreria per questa categoria." : "Seleziona prima una categoria."}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Label>{selectedPriceListItem ? `Quantità (${selectedPriceListItem.unit || "unità"})` : "Quantità"}</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      disabled={!selectedPriceListItem}
+                      value={newItem.quantity}
+                      onChange={(e) => {
+                        const qty = e.target.value;
+                        setNewItem({
+                          ...newItem,
+                          quantity: qty,
+                          taxableAmount: selectedPriceListItem ? (Number(qty || 0) * selectedPriceListItem.unitPrice).toFixed(2) : newItem.taxableAmount,
+                        });
+                      }}
+                    />
+                    {selectedPriceListItem?.referenceQuantity && (
+                      <p className="mt-1 text-xs text-slate-400">{selectedPriceListItem.referenceQuantity}</p>
+                    )}
+                  </div>
+                  <div className="sm:col-span-2 lg:col-span-3">
                     <Label>Descrizione</Label>
                     <Input value={newItem.description} onChange={(e) => setNewItem({ ...newItem, description: e.target.value })} />
                   </div>
@@ -223,6 +256,7 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
                     <Label>Imponibile (€)</Label>
                     <Input
                       type="number"
+                      variant={selectedPriceListItem ? "calculated" : "input"}
                       value={newItem.taxableAmount}
                       onChange={(e) => setNewItem({ ...newItem, taxableAmount: e.target.value })}
                     />
