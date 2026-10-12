@@ -9,6 +9,7 @@ import HoldingTab from "./deal/HoldingTab";
 import FinancingTab from "./deal/FinancingTab";
 import SaleTab from "./deal/SaleTab";
 import ResultsTab from "./deal/ResultsTab";
+import BusinessPlanTab from "./deal/BusinessPlanTab";
 
 const TABS = [
   { id: "acquisizione", label: "Acquisizione" },
@@ -17,6 +18,7 @@ const TABS = [
   { id: "finanziamento", label: "Finanziamento" },
   { id: "vendita", label: "Vendita" },
   { id: "risultati", label: "Risultati" },
+  { id: "business-plan", label: "Business plan" },
 ];
 
 export default function DealDetailPage() {
@@ -38,7 +40,7 @@ export default function DealDetailPage() {
       </div>
       {deal.data.address && <p className="mt-1 text-sm text-slate-500">{deal.data.address}</p>}
 
-      <div className="mt-4">
+      <div className="mt-4 print:hidden">
         <Tabs items={TABS} activeId={activeTab} onChange={setActiveTab} />
       </div>
 
@@ -49,6 +51,7 @@ export default function DealDetailPage() {
         {activeTab === "finanziamento" && <FinancingTab deal={deal.data} />}
         {activeTab === "vendita" && <SaleTab deal={deal.data} />}
         {activeTab === "risultati" && <ResultsTab deal={deal.data} />}
+        {activeTab === "business-plan" && <BusinessPlanTab deal={deal.data} />}
       </div>
     </div>
   );
