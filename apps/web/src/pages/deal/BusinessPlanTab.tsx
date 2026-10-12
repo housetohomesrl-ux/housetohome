@@ -7,6 +7,7 @@ import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Input, Label, Select } from "../../components/ui/Field";
+import { exportBusinessPlanPdf, exportBusinessPlanXlsx } from "../../lib/exportBusinessPlan";
 
 // Business plan dell'operazione per investitori: stessi numeri della tab
 // Risultati (motore di calcolo condiviso), impaginati secondo la struttura
@@ -26,6 +27,8 @@ const REGIME_LABEL: Record<string, string> = {
   PERSONA_FISICA: "imposta sostitutiva sulla plusvalenza",
   ALTRO: "non calcolate",
 };
+
+const RISK_LABEL = { danger: "Critico", warning: "Avviso", neutral: "Nota" } as const;
 
 const pct = (v: number | null) => (v === null ? "—" : formatPercent(v));
 
@@ -60,6 +63,8 @@ function Section({ n, title, subtitle, children }: { n: number; title: string; s
 export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
   const [scenario, setScenario] = useState<"PRUDENTE" | "REALISTICO" | "OTTIMISTICO">("REALISTICO");
   const [renovationMonths, setRenovationMonths] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const bp = trpc.businessPlan.forDeal.useQuery({
     dealId: deal.id,
     scenario,
@@ -144,9 +149,31 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
             onChange={(e) => setRenovationMonths(e.target.value)}
           />
         </div>
-        <Button variant="secondary" onClick={() => window.print()}>
-          Stampa / salva PDF
+        <Button variant="secondary" onClick={() => exportBusinessPlanPdf(bp.data!.deal.name)}>
+          Esporta PDF
         </Button>
+        <Button
+          variant="secondary"
+          disabled={isExporting}
+          onClick={async () => {
+            setIsExporting(true);
+            setExportError(null);
+            try {
+              await exportBusinessPlanXlsx(
+                bp.data!,
+                risks.map((r) => ({ level: RISK_LABEL[r.tone], text: r.text })),
+                SCENARIO_LABEL[scenario] ?? scenario,
+              );
+            } catch {
+              setExportError("Export Excel non riuscito, riprova.");
+            } finally {
+              setIsExporting(false);
+            }
+          }}
+        >
+          {isExporting ? "Preparazione..." : "Esporta Excel"}
+        </Button>
+        {exportError && <span className="text-sm text-red-600">{exportError}</span>}
         {bp.data.deal.isDemo && <Badge tone="neutral">Dati demo</Badge>}
       </div>
 
@@ -443,7 +470,7 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
             {risks.map((r, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
                 <span className="mt-0.5 print:hidden">
-                  <Badge tone={r.tone}>{r.tone === "danger" ? "Critico" : r.tone === "warning" ? "Avviso" : "Nota"}</Badge>
+                  <Badge tone={r.tone}>{RISK_LABEL[r.tone]}</Badge>
                 </span>
                 <span>{r.text}</span>
               </li>
