@@ -397,10 +397,12 @@ function AddCostItemForm({
           <Label>Imponibile (€)</Label>
           <Input
             type="number"
-            variant={selectedPriceListItem ? "calculated" : "input"}
             value={newItem.taxableAmount}
             onChange={(e) => setNewItem({ ...newItem, taxableAmount: e.target.value })}
           />
+          {selectedPriceListItem && (
+            <p className="mt-1 text-xs text-slate-400">Precompilato da quantità × prezzo di listino, modificabile.</p>
+          )}
         </div>
         <div>
           <Label>IVA (%)</Label>
