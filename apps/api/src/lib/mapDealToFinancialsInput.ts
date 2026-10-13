@@ -27,6 +27,7 @@ export function mapDealToFinancialsInput(
       categoryGroup: item.category.group,
       taxableAmount: item.taxableAmount.toNumber(),
       vatRatePct: item.vatRatePct.toNumber(),
+      nonTaxableAmount: item.nonTaxableAmount.toNumber(),
       paidAmount: item.paidAmount.toNumber(),
       isMemo: item.isMemo,
       isUnbilled: item.isUnbilled,

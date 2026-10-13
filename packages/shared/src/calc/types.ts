@@ -12,6 +12,8 @@ export interface CostLineItemInput {
   categoryGroup: CostCategoryGroup;
   taxableAmount: number;
   vatRatePct: number;
+  /** Porzione dello stesso costo fuori campo IVA (es. pagata in contanti senza fattura): nessuna IVA applicata, ma è comunque un costo reale. */
+  nonTaxableAmount?: number;
   paidAmount: number;
   isMemo: boolean;
   isUnbilled: boolean;
@@ -105,6 +107,8 @@ export interface DealFinancialsInput {
 export interface CostGroupTotals {
   taxableTotal: number;
   vatTotal: number;
+  /** Somma delle porzioni fuori campo IVA (nonTaxableAmount) delle righe del gruppo. */
+  nonTaxableTotal: number;
   totalWithVat: number;
   paidTotal: number;
   dueTotal: number;
@@ -119,6 +123,7 @@ export interface CostAggregation {
   unbilledTaxableTotal: number;
   nonMemoTaxableTotal: number;
   nonMemoVatTotal: number;
+  nonMemoNonTaxableTotal: number;
   nonMemoTotalWithVat: number;
   nonMemoPaidTotal: number;
   nonMemoDueTotal: number;

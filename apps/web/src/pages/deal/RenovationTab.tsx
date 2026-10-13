@@ -20,7 +20,7 @@ const STATUS_LABEL: Record<string, string> = { DA_FARE: "Da fare", IN_CORSO: "In
 function rowTotals(item: CostLineItemDetail) {
   const taxable = item.taxableAmount;
   const vat = (taxable * item.vatRatePct) / 100;
-  const total = taxable + vat;
+  const total = taxable + vat + item.nonTaxableAmount;
   const due = total - item.paidAmount;
   return { vat, total, due };
 }
@@ -31,6 +31,7 @@ const EMPTY_NEW_ITEM = {
   quantity: "1",
   taxableAmount: "0",
   vatRatePct: "22",
+  nonTaxableAmount: "0",
   isMemo: false,
   isUnbilled: false,
   priceListItemId: "" as string | null,
@@ -129,6 +130,11 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
                                   <Badge tone="warning">contanti/non fatt.</Badge>
                                 </span>
                               )}
+                              {item.nonTaxableAmount > 0 && (
+                                <span className="ml-1">
+                                  <Badge tone="info">+{formatCurrency(item.nonTaxableAmount, true)} f.c. IVA</Badge>
+                                </span>
+                              )}
                             </td>
                             <td className="py-2 pr-2 text-slate-500">{item.category.name}</td>
                             <td className="py-2 pr-2 text-right">{formatCurrency(item.taxableAmount, true)}</td>
@@ -180,6 +186,7 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
                           description: "",
                           quantity: "1",
                           taxableAmount: "0",
+                          nonTaxableAmount: "0",
                         })
                       }
                     >
@@ -265,6 +272,17 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
                     <Label>IVA (%)</Label>
                     <Input type="number" value={newItem.vatRatePct} onChange={(e) => setNewItem({ ...newItem, vatRatePct: e.target.value })} />
                   </div>
+                  <div>
+                    <Label>Importo non imponibile (€)</Label>
+                    <Input
+                      type="number"
+                      value={newItem.nonTaxableAmount}
+                      onChange={(e) => setNewItem({ ...newItem, nonTaxableAmount: e.target.value })}
+                    />
+                    <p className="mt-1 text-xs text-slate-400">
+                      Per costi pagati in parte con fattura/IVA e in parte senza (es. contanti).
+                    </p>
+                  </div>
                   <label className="mt-6 flex items-center gap-2 text-sm text-slate-700">
                     <input type="checkbox" checked={newItem.isMemo} onChange={(e) => setNewItem({ ...newItem, isMemo: e.target.checked })} />
                     Voce memo (esclusa dai totali)
@@ -288,6 +306,7 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
                           description: newItem.description,
                           taxableAmount: Number(newItem.taxableAmount),
                           vatRatePct: Number(newItem.vatRatePct),
+                          nonTaxableAmount: Number(newItem.nonTaxableAmount),
                           isMemo: newItem.isMemo,
                           isUnbilled: newItem.isUnbilled,
                           priceListItemId: newItem.priceListItemId || undefined,

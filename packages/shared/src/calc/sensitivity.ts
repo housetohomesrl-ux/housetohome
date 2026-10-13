@@ -15,7 +15,11 @@ function withSalePriceDelta(input: DealFinancialsInput, deltaPct: number): DealF
 function withLavorazioniOverrun(input: DealFinancialsInput, overrunPct: number): DealFinancialsInput {
   const costLineItems: CostLineItemInput[] = input.costLineItems.map((item) =>
     item.categoryGroup === "LAVORAZIONI"
-      ? { ...item, taxableAmount: item.taxableAmount * (1 + overrunPct) }
+      ? {
+          ...item,
+          taxableAmount: item.taxableAmount * (1 + overrunPct),
+          nonTaxableAmount: (item.nonTaxableAmount ?? 0) * (1 + overrunPct),
+        }
       : item,
   );
   return { ...input, costLineItems };

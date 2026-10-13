@@ -90,6 +90,7 @@ export const costLineItemCreateSchema = z.object({
   description: z.string().min(1, "La descrizione è obbligatoria"),
   taxableAmount: z.number().nonnegative(),
   vatRatePct: z.number().min(0).max(100),
+  nonTaxableAmount: z.number().nonnegative().default(0),
   paidAmount: z.number().nonnegative().default(0),
   status: costLineItemStatusSchema.default("DA_FARE"),
   isMemo: z.boolean().default(false),

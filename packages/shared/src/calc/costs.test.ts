@@ -19,6 +19,7 @@ describe("aggregateCostLineItems", () => {
     expect(result.byGroup.ACQUISIZIONE).toEqual({
       taxableTotal: 1000,
       vatTotal: 220,
+      nonTaxableTotal: 0,
       totalWithVat: 1220,
       paidTotal: 500,
       dueTotal: 720,
@@ -50,5 +51,24 @@ describe("aggregateCostLineItems", () => {
   it("riporta il subtotale informativo delle righe non fatturate/contanti", () => {
     const result = aggregateCostLineItems(items, 10);
     expect(result.unbilledTaxableTotal).toBe(300);
+  });
+
+  it("somma la porzione fuori campo IVA (nonTaxableAmount) senza applicarci IVA", () => {
+    const mixedItems: CostLineItemInput[] = [
+      {
+        id: "6",
+        categoryGroup: "ACQUISIZIONE",
+        taxableAmount: 800,
+        vatRatePct: 22,
+        nonTaxableAmount: 200,
+        paidAmount: 0,
+        isMemo: false,
+        isUnbilled: false,
+      },
+    ];
+    const result = aggregateCostLineItems(mixedItems, 10);
+    // 800 imponibile + 176 IVA (22%) + 200 fuori campo IVA = 1176
+    expect(result.byGroup.ACQUISIZIONE.nonTaxableTotal).toBe(200);
+    expect(result.byGroup.ACQUISIZIONE.totalWithVat).toBe(1176);
   });
 });

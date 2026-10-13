@@ -27,11 +27,13 @@ export function aggregateCostLineItems(items: CostLineItemInput[], contingencyPc
     const groupItems = items.filter((i) => i.categoryGroup === group && !i.isMemo);
     const taxableTotal = sumMoney(groupItems.map((i) => i.taxableAmount));
     const vatTotal = sumMoney(groupItems.map((i) => computeVat(money(i.taxableAmount), i.vatRatePct).vatAmount));
-    const totalWithVat = taxableTotal.plus(vatTotal);
+    const nonTaxableTotal = sumMoney(groupItems.map((i) => i.nonTaxableAmount ?? 0));
+    const totalWithVat = taxableTotal.plus(vatTotal).plus(nonTaxableTotal);
     const paidTotal = sumMoney(groupItems.map((i) => i.paidAmount));
     byGroup[group] = {
       taxableTotal: toMoneyNumber(taxableTotal),
       vatTotal: toMoneyNumber(vatTotal),
+      nonTaxableTotal: toMoneyNumber(nonTaxableTotal),
       totalWithVat: toMoneyNumber(totalWithVat),
       paidTotal: toMoneyNumber(paidTotal),
       dueTotal: toMoneyNumber(totalWithVat.minus(paidTotal)),
@@ -43,7 +45,8 @@ export function aggregateCostLineItems(items: CostLineItemInput[], contingencyPc
   const nonMemoVatTotal = sumMoney(
     nonMemoItems.map((i) => computeVat(money(i.taxableAmount), i.vatRatePct).vatAmount),
   );
-  const nonMemoTotalWithVat = nonMemoTaxableTotal.plus(nonMemoVatTotal);
+  const nonMemoNonTaxableTotal = sumMoney(nonMemoItems.map((i) => i.nonTaxableAmount ?? 0));
+  const nonMemoTotalWithVat = nonMemoTaxableTotal.plus(nonMemoVatTotal).plus(nonMemoNonTaxableTotal);
   const nonMemoPaidTotal = sumMoney(nonMemoItems.map((i) => i.paidAmount));
 
   const contingencyBaseTaxable: Decimal = money(byGroup.LAVORAZIONI.taxableTotal).plus(byGroup.MATERIALI.taxableTotal);
@@ -62,20 +65,28 @@ export function aggregateCostLineItems(items: CostLineItemInput[], contingencyPc
     unbilledTaxableTotal: toMoneyNumber(unbilledTaxableTotal),
     nonMemoTaxableTotal: toMoneyNumber(nonMemoTaxableTotal),
     nonMemoVatTotal: toMoneyNumber(nonMemoVatTotal),
+    nonMemoNonTaxableTotal: toMoneyNumber(nonMemoNonTaxableTotal),
     nonMemoTotalWithVat: toMoneyNumber(nonMemoTotalWithVat),
     nonMemoPaidTotal: toMoneyNumber(nonMemoPaidTotal),
     nonMemoDueTotal: toMoneyNumber(nonMemoTotalWithVat.minus(nonMemoPaidTotal)),
   };
 }
 
-/** Somma "netta" o "all-in" di un gruppo, secondo la recuperabilità IVA impostata sul deal. */
+/**
+ * Somma "netta" o "all-in" di un gruppo, secondo la recuperabilità IVA
+ * impostata sul deal. La porzione fuori campo IVA (nonTaxableTotal) non ha
+ * mai IVA da recuperare, quindi è sempre inclusa per intero in entrambi i casi.
+ */
 export function relevantGroupTotal(group: CostGroupTotals, costsVatRecoverable: boolean): Decimal {
-  return costsVatRecoverable ? money(group.taxableTotal) : money(group.totalWithVat);
+  return costsVatRecoverable
+    ? money(group.taxableTotal).plus(group.nonTaxableTotal)
+    : money(group.totalWithVat);
 }
 
 export const EMPTY_GROUP_TOTALS: CostGroupTotals = {
   taxableTotal: 0,
   vatTotal: 0,
+  nonTaxableTotal: 0,
   totalWithVat: 0,
   paidTotal: 0,
   dueTotal: 0,

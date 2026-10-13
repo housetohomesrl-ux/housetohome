@@ -218,6 +218,7 @@ model CostLineItem {
   description      String
   taxableAmount    Decimal            @db.Decimal(14, 2) // imponibile — input
   vatRatePct       Decimal            @db.Decimal(5, 2)  @default(22) // input: 22 / 10 / 0 / altro
+  nonTaxableAmount Decimal            @db.Decimal(14, 2) @default(0) // porzione fuori campo IVA dello stesso costo (es. pagata in contanti senza fattura)
   paidAmount       Decimal            @db.Decimal(14, 2) @default(0)  // input
   status           CostLineItemStatus @default(DA_FARE)
   isMemo           Boolean            @default(false) // true = esclusa dai totali (solo tracciabilità)

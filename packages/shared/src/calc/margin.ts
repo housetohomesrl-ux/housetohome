@@ -53,7 +53,9 @@ export function computeDealFinancials(input: DealFinancialsInput): DealFinancial
   // Base imponibile plusvalenza (stima): prezzo di vendita meno prezzo di
   // acquisto e costi netti sostenuti (esclusa la contingency, che non è un
   // costo realmente sostenuto ma una stima di budget).
-  const capitalGainsBase = salePrice.minus(money(input.purchasePrice).plus(costs.nonMemoTaxableTotal));
+  const capitalGainsBase = salePrice.minus(
+    money(input.purchasePrice).plus(costs.nonMemoTaxableTotal).plus(costs.nonMemoNonTaxableTotal),
+  );
 
   const taxes = computeTaxes(fiscalSettings, {
     grossProfitBeforeTax: toMoneyNumber(grossProfitBeforeTax),
