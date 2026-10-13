@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { formatCurrency } from "../../lib/format";
-import type { DealDetail, CostLineItemDetail } from "../../lib/types";
+import type { DealDetail, CostLineItemDetail, CostCategory, PriceListItem } from "../../lib/types";
 import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { Input, Label, Select } from "../../components/ui/Field";
 import { Button } from "../../components/ui/Button";
@@ -42,20 +42,9 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
   const categories = trpc.costCategory.list.useQuery();
   const priceList = trpc.priceListItem.list.useQuery();
   const [contingencyPct, setContingencyPct] = useState(deal.renovationSettings?.contingencyPct.toString() ?? "12");
-  const [newItem, setNewItem] = useState(EMPTY_NEW_ITEM);
-  const selectedPriceListItem = priceList.data?.find((p) => p.id === newItem.priceListItemId) ?? null;
-  const categoryPriceList = newItem.categoryId
-    ? (priceList.data ?? []).filter((p) => p.categoryId === newItem.categoryId && p.includeInPreventivo)
-    : [];
 
   const saveContingency = trpc.dealSettings.updateRenovationSettings.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
-  });
-  const createItem = trpc.costLineItem.create.useMutation({
-    onSuccess: () => {
-      utils.deal.get.invalidate({ id: deal.id });
-      setNewItem(EMPTY_NEW_ITEM);
-    },
   });
   const updateItem = trpc.costLineItem.update.useMutation({ onSuccess: () => utils.deal.get.invalidate({ id: deal.id }) });
   const deleteItem = trpc.costLineItem.delete.useMutation({ onSuccess: () => utils.deal.get.invalidate({ id: deal.id }) });
@@ -171,157 +160,196 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
                 </div>
               )}
 
-              <details className="rounded-md border border-dashed border-slate-300 p-3">
-                <summary className="cursor-pointer text-sm font-medium text-brand-700">+ Aggiungi voce a "{label}"</summary>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <div>
-                    <Label>Categoria</Label>
-                    <Select
-                      value={newItem.categoryId}
-                      onChange={(e) =>
-                        setNewItem({
-                          ...newItem,
-                          categoryId: e.target.value,
-                          priceListItemId: null,
-                          description: "",
-                          quantity: "1",
-                          taxableAmount: "0",
-                          nonTaxableAmount: "0",
-                        })
-                      }
-                    >
-                      <option value="">Seleziona...</option>
-                      {groupCategories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Voce</Label>
-                    {newItem.categoryId && categoryPriceList.length > 0 ? (
-                      <Select
-                        value={newItem.priceListItemId ?? ""}
-                        onChange={(e) => {
-                          const p = categoryPriceList.find((x) => x.id === e.target.value);
-                          if (!p) {
-                            setNewItem({ ...newItem, priceListItemId: null, description: "", taxableAmount: "0" });
-                            return;
-                          }
-                          const qty = Number(newItem.quantity) || 1;
-                          setNewItem({
-                            ...newItem,
-                            priceListItemId: p.id,
-                            quantity: newItem.quantity || "1",
-                            description: p.specification ? `${p.name} — ${p.specification}` : p.name,
-                            taxableAmount: (qty * p.unitPrice).toFixed(2),
-                          });
-                        }}
-                      >
-                        <option value="">Voce libera — scrivi a mano</option>
-                        {categoryPriceList.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} · {formatCurrency(p.unitPrice, true)}
-                            {p.unit ? ` / ${p.unit}` : ""}
-                            {p.vendor ? ` · ${p.vendor.name}` : ""}
-                          </option>
-                        ))}
-                      </Select>
-                    ) : (
-                      <p className="py-2 text-xs text-slate-400">
-                        {newItem.categoryId ? "Nessuna voce in libreria per questa categoria." : "Seleziona prima una categoria."}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <Label>{selectedPriceListItem ? `Quantità (${selectedPriceListItem.unit || "unità"})` : "Quantità"}</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      disabled={!selectedPriceListItem}
-                      value={newItem.quantity}
-                      onChange={(e) => {
-                        const qty = e.target.value;
-                        setNewItem({
-                          ...newItem,
-                          quantity: qty,
-                          taxableAmount: selectedPriceListItem ? (Number(qty || 0) * selectedPriceListItem.unitPrice).toFixed(2) : newItem.taxableAmount,
-                        });
-                      }}
-                    />
-                    {selectedPriceListItem?.referenceQuantity && (
-                      <p className="mt-1 text-xs text-slate-400">{selectedPriceListItem.referenceQuantity}</p>
-                    )}
-                  </div>
-                  <div className="sm:col-span-2 lg:col-span-3">
-                    <Label>Descrizione</Label>
-                    <Input value={newItem.description} onChange={(e) => setNewItem({ ...newItem, description: e.target.value })} />
-                  </div>
-                  <div>
-                    <Label>Imponibile (€)</Label>
-                    <Input
-                      type="number"
-                      variant={selectedPriceListItem ? "calculated" : "input"}
-                      value={newItem.taxableAmount}
-                      onChange={(e) => setNewItem({ ...newItem, taxableAmount: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label>IVA (%)</Label>
-                    <Input type="number" value={newItem.vatRatePct} onChange={(e) => setNewItem({ ...newItem, vatRatePct: e.target.value })} />
-                  </div>
-                  <div>
-                    <Label>Importo non imponibile (€)</Label>
-                    <Input
-                      type="number"
-                      value={newItem.nonTaxableAmount}
-                      onChange={(e) => setNewItem({ ...newItem, nonTaxableAmount: e.target.value })}
-                    />
-                    <p className="mt-1 text-xs text-slate-400">
-                      Per costi pagati in parte con fattura/IVA e in parte senza (es. contanti).
-                    </p>
-                  </div>
-                  <label className="mt-6 flex items-center gap-2 text-sm text-slate-700">
-                    <input type="checkbox" checked={newItem.isMemo} onChange={(e) => setNewItem({ ...newItem, isMemo: e.target.checked })} />
-                    Voce memo (esclusa dai totali)
-                  </label>
-                  <label className="mt-6 flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={newItem.isUnbilled}
-                      onChange={(e) => setNewItem({ ...newItem, isUnbilled: e.target.checked })}
-                    />
-                    Contanti / non fatturata
-                  </label>
-                  <div className="sm:col-span-2 lg:col-span-3">
-                    <Button
-                      variant="secondary"
-                      disabled={!newItem.categoryId || !newItem.description || createItem.isPending}
-                      onClick={() =>
-                        createItem.mutate({
-                          dealId: deal.id,
-                          categoryId: newItem.categoryId,
-                          description: newItem.description,
-                          taxableAmount: Number(newItem.taxableAmount),
-                          vatRatePct: Number(newItem.vatRatePct),
-                          nonTaxableAmount: Number(newItem.nonTaxableAmount),
-                          isMemo: newItem.isMemo,
-                          isUnbilled: newItem.isUnbilled,
-                          priceListItemId: newItem.priceListItemId || undefined,
-                        })
-                      }
-                    >
-                      Aggiungi voce
-                    </Button>
-                  </div>
-                </div>
-              </details>
+              <AddCostItemForm
+                dealId={deal.id}
+                label={label}
+                groupCategories={groupCategories}
+                priceListData={priceList.data}
+              />
             </CardBody>
           </Card>
         );
       })}
     </div>
+  );
+}
+
+/**
+ * Form "+ Aggiungi voce" per un singolo gruppo. Istanziato una volta per
+ * gruppo dentro RenovationTab: ogni istanza ha il proprio stato locale,
+ * così compilare la voce in una sezione (es. Materiali) non si riflette
+ * anche nelle altre sezioni (es. Acquisto e spese).
+ */
+function AddCostItemForm({
+  dealId,
+  label,
+  groupCategories,
+  priceListData,
+}: {
+  dealId: string;
+  label: string;
+  groupCategories: CostCategory[];
+  priceListData: PriceListItem[] | undefined;
+}) {
+  const utils = trpc.useUtils();
+  const [newItem, setNewItem] = useState(EMPTY_NEW_ITEM);
+  const selectedPriceListItem = priceListData?.find((p) => p.id === newItem.priceListItemId) ?? null;
+  const categoryPriceList = newItem.categoryId
+    ? (priceListData ?? []).filter((p) => p.categoryId === newItem.categoryId && p.includeInPreventivo)
+    : [];
+
+  const createItem = trpc.costLineItem.create.useMutation({
+    onSuccess: () => {
+      utils.deal.get.invalidate({ id: dealId });
+      setNewItem(EMPTY_NEW_ITEM);
+    },
+  });
+
+  return (
+    <details className="rounded-md border border-dashed border-slate-300 p-3">
+      <summary className="cursor-pointer text-sm font-medium text-brand-700">+ Aggiungi voce a "{label}"</summary>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div>
+          <Label>Categoria</Label>
+          <Select
+            value={newItem.categoryId}
+            onChange={(e) =>
+              setNewItem({
+                ...newItem,
+                categoryId: e.target.value,
+                priceListItemId: null,
+                description: "",
+                quantity: "1",
+                taxableAmount: "0",
+                nonTaxableAmount: "0",
+              })
+            }
+          >
+            <option value="">Seleziona...</option>
+            {groupCategories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label>Voce</Label>
+          {newItem.categoryId && categoryPriceList.length > 0 ? (
+            <Select
+              value={newItem.priceListItemId ?? ""}
+              onChange={(e) => {
+                const p = categoryPriceList.find((x) => x.id === e.target.value);
+                if (!p) {
+                  setNewItem({ ...newItem, priceListItemId: null, description: "", taxableAmount: "0" });
+                  return;
+                }
+                const qty = Number(newItem.quantity) || 1;
+                setNewItem({
+                  ...newItem,
+                  priceListItemId: p.id,
+                  quantity: newItem.quantity || "1",
+                  description: p.specification ? `${p.name} — ${p.specification}` : p.name,
+                  taxableAmount: (qty * p.unitPrice).toFixed(2),
+                });
+              }}
+            >
+              <option value="">Voce libera — scrivi a mano</option>
+              {categoryPriceList.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} · {formatCurrency(p.unitPrice, true)}
+                  {p.unit ? ` / ${p.unit}` : ""}
+                  {p.vendor ? ` · ${p.vendor.name}` : ""}
+                </option>
+              ))}
+            </Select>
+          ) : (
+            <p className="py-2 text-xs text-slate-400">
+              {newItem.categoryId ? "Nessuna voce in libreria per questa categoria." : "Seleziona prima una categoria."}
+            </p>
+          )}
+        </div>
+        <div>
+          <Label>{selectedPriceListItem ? `Quantità (${selectedPriceListItem.unit || "unità"})` : "Quantità"}</Label>
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            disabled={!selectedPriceListItem}
+            value={newItem.quantity}
+            onChange={(e) => {
+              const qty = e.target.value;
+              setNewItem({
+                ...newItem,
+                quantity: qty,
+                taxableAmount: selectedPriceListItem ? (Number(qty || 0) * selectedPriceListItem.unitPrice).toFixed(2) : newItem.taxableAmount,
+              });
+            }}
+          />
+          {selectedPriceListItem?.referenceQuantity && (
+            <p className="mt-1 text-xs text-slate-400">{selectedPriceListItem.referenceQuantity}</p>
+          )}
+        </div>
+        <div className="sm:col-span-2 lg:col-span-3">
+          <Label>Descrizione</Label>
+          <Input value={newItem.description} onChange={(e) => setNewItem({ ...newItem, description: e.target.value })} />
+        </div>
+        <div>
+          <Label>Imponibile (€)</Label>
+          <Input
+            type="number"
+            variant={selectedPriceListItem ? "calculated" : "input"}
+            value={newItem.taxableAmount}
+            onChange={(e) => setNewItem({ ...newItem, taxableAmount: e.target.value })}
+          />
+        </div>
+        <div>
+          <Label>IVA (%)</Label>
+          <Input type="number" value={newItem.vatRatePct} onChange={(e) => setNewItem({ ...newItem, vatRatePct: e.target.value })} />
+        </div>
+        <div>
+          <Label>Importo non imponibile (€)</Label>
+          <Input
+            type="number"
+            value={newItem.nonTaxableAmount}
+            onChange={(e) => setNewItem({ ...newItem, nonTaxableAmount: e.target.value })}
+          />
+          <p className="mt-1 text-xs text-slate-400">Per costi pagati in parte con fattura/IVA e in parte senza (es. contanti).</p>
+        </div>
+        <label className="mt-6 flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" checked={newItem.isMemo} onChange={(e) => setNewItem({ ...newItem, isMemo: e.target.checked })} />
+          Voce memo (esclusa dai totali)
+        </label>
+        <label className="mt-6 flex items-center gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={newItem.isUnbilled}
+            onChange={(e) => setNewItem({ ...newItem, isUnbilled: e.target.checked })}
+          />
+          Contanti / non fatturata
+        </label>
+        <div className="sm:col-span-2 lg:col-span-3">
+          <Button
+            variant="secondary"
+            disabled={!newItem.categoryId || !newItem.description || createItem.isPending}
+            onClick={() =>
+              createItem.mutate({
+                dealId,
+                categoryId: newItem.categoryId,
+                description: newItem.description,
+                taxableAmount: Number(newItem.taxableAmount),
+                vatRatePct: Number(newItem.vatRatePct),
+                nonTaxableAmount: Number(newItem.nonTaxableAmount),
+                isMemo: newItem.isMemo,
+                isUnbilled: newItem.isUnbilled,
+                priceListItemId: newItem.priceListItemId || undefined,
+              })
+            }
+          >
+            Aggiungi voce
+          </Button>
+        </div>
+      </div>
+    </details>
   );
 }
