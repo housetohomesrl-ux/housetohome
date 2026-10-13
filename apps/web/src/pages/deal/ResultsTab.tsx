@@ -88,6 +88,23 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
         />
       </div>
 
+      {deal.acquisitionDetails && (
+        <Card>
+          <CardHeader
+            title="Acquisto immobile: pagato vs residuo"
+            subtitle="Quanto hai già versato di acconto/caparra e quanto resta da pagare a rogito."
+          />
+          <CardBody className="grid gap-3 sm:grid-cols-3">
+            <KpiCard label="Prezzo di acquisto" value={formatCurrency(deal.acquisitionDetails.purchasePrice)} />
+            <KpiCard label="Acconto / caparra già pagata" value={formatCurrency(deal.acquisitionDetails.depositAmount ?? 0)} />
+            <KpiCard
+              label="Residuo da pagare a rogito"
+              value={formatCurrency(deal.acquisitionDetails.purchasePrice - (deal.acquisitionDetails.depositAmount ?? 0))}
+            />
+          </CardBody>
+        </Card>
+      )}
+
       <Card>
         <CardHeader title="Ripartizione costi" />
         <CardBody>
