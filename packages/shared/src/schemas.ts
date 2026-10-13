@@ -53,6 +53,7 @@ export const dealCreateSchema = z.object({
   name: z.string().min(1, "Il nome del deal è obbligatorio"),
   address: z.string().optional(),
   propertyType: z.string().optional(),
+  surfaceSqm: z.number().nonnegative().optional(),
   status: dealStatusSchema.default("VALUTAZIONE"),
 });
 

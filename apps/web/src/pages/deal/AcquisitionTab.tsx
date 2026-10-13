@@ -13,8 +13,17 @@ const REGIME_LABEL: Record<string, string> = {
 
 export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
   const utils = trpc.useUtils();
+  const [property, setProperty] = useState({
+    address: deal.address ?? "",
+    propertyType: deal.propertyType ?? "",
+    surfaceSqm: deal.surfaceSqm?.toString() ?? "",
+  });
   const [purchasePrice, setPurchasePrice] = useState(deal.acquisitionDetails?.purchasePrice.toString() ?? "0");
   const [notes, setNotes] = useState(deal.acquisitionDetails?.notes ?? "");
+
+  const saveProperty = trpc.deal.update.useMutation({
+    onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
+  });
 
   const [fiscal, setFiscal] = useState({
     regimeType: deal.fiscalSettings?.regimeType ?? "PERSONA_FISICA",
@@ -34,6 +43,53 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
 
   return (
     <div className="grid gap-5">
+      <Card>
+        <CardHeader title="Dati immobile" subtitle="Indirizzo e superficie: usati nel portafoglio e nei calcoli a mq." />
+        <CardBody className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Label htmlFor="address">Indirizzo</Label>
+            <Input
+              id="address"
+              value={property.address}
+              onChange={(e) => setProperty({ ...property, address: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label htmlFor="surfaceSqm">Superficie (mq)</Label>
+            <Input
+              id="surfaceSqm"
+              type="number"
+              value={property.surfaceSqm}
+              onChange={(e) => setProperty({ ...property, surfaceSqm: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label htmlFor="propertyType">Tipologia immobile</Label>
+            <Input
+              id="propertyType"
+              placeholder='es. "Appartamento 3 locali"'
+              value={property.propertyType}
+              onChange={(e) => setProperty({ ...property, propertyType: e.target.value })}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Button
+              onClick={() =>
+                saveProperty.mutate({
+                  id: deal.id,
+                  address: property.address || undefined,
+                  propertyType: property.propertyType || undefined,
+                  surfaceSqm: property.surfaceSqm ? Number(property.surfaceSqm) : undefined,
+                })
+              }
+              disabled={saveProperty.isPending}
+            >
+              Salva
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
+
       <Card>
         <CardHeader title="Dati di acquisizione" subtitle="Prezzo di acquisto: base per il calcolo della plusvalenza." />
         <CardBody className="grid gap-4 sm:grid-cols-2">

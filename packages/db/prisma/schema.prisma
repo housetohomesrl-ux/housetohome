@@ -104,6 +104,7 @@ model Deal {
   name          String
   address       String?
   propertyType  String?
+  surfaceSqm    Decimal?   @db.Decimal(8, 2)
   status        DealStatus @default(VALUTAZIONE)
   isDemo        Boolean    @default(false)
   createdAt     DateTime   @default(now())

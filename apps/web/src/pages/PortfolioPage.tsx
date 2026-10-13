@@ -5,7 +5,7 @@ import { formatCurrency, formatPercent } from "../lib/format";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { Card } from "../components/ui/Card";
-import { Select } from "../components/ui/Field";
+import { Input, Select } from "../components/ui/Field";
 
 const STATUS_LABEL: Record<string, string> = {
   VALUTAZIONE: "In valutazione",
@@ -34,6 +34,8 @@ export default function PortfolioPage() {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [addressFilter, setAddressFilter] = useState<string>("ALL");
   const [sortKey, setSortKey] = useState<SortKey>("updated");
+  const [showNewDealForm, setShowNewDealForm] = useState(false);
+  const [newDealAddress, setNewDealAddress] = useState("");
 
   const createDeal = trpc.deal.create.useMutation({
     onSuccess: async (deal) => {
@@ -41,6 +43,13 @@ export default function PortfolioPage() {
       navigate(`/deals/${deal.id}`);
     },
   });
+
+  function submitNewDeal() {
+    const address = newDealAddress.trim();
+    createDeal.mutate({ name: address || "Nuovo deal", address: address || undefined });
+    setShowNewDealForm(false);
+    setNewDealAddress("");
+  }
 
   const deleteDeal = trpc.deal.delete.useMutation({
     onSuccess: () => utils.deal.list.invalidate(),
@@ -76,9 +85,32 @@ export default function PortfolioPage() {
           <h1 className="text-xl font-semibold text-slate-900">Portafoglio deal</h1>
           <p className="mt-1 text-sm text-slate-500">Tutte le operazioni di buy-renovate-resell del tuo team.</p>
         </div>
-        <Button onClick={() => createDeal.mutate({ name: "Nuovo deal" })} disabled={createDeal.isPending}>
-          + Nuovo deal
-        </Button>
+        {showNewDealForm ? (
+          <div className="flex items-center gap-2">
+            <Input
+              autoFocus
+              placeholder="Indirizzo dell'immobile"
+              className="w-64"
+              value={newDealAddress}
+              onChange={(e) => setNewDealAddress(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submitNewDeal()}
+            />
+            <Button onClick={submitNewDeal} disabled={createDeal.isPending}>
+              Crea
+            </Button>
+            <button
+              className="text-sm text-slate-500 hover:underline"
+              onClick={() => {
+                setShowNewDealForm(false);
+                setNewDealAddress("");
+              }}
+            >
+              Annulla
+            </button>
+          </div>
+        ) : (
+          <Button onClick={() => setShowNewDealForm(true)}>+ Nuovo deal</Button>
+        )}
       </div>
 
       <div className="mt-4 flex gap-3">
