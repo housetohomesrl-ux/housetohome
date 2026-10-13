@@ -32,6 +32,7 @@ export default function PortfolioPage() {
   const deals = trpc.deal.list.useQuery();
   const utils = trpc.useUtils();
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [addressFilter, setAddressFilter] = useState<string>("ALL");
   const [sortKey, setSortKey] = useState<SortKey>("updated");
 
   const createDeal = trpc.deal.create.useMutation({
@@ -52,15 +53,21 @@ export default function PortfolioPage() {
     if (ok) deleteDeal.mutate({ id: deal.id });
   }
 
+  const addresses = useMemo(() => {
+    const set = new Set((deals.data ?? []).map((d) => d.address).filter((a): a is string => !!a));
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [deals.data]);
+
   const filtered = useMemo(() => {
     const rows = deals.data ?? [];
     const byStatus = statusFilter === "ALL" ? rows : rows.filter((d) => d.status === statusFilter);
-    return [...byStatus].sort((a, b) => {
+    const byAddress = addressFilter === "ALL" ? byStatus : byStatus.filter((d) => d.address === addressFilter);
+    return [...byAddress].sort((a, b) => {
       if (sortKey === "roi") return (b.summary?.roi ?? -Infinity) - (a.summary?.roi ?? -Infinity);
       if (sortKey === "netProfit") return (b.summary?.netProfit ?? -Infinity) - (a.summary?.netProfit ?? -Infinity);
       return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
-  }, [deals.data, statusFilter, sortKey]);
+  }, [deals.data, statusFilter, addressFilter, sortKey]);
 
   return (
     <div>
@@ -87,6 +94,14 @@ export default function PortfolioPage() {
           <option value="updated">Ordina per: ultimo aggiornamento</option>
           <option value="roi">Ordina per: ROI (scenario realistico)</option>
           <option value="netProfit">Ordina per: utile netto (scenario realistico)</option>
+        </Select>
+        <Select className="max-w-xs" value={addressFilter} onChange={(e) => setAddressFilter(e.target.value)}>
+          <option value="ALL">Tutti gli indirizzi</option>
+          {addresses.map((address) => (
+            <option key={address} value={address}>
+              {address}
+            </option>
+          ))}
         </Select>
       </div>
 
