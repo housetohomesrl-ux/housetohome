@@ -30,6 +30,7 @@ export const dealRouter = router({
         name: deal.name,
         address: deal.address,
         propertyType: deal.propertyType,
+        operationType: deal.operationType,
         status: deal.status,
         isDemo: deal.isDemo,
         updatedAt: deal.updatedAt,

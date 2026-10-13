@@ -9,7 +9,7 @@ import { Input, Select } from "../components/ui/Field";
 
 const STATUS_LABEL: Record<string, string> = {
   VALUTAZIONE: "In valutazione",
-  ACQUISIZIONE: "In acquisizione",
+  ACQUISIZIONE: "Acquistato",
   RISTRUTTURAZIONE: "In ristrutturazione",
   VENDITA: "In vendita",
   CHIUSO: "Chiuso",
@@ -52,6 +52,10 @@ export default function PortfolioPage() {
   }
 
   const deleteDeal = trpc.deal.delete.useMutation({
+    onSuccess: () => utils.deal.list.invalidate(),
+  });
+
+  const markPurchased = trpc.deal.update.useMutation({
     onSuccess: () => utils.deal.list.invalidate(),
   });
 
@@ -146,6 +150,9 @@ export default function PortfolioPage() {
                   <div className="flex items-center gap-2">
                     <h3 className="font-medium text-slate-900">{deal.name}</h3>
                     <Badge tone={STATUS_TONE[deal.status]}>{STATUS_LABEL[deal.status]}</Badge>
+                    {deal.operationType === "RISTRUTTURAZIONE_CLIENTE" && (
+                      <Badge tone="info">Da ristrutturare (cliente)</Badge>
+                    )}
                     {deal.isDemo && <Badge tone="neutral">Demo</Badge>}
                   </div>
                   {deal.address && <p className="mt-1 text-sm text-slate-500">{deal.address}</p>}
@@ -168,15 +175,26 @@ export default function PortfolioPage() {
                 )}
               </div>
             </button>
-            <Button
-              variant="ghost"
-              className="mr-3 shrink-0 text-red-600 hover:bg-red-50"
-              title="Elimina deal"
-              onClick={() => confirmDelete(deal)}
-              disabled={deleteDeal.isPending && deleteDeal.variables?.id === deal.id}
-            >
-              Elimina
-            </Button>
+            <div className="mr-3 flex shrink-0 items-center gap-2">
+              {deal.status === "VALUTAZIONE" && deal.operationType === "FLIP" && (
+                <Button
+                  variant="secondary"
+                  onClick={() => markPurchased.mutate({ id: deal.id, status: "ACQUISIZIONE" })}
+                  disabled={markPurchased.isPending && markPurchased.variables?.id === deal.id}
+                >
+                  Ho acquistato
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                className="text-red-600 hover:bg-red-50"
+                title="Elimina deal"
+                onClick={() => confirmDelete(deal)}
+                disabled={deleteDeal.isPending && deleteDeal.variables?.id === deal.id}
+              >
+                Elimina
+              </Button>
+            </div>
           </Card>
         ))}
         {filtered.length === 0 && !deals.isLoading && (
