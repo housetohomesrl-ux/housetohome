@@ -10,6 +10,13 @@ import { Input, Select } from "../../components/ui/Field";
 
 const SCENARIO_LABEL: Record<string, string> = { PRUDENTE: "Prudente", REALISTICO: "Realistico", OTTIMISTICO: "Ottimistico" };
 const SEVERITY_TONE: Record<string, "neutral" | "warning" | "danger"> = { INFO: "neutral", AVVISO: "warning", CRITICO: "danger" };
+const GROUP_LABEL: Record<string, string> = {
+  ACQUISIZIONE: "Acquisto e spese",
+  MATERIALI: "Materiali",
+  LAVORAZIONI: "Lavorazioni",
+  ENTI_ESTERNI: "Enti esterni",
+  ALTRO: "Altro / varie",
+};
 
 function KpiCard({ label, value, tone }: { label: string; value: string; tone?: "success" | "danger" }) {
   return (
@@ -88,22 +95,61 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
         />
       </div>
 
-      {deal.acquisitionDetails && (
-        <Card>
-          <CardHeader
-            title="Acquisto immobile: pagato vs residuo"
-            subtitle="Quanto hai già versato di acconto/caparra e quanto resta da pagare a rogito."
-          />
-          <CardBody className="grid gap-3 sm:grid-cols-3">
-            <KpiCard label="Prezzo di acquisto" value={formatCurrency(deal.acquisitionDetails.purchasePrice)} />
-            <KpiCard label="Acconto / caparra già pagata" value={formatCurrency(deal.acquisitionDetails.depositAmount ?? 0)} />
-            <KpiCard
-              label="Residuo da pagare a rogito"
-              value={formatCurrency(deal.acquisitionDetails.purchasePrice - (deal.acquisitionDetails.depositAmount ?? 0))}
+      {(() => {
+        const purchasePrice = deal.acquisitionDetails?.purchasePrice ?? 0;
+        const depositAmount = deal.acquisitionDetails?.depositAmount ?? 0;
+        const rows = [
+          { label: "Acquisto immobile (prezzo)", total: purchasePrice, paid: depositAmount, due: purchasePrice - depositAmount },
+          ...Object.entries(GROUP_LABEL).map(([group, label]) => {
+            const g = r.costs.byGroup[group as keyof typeof r.costs.byGroup];
+            return { label, total: g.totalWithVat, paid: g.paidTotal, due: g.dueTotal };
+          }),
+        ];
+        const totalRow = rows.reduce(
+          (acc, row) => ({ total: acc.total + row.total, paid: acc.paid + row.paid, due: acc.due + row.due }),
+          { total: 0, paid: 0, due: 0 },
+        );
+        return (
+          <Card>
+            <CardHeader
+              title="Pagato vs residuo"
+              subtitle="Per ogni voce del progetto: quanto hai già versato e quanto resta da pagare."
             />
-          </CardBody>
-        </Card>
-      )}
+            <CardBody className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
+                    <th className="py-2 pr-4">Voce</th>
+                    <th className="py-2 pr-4 text-right">Totale</th>
+                    <th className="py-2 pr-4 text-right">Pagato</th>
+                    <th className="py-2 pr-4 text-right">Residuo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={row.label} className="border-b border-slate-100">
+                      <td className="py-2 pr-4 text-slate-700">{row.label}</td>
+                      <td className="py-2 pr-4 text-right">{formatCurrency(row.total, true)}</td>
+                      <td className="py-2 pr-4 text-right text-emerald-700">{formatCurrency(row.paid, true)}</td>
+                      <td className={`py-2 pr-4 text-right ${row.due > 0 ? "text-red-600" : "text-slate-500"}`}>
+                        {formatCurrency(row.due, true)}
+                      </td>
+                    </tr>
+                  ))}
+                  <tr className="font-semibold">
+                    <td className="py-2 pr-4">Totale</td>
+                    <td className="py-2 pr-4 text-right">{formatCurrency(totalRow.total, true)}</td>
+                    <td className="py-2 pr-4 text-right text-emerald-700">{formatCurrency(totalRow.paid, true)}</td>
+                    <td className={`py-2 pr-4 text-right ${totalRow.due > 0 ? "text-red-600" : "text-slate-500"}`}>
+                      {formatCurrency(totalRow.due, true)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </CardBody>
+          </Card>
+        );
+      })()}
 
       <Card>
         <CardHeader title="Ripartizione costi" />
