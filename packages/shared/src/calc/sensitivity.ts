@@ -1,7 +1,7 @@
 import { computeDealFinancials } from "./margin.js";
 import type { CostLineItemInput, DealFinancialsInput, LoanInput } from "./types.js";
 
-function withSalePriceDelta(input: DealFinancialsInput, deltaPct: number): DealFinancialsInput {
+export function withSalePriceDelta(input: DealFinancialsInput, deltaPct: number): DealFinancialsInput {
   return {
     ...input,
     saleScenario: {
@@ -22,7 +22,7 @@ function withLavorazioniOverrun(input: DealFinancialsInput, overrunPct: number):
 }
 
 /** Estende la durata di detenzione e, proporzionalmente, la durata dei finanziamenti INTEREST_ONLY/FRENCH. */
-function withDurationDelta(input: DealFinancialsInput, deltaMonths: number): DealFinancialsInput {
+export function withDurationDelta(input: DealFinancialsInput, deltaMonths: number): DealFinancialsInput {
   const loans: LoanInput[] = input.loans.map((loan) =>
     loan.amortizationType === "MANUAL" ? loan : { ...loan, durationMonths: loan.durationMonths + deltaMonths },
   );

@@ -23,3 +23,14 @@ body {
 .field-calculated {
   @apply border border-slate-200 bg-slate-100 text-slate-600 cursor-not-allowed;
 }
+
+/* Stampa del business plan (Stampa / salva PDF dal browser) */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+  body {
+    @apply bg-white;
+  }
+}

@@ -11,6 +11,7 @@ import { vendorRouter } from "./vendor.js";
 import { priceListItemRouter } from "./priceListItem.js";
 import { costCategoryRouter } from "./costCategory.js";
 import { resultsRouter } from "./results.js";
+import { businessPlanRouter } from "./businessPlan.js";
 
 export const appRouter = router({
   auth: authRouter,
@@ -25,6 +26,7 @@ export const appRouter = router({
   priceListItem: priceListItemRouter,
   costCategory: costCategoryRouter,
   results: resultsRouter,
+  businessPlan: businessPlanRouter,
 });
 
 export type AppRouter = typeof appRouter;

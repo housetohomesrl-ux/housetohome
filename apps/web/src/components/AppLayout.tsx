@@ -15,8 +15,8 @@ export default function AppLayout() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+    <div className="min-h-screen bg-slate-50 print:bg-white">
+      <header className="border-b border-slate-200 bg-white print:hidden">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <Link to="/" className="text-lg font-semibold text-slate-900">
             FlipPlan

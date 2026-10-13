@@ -6,3 +6,4 @@ type RouterOutputs = inferRouterOutputs<AppRouter>;
 export type DealDetail = RouterOutputs["deal"]["get"];
 export type CostLineItemDetail = DealDetail["costLineItems"][number];
 export type LoanDetail = DealDetail["loans"][number];
+export type BusinessPlanData = RouterOutputs["businessPlan"]["forDeal"];
