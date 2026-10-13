@@ -92,7 +92,18 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
             <CardBody>
               {items.length > 0 && (
                 <div className="mb-4 overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full min-w-[920px] table-fixed text-sm">
+                    <colgroup>
+                      <col className="w-[22%]" />
+                      <col className="w-[12%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[6%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[14%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[12%]" />
+                      <col className="w-[7%]" />
+                    </colgroup>
                     <thead>
                       <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
                         <th className="py-2 pr-2">Descrizione</th>
@@ -155,34 +166,30 @@ function CostLineItemRow({
 
   return (
     <tr className="border-b border-slate-100">
-      <td className="py-2 pr-2">
-        {item.description}
-        {item.isMemo && <Badge tone="neutral">memo</Badge>}
-        {item.isUnbilled && (
-          <span className="ml-1">
-            <Badge tone="warning">contanti/non fatt.</Badge>
-          </span>
-        )}
-        {item.nonTaxableAmount > 0 && (
-          <span className="ml-1">
+      <td className="py-2 pr-2 align-top">
+        <div className="break-words">{item.description}</div>
+        <div className="mt-1 flex flex-wrap gap-1">
+          {item.isMemo && <Badge tone="neutral">memo</Badge>}
+          {item.isUnbilled && <Badge tone="warning">contanti/non fatt.</Badge>}
+          {item.nonTaxableAmount > 0 && (
             <Badge tone="info">+{formatCurrency(item.nonTaxableAmount, true)} f.c. IVA</Badge>
-          </span>
-        )}
+          )}
+        </div>
       </td>
-      <td className="py-2 pr-2 text-slate-500">{item.category.name}</td>
-      <td className="py-2 pr-2 text-right">{formatCurrency(item.taxableAmount, true)}</td>
-      <td className="py-2 pr-2 text-right">{item.vatRatePct}%</td>
-      <td className="py-2 pr-2 text-right font-medium">{formatCurrency(totals.total, true)}</td>
-      <td className="py-2 pr-2 text-right">
+      <td className="py-2 pr-2 align-top text-slate-500">{item.category.name}</td>
+      <td className="py-2 pr-2 align-top text-right">{formatCurrency(item.taxableAmount, true)}</td>
+      <td className="py-2 pr-2 align-top text-right">{item.vatRatePct}%</td>
+      <td className="py-2 pr-2 align-top text-right font-medium">{formatCurrency(totals.total, true)}</td>
+      <td className="py-2 pr-2 align-top text-right">
         <Input
           type="number"
-          className="w-24 py-1 text-right text-xs"
+          className="w-full py-1 text-right text-xs"
           value={paidAmount}
           onChange={(e) => setPaidAmount(e.target.value)}
           onBlur={commitPaidAmount}
         />
         <button
-          className="mt-1 block text-[11px] text-brand-600 hover:underline"
+          className="mt-1 whitespace-nowrap text-[11px] text-brand-600 hover:underline"
           onClick={() => {
             setPaidAmount(totals.total.toString());
             if (totals.total !== item.paidAmount) updateItem.mutate({ id: item.id, paidAmount: totals.total });
@@ -191,10 +198,10 @@ function CostLineItemRow({
           Segna come pagato
         </button>
       </td>
-      <td className="py-2 pr-2 text-right">{formatCurrency(totals.due, true)}</td>
-      <td className="py-2 pr-2">
+      <td className="py-2 pr-2 align-top text-right">{formatCurrency(totals.due, true)}</td>
+      <td className="py-2 pr-2 align-top">
         <Select
-          className="py-1 text-xs"
+          className="w-full py-1 text-xs"
           value={item.status}
           onChange={(e) => updateItem.mutate({ id: item.id, status: e.target.value as CostLineItemDetail["status"] })}
         >
@@ -205,7 +212,7 @@ function CostLineItemRow({
           ))}
         </Select>
       </td>
-      <td className="py-2 pr-2 text-right">
+      <td className="py-2 pr-2 align-top text-right">
         <button className="text-xs text-red-500 hover:underline" onClick={() => deleteItem.mutate({ id: item.id })}>
           Elimina
         </button>
