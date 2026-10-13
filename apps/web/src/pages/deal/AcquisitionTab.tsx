@@ -19,6 +19,7 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
     surfaceSqm: deal.surfaceSqm?.toString() ?? "",
   });
   const [purchasePrice, setPurchasePrice] = useState(deal.acquisitionDetails?.purchasePrice.toString() ?? "0");
+  const [depositAmount, setDepositAmount] = useState(deal.acquisitionDetails?.depositAmount?.toString() ?? "0");
   const [notes, setNotes] = useState(deal.acquisitionDetails?.notes ?? "");
 
   const saveProperty = trpc.deal.update.useMutation({
@@ -94,6 +95,10 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
         <CardHeader title="Dati di acquisizione" subtitle="Prezzo di acquisto: base per il calcolo della plusvalenza." />
         <CardBody className="grid gap-4 sm:grid-cols-2">
           <div>
+            <Label htmlFor="depositAmount">Acconto / caparra (€)</Label>
+            <Input id="depositAmount" type="number" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} />
+          </div>
+          <div>
             <Label htmlFor="purchasePrice">Prezzo di acquisto (€)</Label>
             <Input id="purchasePrice" type="number" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} />
           </div>
@@ -108,7 +113,12 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
           <div className="sm:col-span-2">
             <Button
               onClick={() =>
-                saveAcquisition.mutate({ dealId: deal.id, purchasePrice: Number(purchasePrice), notes: notes || undefined })
+                saveAcquisition.mutate({
+                  dealId: deal.id,
+                  purchasePrice: Number(purchasePrice),
+                  depositAmount: Number(depositAmount),
+                  notes: notes || undefined,
+                })
               }
               disabled={saveAcquisition.isPending}
             >

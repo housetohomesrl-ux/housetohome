@@ -133,6 +133,7 @@ model AcquisitionDetails {
   dealId        String   @id
   deal          Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
   purchasePrice Decimal  @db.Decimal(14, 2)
+  depositAmount Decimal? @db.Decimal(14, 2) // acconto/caparra già versata, a titolo informativo (non modifica il costo totale di acquisizione)
   notes         String?
   updatedAt     DateTime @updatedAt
 

@@ -64,6 +64,7 @@ export const dealUpdateSchema = dealCreateSchema.partial().extend({
 export const acquisitionDetailsSchema = z.object({
   dealId: z.string(),
   purchasePrice: z.number().nonnegative(),
+  depositAmount: z.number().nonnegative().optional(),
   notes: z.string().optional(),
 });
 
