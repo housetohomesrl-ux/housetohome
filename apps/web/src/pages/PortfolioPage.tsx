@@ -94,7 +94,7 @@ export default function PortfolioPage() {
         {filtered.map((deal) => (
           <Card key={deal.id} className="flex items-center hover:border-brand-300">
             <button className="min-w-0 flex-1 text-left" onClick={() => navigate(`/deals/${deal.id}`)}>
-              <div className="flex items-center justify-between px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-medium text-slate-900">{deal.name}</h3>
@@ -123,7 +123,7 @@ export default function PortfolioPage() {
             </button>
             <Button
               variant="ghost"
-              className="mr-3 text-red-600 hover:bg-red-50"
+              className="mr-3 shrink-0 text-red-600 hover:bg-red-50"
               title="Elimina deal"
               onClick={() => confirmDelete(deal)}
               disabled={deleteDeal.isPending && deleteDeal.variables?.id === deal.id}
