@@ -41,6 +41,17 @@ export default function PortfolioPage() {
     },
   });
 
+  const deleteDeal = trpc.deal.delete.useMutation({
+    onSuccess: () => utils.deal.list.invalidate(),
+  });
+
+  function confirmDelete(deal: { id: string; name: string }) {
+    const ok = window.confirm(
+      `Eliminare il deal "${deal.name}"?\n\nVerranno cancellati anche preventivo, finanziamenti, scenari di vendita e note collegati. L'operazione non è reversibile.`,
+    );
+    if (ok) deleteDeal.mutate({ id: deal.id });
+  }
+
   const filtered = useMemo(() => {
     const rows = deals.data ?? [];
     const byStatus = statusFilter === "ALL" ? rows : rows.filter((d) => d.status === statusFilter);
@@ -81,8 +92,8 @@ export default function PortfolioPage() {
 
       <div className="mt-4 grid gap-3">
         {filtered.map((deal) => (
-          <Card key={deal.id} className="cursor-pointer hover:border-brand-300" >
-            <button className="w-full text-left" onClick={() => navigate(`/deals/${deal.id}`)}>
+          <Card key={deal.id} className="flex items-center hover:border-brand-300">
+            <button className="min-w-0 flex-1 text-left" onClick={() => navigate(`/deals/${deal.id}`)}>
               <div className="flex items-center justify-between px-5 py-4">
                 <div>
                   <div className="flex items-center gap-2">
@@ -110,6 +121,15 @@ export default function PortfolioPage() {
                 )}
               </div>
             </button>
+            <Button
+              variant="ghost"
+              className="mr-3 text-red-600 hover:bg-red-50"
+              title="Elimina deal"
+              onClick={() => confirmDelete(deal)}
+              disabled={deleteDeal.isPending && deleteDeal.variables?.id === deal.id}
+            >
+              Elimina
+            </Button>
           </Card>
         ))}
         {filtered.length === 0 && !deals.isLoading && (
