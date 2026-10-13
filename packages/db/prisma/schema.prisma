@@ -95,20 +95,32 @@ enum DealStatus {
   ARCHIVIATO
 }
 
+// FLIP: operazione di acquisto + ristrutturazione + rivendita, i costi di
+// Materiali/Lavorazioni sono i costi reali che sostieni.
+// RISTRUTTURAZIONE_CLIENTE: lavori eseguiti per un cliente terzo (non un
+// immobile tuo): Materiali/Lavorazioni hanno anche un "prezzo cliente"
+// (CostLineItem.clientPrice), diverso dal costo, usato per generare il
+// preventivo da consegnare al cliente.
+enum DealOperationType {
+  FLIP
+  RISTRUTTURAZIONE_CLIENTE
+}
+
 model Deal {
-  id            String     @id @default(cuid())
+  id            String            @id @default(cuid())
   tenantId      String
-  tenant        Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdById   String
-  createdBy     User       @relation("DealCreatedBy", fields: [createdById], references: [id])
+  createdBy     User              @relation("DealCreatedBy", fields: [createdById], references: [id])
   name          String
   address       String?
   propertyType  String?
-  surfaceSqm    Decimal?   @db.Decimal(8, 2)
-  status        DealStatus @default(VALUTAZIONE)
-  isDemo        Boolean    @default(false)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  surfaceSqm    Decimal?          @db.Decimal(8, 2)
+  operationType DealOperationType @default(FLIP)
+  status        DealStatus        @default(VALUTAZIONE)
+  isDemo        Boolean           @default(false)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   acquisitionDetails AcquisitionDetails?
   fiscalSettings     FiscalSettings?
@@ -219,6 +231,7 @@ model CostLineItem {
   taxableAmount    Decimal            @db.Decimal(14, 2) // imponibile — input
   vatRatePct       Decimal            @db.Decimal(5, 2)  @default(22) // input: 22 / 10 / 0 / altro
   nonTaxableAmount Decimal            @db.Decimal(14, 2) @default(0) // porzione fuori campo IVA dello stesso costo (es. pagata in contanti senza fattura)
+  clientPrice      Decimal?           @db.Decimal(14, 2) // prezzo (imponibile) fatto pagare al cliente, usato solo nei deal di tipo RISTRUTTURAZIONE_CLIENTE per generare il preventivo
   paidAmount       Decimal            @db.Decimal(14, 2) @default(0)  // input
   status           CostLineItemStatus @default(DA_FARE)
   isMemo           Boolean            @default(false) // true = esclusa dai totali (solo tracciabilità)

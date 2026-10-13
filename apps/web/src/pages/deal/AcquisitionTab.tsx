@@ -17,6 +17,7 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
     address: deal.address ?? "",
     propertyType: deal.propertyType ?? "",
     surfaceSqm: deal.surfaceSqm?.toString() ?? "",
+    operationType: deal.operationType,
   });
   const [purchasePrice, setPurchasePrice] = useState(deal.acquisitionDetails?.purchasePrice.toString() ?? "0");
   const [depositAmount, setDepositAmount] = useState(deal.acquisitionDetails?.depositAmount?.toString() ?? "0");
@@ -47,6 +48,23 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
       <Card>
         <CardHeader title="Dati immobile" subtitle="Indirizzo e superficie: usati nel portafoglio e nei calcoli a mq." />
         <CardBody className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Label htmlFor="operationType">Tipo di operazione</Label>
+            <Select
+              id="operationType"
+              value={property.operationType}
+              onChange={(e) => setProperty({ ...property, operationType: e.target.value as typeof property.operationType })}
+            >
+              <option value="FLIP">Flip (acquisto, ristrutturazione, rivendita)</option>
+              <option value="RISTRUTTURAZIONE_CLIENTE">Ristrutturazione per un cliente (genera un preventivo)</option>
+            </Select>
+            {property.operationType === "RISTRUTTURAZIONE_CLIENTE" && (
+              <p className="mt-1 text-xs text-slate-400">
+                Nella scheda Ristrutturazione potrai impostare, per ogni voce di Materiali/Lavorazioni, anche un
+                "Prezzo cliente" diverso dal costo: serve per generare il preventivo da dare al cliente.
+              </p>
+            )}
+          </div>
           <div className="sm:col-span-2">
             <Label htmlFor="address">Indirizzo</Label>
             <Input
@@ -81,6 +99,7 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
                   address: property.address || undefined,
                   propertyType: property.propertyType || undefined,
                   surfaceSqm: property.surfaceSqm ? Number(property.surfaceSqm) : undefined,
+                  operationType: property.operationType,
                 })
               }
               disabled={saveProperty.isPending}

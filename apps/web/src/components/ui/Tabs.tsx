@@ -16,7 +16,7 @@ export function Tabs({
   onChange: (id: string) => void;
 }) {
   return (
-    <div className="border-b border-slate-200">
+    <div className="border-b border-slate-200 print:hidden">
       <nav className="-mb-px flex gap-1 overflow-x-auto px-1">
         {items.map((item) => (
           <button

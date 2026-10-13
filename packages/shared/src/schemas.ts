@@ -13,6 +13,8 @@ export const dealStatusSchema = z.enum([
   "ARCHIVIATO",
 ]);
 
+export const dealOperationTypeSchema = z.enum(["FLIP", "RISTRUTTURAZIONE_CLIENTE"]);
+
 export const costCategoryGroupSchema = z.enum(["ACQUISIZIONE", "MATERIALI", "LAVORAZIONI", "ENTI_ESTERNI", "ALTRO"]);
 
 export const costLineItemStatusSchema = z.enum(["DA_FARE", "IN_CORSO", "COMPLETATO"]);
@@ -54,6 +56,7 @@ export const dealCreateSchema = z.object({
   address: z.string().optional(),
   propertyType: z.string().optional(),
   surfaceSqm: z.number().nonnegative().optional(),
+  operationType: dealOperationTypeSchema.default("FLIP"),
   status: dealStatusSchema.default("VALUTAZIONE"),
 });
 
@@ -91,6 +94,7 @@ export const costLineItemCreateSchema = z.object({
   taxableAmount: z.number().nonnegative(),
   vatRatePct: z.number().min(0).max(100),
   nonTaxableAmount: z.number().nonnegative().default(0),
+  clientPrice: z.number().nonnegative().nullable().optional(),
   paidAmount: z.number().nonnegative().default(0),
   status: costLineItemStatusSchema.default("DA_FARE"),
   isMemo: z.boolean().default(false),

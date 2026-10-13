@@ -32,6 +32,7 @@ const EMPTY_NEW_ITEM = {
   taxableAmount: "0",
   vatRatePct: "22",
   nonTaxableAmount: "0",
+  clientPrice: "",
   isMemo: false,
   isUnbilled: false,
   priceListItemId: "" as string | null,
@@ -49,6 +50,7 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
   });
   const updateItem = trpc.costLineItem.update.useMutation({ onSuccess: () => utils.deal.get.invalidate({ id: deal.id }) });
   const deleteItem = trpc.costLineItem.delete.useMutation({ onSuccess: () => utils.deal.get.invalidate({ id: deal.id }) });
+  const isClientJob = deal.operationType === "RISTRUTTURAZIONE_CLIENTE";
 
   const byGroup: Record<string, CostLineItemDetail[]> = {};
   for (const item of deal.costLineItems) {
@@ -93,17 +95,18 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
             <CardBody>
               {items.length > 0 && (
                 <div className="mb-4 overflow-x-auto">
-                  <table className="w-full min-w-[920px] table-fixed text-sm">
+                  <table className={`w-full table-fixed text-sm ${isClientJob ? "min-w-[1020px]" : "min-w-[920px]"}`}>
                     <colgroup>
-                      <col className="w-[22%]" />
-                      <col className="w-[12%]" />
-                      <col className="w-[9%]" />
-                      <col className="w-[6%]" />
-                      <col className="w-[9%]" />
-                      <col className="w-[14%]" />
-                      <col className="w-[9%]" />
-                      <col className="w-[12%]" />
-                      <col className="w-[7%]" />
+                      <col className={isClientJob ? "w-[18%]" : "w-[22%]"} />
+                      <col className={isClientJob ? "w-[10%]" : "w-[12%]"} />
+                      <col className={isClientJob ? "w-[8%]" : "w-[9%]"} />
+                      <col className={isClientJob ? "w-[5%]" : "w-[6%]"} />
+                      <col className={isClientJob ? "w-[8%]" : "w-[9%]"} />
+                      {isClientJob && <col className="w-[10%]" />}
+                      <col className={isClientJob ? "w-[12%]" : "w-[14%]"} />
+                      <col className={isClientJob ? "w-[8%]" : "w-[9%]"} />
+                      <col className={isClientJob ? "w-[11%]" : "w-[12%]"} />
+                      <col className={isClientJob ? "w-[7%]" : "w-[7%]"} />
                     </colgroup>
                     <thead>
                       <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
@@ -112,6 +115,7 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
                         <th className="py-2 pr-2 text-right">Imponibile</th>
                         <th className="py-2 pr-2 text-right">IVA%</th>
                         <th className="py-2 pr-2 text-right">Totale</th>
+                        {isClientJob && <th className="py-2 pr-2 text-right">Prezzo cliente</th>}
                         <th className="py-2 pr-2 text-right">Pagato</th>
                         <th className="py-2 pr-2 text-right">Residuo</th>
                         <th className="py-2 pr-2">Stato</th>
@@ -126,6 +130,7 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
                           updateItem={updateItem}
                           deleteItem={deleteItem}
                           onEdit={() => setEditingItem(item)}
+                          isClientJob={isClientJob}
                         />
                       ))}
                     </tbody>
@@ -141,6 +146,7 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
                 updateItem={updateItem}
                 editingItem={editingItem?.category.group === group ? editingItem : null}
                 onCancelEdit={() => setEditingItem(null)}
+                isClientJob={isClientJob}
               />
             </CardBody>
           </Card>
@@ -160,19 +166,31 @@ function CostLineItemRow({
   updateItem,
   deleteItem,
   onEdit,
+  isClientJob,
 }: {
   item: CostLineItemDetail;
   updateItem: ReturnType<typeof trpc.costLineItem.update.useMutation>;
   deleteItem: ReturnType<typeof trpc.costLineItem.delete.useMutation>;
   onEdit: () => void;
+  isClientJob: boolean;
 }) {
   const totals = rowTotals(item);
   const [paidAmount, setPaidAmount] = useState(item.paidAmount.toString());
+  const [clientPrice, setClientPrice] = useState(item.clientPrice?.toString() ?? "");
 
   function commitPaidAmount() {
     const value = Number(paidAmount);
     if (!Number.isNaN(value) && value !== item.paidAmount) {
       updateItem.mutate({ id: item.id, paidAmount: value });
+    }
+  }
+
+  function commitClientPrice() {
+    const value = clientPrice === "" ? null : Number(clientPrice);
+    if (value === null || !Number.isNaN(value)) {
+      if (value !== (item.clientPrice ?? null)) {
+        updateItem.mutate({ id: item.id, clientPrice: value });
+      }
     }
   }
 
@@ -192,6 +210,18 @@ function CostLineItemRow({
       <td className="py-2 pr-2 align-top text-right">{formatCurrency(item.taxableAmount, true)}</td>
       <td className="py-2 pr-2 align-top text-right">{item.vatRatePct}%</td>
       <td className="py-2 pr-2 align-top text-right font-medium">{formatCurrency(totals.total, true)}</td>
+      {isClientJob && (
+        <td className="py-2 pr-2 align-top text-right">
+          <Input
+            type="number"
+            className="w-full py-1 text-right text-xs"
+            placeholder={item.taxableAmount.toString()}
+            value={clientPrice}
+            onChange={(e) => setClientPrice(e.target.value)}
+            onBlur={commitClientPrice}
+          />
+        </td>
+      )}
       <td className="py-2 pr-2 align-top text-right">
         <Input
           type="number"
@@ -253,6 +283,7 @@ function AddCostItemForm({
   updateItem,
   editingItem,
   onCancelEdit,
+  isClientJob,
 }: {
   dealId: string;
   label: string;
@@ -261,6 +292,7 @@ function AddCostItemForm({
   updateItem: ReturnType<typeof trpc.costLineItem.update.useMutation>;
   editingItem: CostLineItemDetail | null;
   onCancelEdit: () => void;
+  isClientJob: boolean;
 }) {
   const utils = trpc.useUtils();
   const [newItem, setNewItem] = useState(EMPTY_NEW_ITEM);
@@ -286,6 +318,7 @@ function AddCostItemForm({
       taxableAmount: editingItem.taxableAmount.toString(),
       vatRatePct: editingItem.vatRatePct.toString(),
       nonTaxableAmount: editingItem.nonTaxableAmount.toString(),
+      clientPrice: editingItem.clientPrice?.toString() ?? "",
       isMemo: editingItem.isMemo,
       isUnbilled: editingItem.isUnbilled,
       priceListItemId: editingItem.priceListItemId ?? null,
@@ -408,6 +441,18 @@ function AddCostItemForm({
           <Label>IVA (%)</Label>
           <Input type="number" value={newItem.vatRatePct} onChange={(e) => setNewItem({ ...newItem, vatRatePct: e.target.value })} />
         </div>
+        {isClientJob && (
+          <div>
+            <Label>Prezzo cliente (€)</Label>
+            <Input
+              type="number"
+              placeholder={newItem.taxableAmount}
+              value={newItem.clientPrice}
+              onChange={(e) => setNewItem({ ...newItem, clientPrice: e.target.value })}
+            />
+            <p className="mt-1 text-xs text-slate-400">Prezzo fatto pagare al cliente per il preventivo (se vuoto, usa l'imponibile).</p>
+          </div>
+        )}
         <div>
           <Label>Importo non imponibile (€)</Label>
           <Input
@@ -440,6 +485,7 @@ function AddCostItemForm({
                 taxableAmount: Number(newItem.taxableAmount),
                 vatRatePct: Number(newItem.vatRatePct),
                 nonTaxableAmount: Number(newItem.nonTaxableAmount),
+                clientPrice: newItem.clientPrice === "" ? null : Number(newItem.clientPrice),
                 isMemo: newItem.isMemo,
                 isUnbilled: newItem.isUnbilled,
                 priceListItemId: newItem.priceListItemId || undefined,

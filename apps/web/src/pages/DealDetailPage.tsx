@@ -9,8 +9,9 @@ import HoldingTab from "./deal/HoldingTab";
 import FinancingTab from "./deal/FinancingTab";
 import SaleTab from "./deal/SaleTab";
 import ResultsTab from "./deal/ResultsTab";
+import PreventivoTab from "./deal/PreventivoTab";
 
-const TABS = [
+const BASE_TABS = [
   { id: "acquisizione", label: "Acquisizione" },
   { id: "ristrutturazione", label: "Ristrutturazione" },
   { id: "detenzione", label: "Detenzione" },
@@ -28,18 +29,20 @@ export default function DealDetailPage() {
   if (deal.isError || !deal.data) return <p className="text-sm text-red-600">Deal non trovato.</p>;
 
   const openWarnings = deal.data.notes.filter((n) => !n.isResolved && n.severity !== "INFO").length;
+  const isClientJob = deal.data.operationType === "RISTRUTTURAZIONE_CLIENTE";
+  const tabs = isClientJob ? [...BASE_TABS, { id: "preventivo", label: "Preventivo cliente" }] : BASE_TABS;
 
   return (
     <div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 print:hidden">
         <h1 className="text-xl font-semibold text-slate-900">{deal.data.name}</h1>
         {deal.data.isDemo && <Badge tone="neutral">Demo</Badge>}
         {openWarnings > 0 && <Badge tone="warning">{openWarnings} avvisi aperti</Badge>}
       </div>
-      {deal.data.address && <p className="mt-1 text-sm text-slate-500">{deal.data.address}</p>}
+      {deal.data.address && <p className="mt-1 text-sm text-slate-500 print:hidden">{deal.data.address}</p>}
 
       <div className="mt-4">
-        <Tabs items={TABS} activeId={activeTab} onChange={setActiveTab} />
+        <Tabs items={tabs} activeId={activeTab} onChange={setActiveTab} />
       </div>
 
       <div className="mt-5">
@@ -49,6 +52,7 @@ export default function DealDetailPage() {
         {activeTab === "finanziamento" && <FinancingTab deal={deal.data} />}
         {activeTab === "vendita" && <SaleTab deal={deal.data} />}
         {activeTab === "risultati" && <ResultsTab deal={deal.data} />}
+        {activeTab === "preventivo" && isClientJob && <PreventivoTab deal={deal.data} />}
       </div>
     </div>
   );
