@@ -107,54 +107,9 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {items.map((item) => {
-                        const totals = rowTotals(item);
-                        return (
-                          <tr key={item.id} className="border-b border-slate-100">
-                            <td className="py-2 pr-2">
-                              {item.description}
-                              {item.isMemo && <Badge tone="neutral">memo</Badge>}
-                              {item.isUnbilled && (
-                                <span className="ml-1">
-                                  <Badge tone="warning">contanti/non fatt.</Badge>
-                                </span>
-                              )}
-                              {item.nonTaxableAmount > 0 && (
-                                <span className="ml-1">
-                                  <Badge tone="info">+{formatCurrency(item.nonTaxableAmount, true)} f.c. IVA</Badge>
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-2 pr-2 text-slate-500">{item.category.name}</td>
-                            <td className="py-2 pr-2 text-right">{formatCurrency(item.taxableAmount, true)}</td>
-                            <td className="py-2 pr-2 text-right">{item.vatRatePct}%</td>
-                            <td className="py-2 pr-2 text-right font-medium">{formatCurrency(totals.total, true)}</td>
-                            <td className="py-2 pr-2 text-right">{formatCurrency(item.paidAmount, true)}</td>
-                            <td className="py-2 pr-2 text-right">{formatCurrency(totals.due, true)}</td>
-                            <td className="py-2 pr-2">
-                              <Select
-                                className="py-1 text-xs"
-                                value={item.status}
-                                onChange={(e) => updateItem.mutate({ id: item.id, status: e.target.value as CostLineItemDetail["status"] })}
-                              >
-                                {Object.entries(STATUS_LABEL).map(([v, l]) => (
-                                  <option key={v} value={v}>
-                                    {l}
-                                  </option>
-                                ))}
-                              </Select>
-                            </td>
-                            <td className="py-2 pr-2 text-right">
-                              <button
-                                className="text-xs text-red-500 hover:underline"
-                                onClick={() => deleteItem.mutate({ id: item.id })}
-                              >
-                                Elimina
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {items.map((item) => (
+                        <CostLineItemRow key={item.id} item={item} updateItem={updateItem} deleteItem={deleteItem} />
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -171,6 +126,91 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
         );
       })}
     </div>
+  );
+}
+
+/**
+ * Riga della tabella di una voce di costo. "Stato" (avanzamento lavori) e
+ * "Pagato" (quanto è stato effettivamente versato) sono campi indipendenti:
+ * segnare una voce come Completato NON la marca automaticamente come pagata.
+ */
+function CostLineItemRow({
+  item,
+  updateItem,
+  deleteItem,
+}: {
+  item: CostLineItemDetail;
+  updateItem: ReturnType<typeof trpc.costLineItem.update.useMutation>;
+  deleteItem: ReturnType<typeof trpc.costLineItem.delete.useMutation>;
+}) {
+  const totals = rowTotals(item);
+  const [paidAmount, setPaidAmount] = useState(item.paidAmount.toString());
+
+  function commitPaidAmount() {
+    const value = Number(paidAmount);
+    if (!Number.isNaN(value) && value !== item.paidAmount) {
+      updateItem.mutate({ id: item.id, paidAmount: value });
+    }
+  }
+
+  return (
+    <tr className="border-b border-slate-100">
+      <td className="py-2 pr-2">
+        {item.description}
+        {item.isMemo && <Badge tone="neutral">memo</Badge>}
+        {item.isUnbilled && (
+          <span className="ml-1">
+            <Badge tone="warning">contanti/non fatt.</Badge>
+          </span>
+        )}
+        {item.nonTaxableAmount > 0 && (
+          <span className="ml-1">
+            <Badge tone="info">+{formatCurrency(item.nonTaxableAmount, true)} f.c. IVA</Badge>
+          </span>
+        )}
+      </td>
+      <td className="py-2 pr-2 text-slate-500">{item.category.name}</td>
+      <td className="py-2 pr-2 text-right">{formatCurrency(item.taxableAmount, true)}</td>
+      <td className="py-2 pr-2 text-right">{item.vatRatePct}%</td>
+      <td className="py-2 pr-2 text-right font-medium">{formatCurrency(totals.total, true)}</td>
+      <td className="py-2 pr-2 text-right">
+        <Input
+          type="number"
+          className="w-24 py-1 text-right text-xs"
+          value={paidAmount}
+          onChange={(e) => setPaidAmount(e.target.value)}
+          onBlur={commitPaidAmount}
+        />
+        <button
+          className="mt-1 block text-[11px] text-brand-600 hover:underline"
+          onClick={() => {
+            setPaidAmount(totals.total.toString());
+            if (totals.total !== item.paidAmount) updateItem.mutate({ id: item.id, paidAmount: totals.total });
+          }}
+        >
+          Segna come pagato
+        </button>
+      </td>
+      <td className="py-2 pr-2 text-right">{formatCurrency(totals.due, true)}</td>
+      <td className="py-2 pr-2">
+        <Select
+          className="py-1 text-xs"
+          value={item.status}
+          onChange={(e) => updateItem.mutate({ id: item.id, status: e.target.value as CostLineItemDetail["status"] })}
+        >
+          {Object.entries(STATUS_LABEL).map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </Select>
+      </td>
+      <td className="py-2 pr-2 text-right">
+        <button className="text-xs text-red-500 hover:underline" onClick={() => deleteItem.mutate({ id: item.id })}>
+          Elimina
+        </button>
+      </td>
+    </tr>
   );
 }
 
