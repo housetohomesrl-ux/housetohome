@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { formatCurrency } from "../../lib/format";
 import type { DealDetail, CostLineItemDetail, CostCategory, PriceListItem } from "../../lib/types";
@@ -42,6 +42,7 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
   const categories = trpc.costCategory.list.useQuery();
   const priceList = trpc.priceListItem.list.useQuery();
   const [contingencyPct, setContingencyPct] = useState(deal.renovationSettings?.contingencyPct.toString() ?? "12");
+  const [editingItem, setEditingItem] = useState<CostLineItemDetail | null>(null);
 
   const saveContingency = trpc.dealSettings.updateRenovationSettings.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
@@ -119,7 +120,13 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
                     </thead>
                     <tbody>
                       {items.map((item) => (
-                        <CostLineItemRow key={item.id} item={item} updateItem={updateItem} deleteItem={deleteItem} />
+                        <CostLineItemRow
+                          key={item.id}
+                          item={item}
+                          updateItem={updateItem}
+                          deleteItem={deleteItem}
+                          onEdit={() => setEditingItem(item)}
+                        />
                       ))}
                     </tbody>
                   </table>
@@ -131,6 +138,9 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
                 label={label}
                 groupCategories={groupCategories}
                 priceListData={priceList.data}
+                updateItem={updateItem}
+                editingItem={editingItem?.category.group === group ? editingItem : null}
+                onCancelEdit={() => setEditingItem(null)}
               />
             </CardBody>
           </Card>
@@ -149,10 +159,12 @@ function CostLineItemRow({
   item,
   updateItem,
   deleteItem,
+  onEdit,
 }: {
   item: CostLineItemDetail;
   updateItem: ReturnType<typeof trpc.costLineItem.update.useMutation>;
   deleteItem: ReturnType<typeof trpc.costLineItem.delete.useMutation>;
+  onEdit: () => void;
 }) {
   const totals = rowTotals(item);
   const [paidAmount, setPaidAmount] = useState(item.paidAmount.toString());
@@ -213,8 +225,14 @@ function CostLineItemRow({
         </Select>
       </td>
       <td className="py-2 pr-2 align-top text-right">
-        <button className="text-xs text-red-500 hover:underline" onClick={() => deleteItem.mutate({ id: item.id })}>
+        <button
+          className="block text-xs text-red-500 hover:underline"
+          onClick={() => deleteItem.mutate({ id: item.id })}
+        >
           Elimina
+        </button>
+        <button className="mt-1 block text-xs text-brand-600 hover:underline" onClick={onEdit}>
+          Modifica
         </button>
       </td>
     </tr>
@@ -232,14 +250,21 @@ function AddCostItemForm({
   label,
   groupCategories,
   priceListData,
+  updateItem,
+  editingItem,
+  onCancelEdit,
 }: {
   dealId: string;
   label: string;
   groupCategories: CostCategory[];
   priceListData: PriceListItem[] | undefined;
+  updateItem: ReturnType<typeof trpc.costLineItem.update.useMutation>;
+  editingItem: CostLineItemDetail | null;
+  onCancelEdit: () => void;
 }) {
   const utils = trpc.useUtils();
   const [newItem, setNewItem] = useState(EMPTY_NEW_ITEM);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const selectedPriceListItem = priceListData?.find((p) => p.id === newItem.priceListItemId) ?? null;
   const categoryPriceList = newItem.categoryId
     ? (priceListData ?? []).filter((p) => p.categoryId === newItem.categoryId && p.includeInPreventivo)
@@ -252,9 +277,36 @@ function AddCostItemForm({
     },
   });
 
+  useEffect(() => {
+    if (!editingItem) return;
+    setNewItem({
+      categoryId: editingItem.categoryId,
+      description: editingItem.description,
+      quantity: "1",
+      taxableAmount: editingItem.taxableAmount.toString(),
+      vatRatePct: editingItem.vatRatePct.toString(),
+      nonTaxableAmount: editingItem.nonTaxableAmount.toString(),
+      isMemo: editingItem.isMemo,
+      isUnbilled: editingItem.isUnbilled,
+      priceListItemId: editingItem.priceListItemId ?? null,
+    });
+    setDetailsOpen(true);
+  }, [editingItem]);
+
+  function cancelEdit() {
+    setNewItem(EMPTY_NEW_ITEM);
+    onCancelEdit();
+  }
+
   return (
-    <details className="rounded-md border border-dashed border-slate-300 p-3">
-      <summary className="cursor-pointer text-sm font-medium text-brand-700">+ Aggiungi voce a "{label}"</summary>
+    <details
+      className="rounded-md border border-dashed border-slate-300 p-3"
+      open={detailsOpen}
+      onToggle={(e) => setDetailsOpen(e.currentTarget.open)}
+    >
+      <summary className="cursor-pointer text-sm font-medium text-brand-700">
+        {editingItem ? `Modifica voce di "${label}"` : `+ Aggiungi voce a "${label}"`}
+      </summary>
       <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div>
           <Label>Categoria</Label>
@@ -375,13 +427,12 @@ function AddCostItemForm({
           />
           Contanti / non fatturata
         </label>
-        <div className="sm:col-span-2 lg:col-span-3">
+        <div className="flex items-center gap-3 sm:col-span-2 lg:col-span-3">
           <Button
             variant="secondary"
-            disabled={!newItem.categoryId || !newItem.description || createItem.isPending}
-            onClick={() =>
-              createItem.mutate({
-                dealId,
+            disabled={!newItem.categoryId || !newItem.description || createItem.isPending || updateItem.isPending}
+            onClick={() => {
+              const data = {
                 categoryId: newItem.categoryId,
                 description: newItem.description,
                 taxableAmount: Number(newItem.taxableAmount),
@@ -390,11 +441,21 @@ function AddCostItemForm({
                 isMemo: newItem.isMemo,
                 isUnbilled: newItem.isUnbilled,
                 priceListItemId: newItem.priceListItemId || undefined,
-              })
-            }
+              };
+              if (editingItem) {
+                updateItem.mutate({ id: editingItem.id, ...data }, { onSuccess: cancelEdit });
+              } else {
+                createItem.mutate({ dealId, ...data });
+              }
+            }}
           >
-            Aggiungi voce
+            {editingItem ? "Salva modifiche" : "Aggiungi voce"}
           </Button>
+          {editingItem && (
+            <button type="button" className="text-sm text-slate-500 hover:underline" onClick={cancelEdit}>
+              Annulla modifica
+            </button>
+          )}
         </div>
       </div>
     </details>
