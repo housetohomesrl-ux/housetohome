@@ -65,6 +65,7 @@ export const dealCreateSchema = z.object({
   clientEmail: z.string().optional(),
   quoteDate: z.coerce.date().optional(),
   quoteValidUntil: z.coerce.date().optional(),
+  clientAmountReceived: z.number().nonnegative().optional(),
   status: dealStatusSchema.default("VALUTAZIONE"),
 });
 

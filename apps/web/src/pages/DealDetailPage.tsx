@@ -9,6 +9,7 @@ import HoldingTab from "./deal/HoldingTab";
 import FinancingTab from "./deal/FinancingTab";
 import SaleTab from "./deal/SaleTab";
 import ResultsTab from "./deal/ResultsTab";
+import ClientResultsTab from "./deal/ClientResultsTab";
 import PreventivoTab from "./deal/PreventivoTab";
 
 export default function DealDetailPage() {
@@ -49,7 +50,7 @@ export default function DealDetailPage() {
         {activeTab === "detenzione" && <HoldingTab deal={deal.data} />}
         {activeTab === "finanziamento" && <FinancingTab deal={deal.data} />}
         {activeTab === "vendita" && <SaleTab deal={deal.data} />}
-        {activeTab === "risultati" && <ResultsTab deal={deal.data} />}
+        {activeTab === "risultati" && (isClientJob ? <ClientResultsTab deal={deal.data} /> : <ResultsTab deal={deal.data} />)}
         {activeTab === "preventivo" && isClientJob && <PreventivoTab deal={deal.data} />}
       </div>
     </div>

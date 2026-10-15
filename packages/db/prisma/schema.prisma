@@ -125,6 +125,7 @@ model Deal {
   clientEmail     String?
   quoteDate       DateTime? // data di creazione del preventivo
   quoteValidUntil DateTime? // data di validità del preventivo
+  clientAmountReceived Decimal? @db.Decimal(14, 2) // totale incassato dal cliente finora (RISTRUTTURAZIONE_CLIENTE)
   status        DealStatus        @default(VALUTAZIONE)
   isDemo        Boolean           @default(false)
   createdAt     DateTime          @default(now())
