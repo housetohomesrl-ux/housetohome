@@ -229,7 +229,16 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
     marginCost += item.taxableAmount + item.nonTaxableAmount;
   }
   const totalClientPrice = clientSubtotal * (1 + quoteVatRatePct(deal) / 100);
-  const margin = clientSubtotal - marginCost;
+
+  // Costi di detenzione: per una ristrutturazione cliente non è il costo di
+  // possesso dell'immobile (non è nostro), ma i costi ricorrenti
+  // dell'azienda legati alla durata del cantiere (assicurazione di
+  // cantiere, altri costi fissi) — vanno comunque tolti dal margine.
+  const holdingCosts = deal.holdingCosts;
+  const holdingCostsTotal = holdingCosts
+    ? holdingCosts.durationMonths * (holdingCosts.monthlyInsurance + holdingCosts.otherMonthlyCosts)
+    : 0;
+  const margin = clientSubtotal - marginCost - holdingCostsTotal;
 
   // Stima: IRES + IRAP sul margine (se positivo), con le aliquote della SRL
   // impostate qui sotto. Come per il flip, è una stima — la base imponibile
@@ -284,6 +293,13 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
           tone={netMarginAfterTax >= 0 ? "success" : "danger"}
         />
       </div>
+      {holdingCostsTotal > 0 && (
+        <p className="-mt-3 text-xs text-slate-400">
+          Il margine include {formatCurrency(holdingCostsTotal, true)} di costi di detenzione (
+          {holdingCosts!.durationMonths} mesi × {formatCurrency(holdingCosts!.monthlyInsurance + holdingCosts!.otherMonthlyCosts, true)}
+          /mese, scheda Detenzione).
+        </p>
+      )}
 
       <Card>
         <CardHeader
