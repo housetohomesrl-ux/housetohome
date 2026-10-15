@@ -187,8 +187,13 @@ function vendorPaymentTotal(p: VendorPayment): number {
 export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
   const utils = trpc.useUtils();
   const [received, setReceived] = useState(deal.clientAmountReceived?.toString() ?? "0");
+  const [iresRatePct, setIresRatePct] = useState(deal.fiscalSettings?.iresRatePct.toString() ?? "24");
+  const [irapRatePct, setIrapRatePct] = useState(deal.fiscalSettings?.irapRatePct.toString() ?? "3.9");
 
   const saveReceived = trpc.deal.update.useMutation({
+    onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
+  });
+  const saveFiscal = trpc.dealSettings.updateFiscalSettings.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
   });
 
@@ -211,6 +216,14 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
     marginRevenue += clientBasePrice(item, deal);
   }
   const margin = marginRevenue - marginCost;
+
+  // Stima: IRES + IRAP sul margine (se positivo), con le aliquote della SRL
+  // impostate qui sotto. Come per il flip, è una stima — la base imponibile
+  // fiscale reale può differire e va sempre verificata con il commercialista.
+  const companyTaxRatePct = (deal.fiscalSettings?.iresRatePct ?? 24) + (deal.fiscalSettings?.irapRatePct ?? 3.9);
+  const companyTax = margin > 0 ? (margin * companyTaxRatePct) / 100 : 0;
+  const netMarginAfterTax = margin - companyTax;
+
   const receivedFromClient = deal.clientAmountReceived ?? 0;
   const dueFromClient = totalClientPrice - receivedFromClient;
 
@@ -242,11 +255,50 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
 
   return (
     <div className="grid gap-5">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Totale preventivo cliente" value={formatCurrency(totalClientPrice)} />
         <KpiCard label="Totale costi" value={formatCurrency(totalCost)} />
         <KpiCard label="Margine sulla ristrutturazione" value={formatCurrency(margin)} tone={margin >= 0 ? "success" : "danger"} />
+        <KpiCard
+          label={`Margine netto (dopo tasse SRL, ${companyTaxRatePct.toFixed(1)}%)`}
+          value={formatCurrency(netMarginAfterTax)}
+          tone={netMarginAfterTax >= 0 ? "success" : "danger"}
+        />
       </div>
+
+      <Card>
+        <CardHeader
+          title="Aliquote tasse società"
+          subtitle="IRES + IRAP applicate sul margine (se positivo), per calcolare il margine netto qui sopra. È una stima, da verificare col commercialista."
+        />
+        <CardBody className="flex flex-wrap items-end gap-3">
+          <div>
+            <Label htmlFor="ires">IRES (%)</Label>
+            <Input id="ires" type="number" className="w-28" value={iresRatePct} onChange={(e) => setIresRatePct(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="irap">IRAP (%)</Label>
+            <Input id="irap" type="number" className="w-28" value={irapRatePct} onChange={(e) => setIrapRatePct(e.target.value)} />
+          </div>
+          <Button
+            variant="secondary"
+            disabled={saveFiscal.isPending}
+            onClick={() =>
+              saveFiscal.mutate({
+                dealId: deal.id,
+                regimeType: deal.fiscalSettings?.regimeType ?? "SOCIETA_CAPITALI",
+                saleSubjectToVat: deal.fiscalSettings?.saleSubjectToVat ?? false,
+                costsVatRecoverable: deal.fiscalSettings?.costsVatRecoverable ?? false,
+                iresRatePct: Number(iresRatePct),
+                irapRatePct: Number(irapRatePct),
+                capitalGainsTaxRatePct: deal.fiscalSettings?.capitalGainsTaxRatePct ?? 26,
+              })
+            }
+          >
+            Salva
+          </Button>
+        </CardBody>
+      </Card>
 
       <Card>
         <CardHeader title="Incassi dal cliente" subtitle="Quanto hai già incassato e quanto resta da farti pagare." />
