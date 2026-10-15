@@ -55,19 +55,26 @@ function computeGroupClientPrice(group: string, taxableAmount: number, deal: Dea
   return taxableAmount * (1 + markupPctForGroup(group, deal) / 100);
 }
 
-const EMPTY_NEW_ITEM = {
-  categoryId: "",
-  description: "",
-  quantity: "1",
-  taxableAmount: "0",
-  vatRatePct: "22",
-  nonTaxableAmount: "0",
-  clientPrice: "",
-  isMemo: false,
-  isUnbilled: false,
-  priceListItemId: "" as string | null,
-  vendorId: "" as string | null,
-};
+/** IVA di default sul costo (quella che paghiamo noi a fornitori/subappaltatori): 22% sui Materiali, 0% sulle Lavorazioni, sempre modificabile a mano. */
+function defaultCostVatRatePct(group: string): string {
+  return group === "LAVORAZIONI" ? "0" : "22";
+}
+
+function emptyNewItem(group: string) {
+  return {
+    categoryId: "",
+    description: "",
+    quantity: "1",
+    taxableAmount: "0",
+    vatRatePct: defaultCostVatRatePct(group),
+    nonTaxableAmount: "0",
+    clientPrice: "",
+    isMemo: false,
+    isUnbilled: false,
+    priceListItemId: "" as string | null,
+    vendorId: "" as string | null,
+  };
+}
 
 export default function RenovationTab({ deal }: { deal: DealDetail }) {
   const utils = trpc.useUtils();
@@ -423,7 +430,7 @@ function AddCostItemForm({
   isClientJob: boolean;
 }) {
   const utils = trpc.useUtils();
-  const [newItem, setNewItem] = useState(EMPTY_NEW_ITEM);
+  const [newItem, setNewItem] = useState(() => emptyNewItem(group));
   const [detailsOpen, setDetailsOpen] = useState(false);
   const selectedPriceListItem = priceListData?.find((p) => p.id === newItem.priceListItemId) ?? null;
   const categoryPriceList = newItem.categoryId
@@ -435,7 +442,7 @@ function AddCostItemForm({
   const createItem = trpc.costLineItem.create.useMutation({
     onSuccess: () => {
       utils.deal.get.invalidate({ id: dealId });
-      setNewItem(EMPTY_NEW_ITEM);
+      setNewItem(emptyNewItem(group));
     },
   });
 
@@ -458,7 +465,7 @@ function AddCostItemForm({
   }, [editingItem]);
 
   function cancelEdit() {
-    setNewItem(EMPTY_NEW_ITEM);
+    setNewItem(emptyNewItem(group));
     onCancelEdit();
   }
 
