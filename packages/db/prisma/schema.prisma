@@ -125,7 +125,16 @@ model Deal {
   clientEmail     String?
   quoteDate       DateTime? // data di creazione del preventivo
   quoteValidUntil DateTime? // data di validità del preventivo
-  clientAmountReceived Decimal? @db.Decimal(14, 2) // totale incassato dal cliente finora (RISTRUTTURAZIONE_CLIENTE)
+  clientAmountReceived Decimal? @db.Decimal(14, 2) // deprecato, non più scritto: vedi clientAcconto1Amount ecc.
+  // Incassi dal cliente a rate (RISTRUTTURAZIONE_CLIENTE): fino a 3 acconti
+  // (ciascuno con % sul totale preventivo + importo) più un saldo finale.
+  clientAcconto1Pct    Decimal? @db.Decimal(5, 2)
+  clientAcconto1Amount Decimal  @db.Decimal(14, 2) @default(0)
+  clientAcconto2Pct    Decimal? @db.Decimal(5, 2)
+  clientAcconto2Amount Decimal  @db.Decimal(14, 2) @default(0)
+  clientAcconto3Pct    Decimal? @db.Decimal(5, 2)
+  clientAcconto3Amount Decimal  @db.Decimal(14, 2) @default(0)
+  clientSaldoAmount    Decimal  @db.Decimal(14, 2) @default(0)
   status        DealStatus        @default(VALUTAZIONE)
   isDemo        Boolean           @default(false)
   createdAt     DateTime          @default(now())
