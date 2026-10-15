@@ -234,7 +234,13 @@ export const saleScenarioUpsertSchema = z.object({
 export const dealVendorPaymentSchema = z.object({
   dealId: z.string(),
   vendorId: z.string(),
-  amountPaid: z.number().nonnegative(),
+  acconto1Pct: z.number().min(0).max(100).nullable().optional(),
+  acconto1Amount: z.number().nonnegative().optional(),
+  acconto2Pct: z.number().min(0).max(100).nullable().optional(),
+  acconto2Amount: z.number().nonnegative().optional(),
+  acconto3Pct: z.number().min(0).max(100).nullable().optional(),
+  acconto3Amount: z.number().nonnegative().optional(),
+  saldoAmount: z.number().nonnegative().optional(),
 });
 
 export const noteCreateSchema = z.object({

@@ -5,7 +5,7 @@ import type { DealDetail } from "../../lib/types";
 import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { Input, Label } from "../../components/ui/Field";
 import { Button } from "../../components/ui/Button";
-import { autoClientPrice } from "./RenovationTab";
+import { clientFinalPrice } from "./RenovationTab";
 
 function KpiCard({ label, value, tone }: { label: string; value: string; tone?: "success" | "danger" }) {
   return (
@@ -18,50 +18,162 @@ function KpiCard({ label, value, tone }: { label: string; value: string; tone?: 
   );
 }
 
-function VendorPaymentRow({
+type VendorPayment = DealDetail["vendorPayments"][number];
+
+/** Un riquadro "Acconto N": % (facoltativa, ricalcola l'importo sul totale costi del fornitore) + importo, sempre modificabile. */
+function InstallmentBox({
+  title,
+  cost,
+  pct,
+  amount,
+  onCommit,
+}: {
+  title: string;
+  cost: number;
+  pct: number | null;
+  amount: number;
+  onCommit: (data: { pct: number | null; amount: number }) => void;
+}) {
+  const [pctValue, setPctValue] = useState(pct?.toString() ?? "");
+  const [amountValue, setAmountValue] = useState(amount.toString());
+
+  function commitPct() {
+    const pctNum = pctValue === "" ? null : Number(pctValue);
+    if (pctNum === null) {
+      onCommit({ pct: null, amount: Number(amountValue || 0) });
+      return;
+    }
+    const amountNum = Math.round(cost * (pctNum / 100) * 100) / 100;
+    setAmountValue(amountNum.toString());
+    onCommit({ pct: pctNum, amount: amountNum });
+  }
+
+  function commitAmount() {
+    onCommit({ pct: pctValue === "" ? null : Number(pctValue), amount: Number(amountValue || 0) });
+  }
+
+  return (
+    <div className="rounded-md border border-slate-200 p-2">
+      <div className="text-xs font-medium text-slate-500">{title}</div>
+      <div className="mt-1 flex items-center gap-1">
+        <Input
+          type="number"
+          className="w-14 py-1 text-right text-xs"
+          placeholder="%"
+          value={pctValue}
+          onChange={(e) => setPctValue(e.target.value)}
+          onBlur={commitPct}
+        />
+        <span className="text-xs text-slate-400">%</span>
+        <Input
+          type="number"
+          className="w-full py-1 text-right text-xs"
+          value={amountValue}
+          onChange={(e) => setAmountValue(e.target.value)}
+          onBlur={commitAmount}
+        />
+        <span className="text-xs text-slate-400">€</span>
+      </div>
+    </div>
+  );
+}
+
+/** Il riquadro "Saldo": solo importo, nessuna percentuale. */
+function SaldoBox({ amount, onCommit }: { amount: number; onCommit: (amount: number) => void }) {
+  const [value, setValue] = useState(amount.toString());
+  return (
+    <div className="rounded-md border border-slate-200 p-2">
+      <div className="text-xs font-medium text-slate-500">Saldo</div>
+      <div className="mt-1 flex items-center gap-1">
+        <Input
+          type="number"
+          className="w-full py-1 text-right text-xs"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={() => onCommit(Number(value || 0))}
+        />
+        <span className="text-xs text-slate-400">€</span>
+      </div>
+    </div>
+  );
+}
+
+function VendorPaymentCard({
   dealId,
   vendorId,
   label,
   cost,
   paid,
+  payment,
 }: {
   dealId: string;
   vendorId: string | null;
   label: string;
   cost: number;
   paid: number;
+  payment: VendorPayment | undefined;
 }) {
   const utils = trpc.useUtils();
-  const [value, setValue] = useState(paid.toString());
-  const savePayment = trpc.dealSettings.upsertVendorPayment.useMutation({
+  const save = trpc.dealSettings.upsertVendorPayment.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: dealId }),
   });
   const due = cost - paid;
 
+  if (!vendorId) {
+    return (
+      <div className="rounded-lg border border-slate-200 p-3">
+        <div className="flex items-center justify-between">
+          <div className="font-medium text-slate-800">{label}</div>
+          <div className="text-sm text-slate-500">Totale costi: {formatCurrency(cost, true)}</div>
+        </div>
+        <div className="mt-3 flex items-center justify-between text-sm">
+          <span className="text-emerald-700">Pagato: {formatCurrency(paid, true)}</span>
+          <span className={due > 0 ? "text-red-600" : "text-slate-500"}>Residuo da pagare: {formatCurrency(due, true)}</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <tr className="border-b border-slate-100">
-      <td className="py-2 pr-4">{label}</td>
-      <td className="py-2 pr-4 text-right">{formatCurrency(cost, true)}</td>
-      <td className="py-2 pr-4 text-right">
-        {vendorId ? (
-          <div className="flex items-center justify-end gap-2">
-            <Input
-              type="number"
-              className="w-28 text-right"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onBlur={() => {
-                if (Number(value) !== paid) savePayment.mutate({ dealId, vendorId, amountPaid: Number(value || 0) });
-              }}
-            />
-          </div>
-        ) : (
-          <span className="text-emerald-700">{formatCurrency(paid, true)}</span>
-        )}
-      </td>
-      <td className={`py-2 pr-4 text-right ${due > 0 ? "text-red-600" : "text-slate-500"}`}>{formatCurrency(due, true)}</td>
-    </tr>
+    <div className="rounded-lg border border-slate-200 p-3">
+      <div className="flex items-center justify-between">
+        <div className="font-medium text-slate-800">{label}</div>
+        <div className="text-sm text-slate-500">Totale costi: {formatCurrency(cost, true)}</div>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-4">
+        <InstallmentBox
+          title="Acconto 1"
+          cost={cost}
+          pct={payment?.acconto1Pct ?? null}
+          amount={payment?.acconto1Amount ?? 0}
+          onCommit={(d) => save.mutate({ dealId, vendorId, acconto1Pct: d.pct, acconto1Amount: d.amount })}
+        />
+        <InstallmentBox
+          title="Acconto 2"
+          cost={cost}
+          pct={payment?.acconto2Pct ?? null}
+          amount={payment?.acconto2Amount ?? 0}
+          onCommit={(d) => save.mutate({ dealId, vendorId, acconto2Pct: d.pct, acconto2Amount: d.amount })}
+        />
+        <InstallmentBox
+          title="Acconto 3"
+          cost={cost}
+          pct={payment?.acconto3Pct ?? null}
+          amount={payment?.acconto3Amount ?? 0}
+          onCommit={(d) => save.mutate({ dealId, vendorId, acconto3Pct: d.pct, acconto3Amount: d.amount })}
+        />
+        <SaldoBox amount={payment?.saldoAmount ?? 0} onCommit={(amount) => save.mutate({ dealId, vendorId, saldoAmount: amount })} />
+      </div>
+      <div className="mt-3 flex items-center justify-between text-sm">
+        <span className="text-emerald-700">Pagato: {formatCurrency(paid, true)}</span>
+        <span className={due > 0 ? "text-red-600" : "text-slate-500"}>Residuo da pagare: {formatCurrency(due, true)}</span>
+      </div>
+    </div>
   );
+}
+
+function vendorPaymentTotal(p: VendorPayment): number {
+  return p.acconto1Amount + p.acconto2Amount + p.acconto3Amount + p.saldoAmount;
 }
 
 /**
@@ -87,8 +199,7 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
   for (const item of items) {
     const costTotal = item.taxableAmount + (item.taxableAmount * item.vatRatePct) / 100 + item.nonTaxableAmount;
     totalCost += costTotal;
-    const clientBase = item.clientPrice ?? autoClientPrice(item, deal);
-    totalClientPrice += clientBase + (clientBase * item.vatRatePct) / 100;
+    totalClientPrice += clientFinalPrice(item, deal);
   }
   const margin = totalClientPrice - totalCost;
   const receivedFromClient = deal.clientAmountReceived ?? 0;
@@ -109,9 +220,13 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
     vendorTotals.set(key, g);
   }
   const noVendorPaid = items.filter((i) => !i.vendorId).reduce((sum, i) => sum + i.paidAmount, 0);
-  const paymentByVendorId = new Map(deal.vendorPayments.map((p) => [p.vendorId, p.amountPaid]));
+  const paymentByVendorId = new Map(deal.vendorPayments.map((p) => [p.vendorId, p]));
   const vendorRows = [...vendorTotals.values()]
-    .map((v) => ({ ...v, paid: v.vendorId ? paymentByVendorId.get(v.vendorId) ?? 0 : noVendorPaid }))
+    .map((v) => {
+      const payment = v.vendorId ? paymentByVendorId.get(v.vendorId) : undefined;
+      const paid = v.vendorId ? (payment ? vendorPaymentTotal(payment) : 0) : noVendorPaid;
+      return { ...v, payment, paid };
+    })
     .sort((a, b) => b.cost - a.cost);
   const totalPaidToVendors = vendorRows.reduce((sum, v) => sum + v.paid, 0);
   const dueToVendors = totalCost - totalPaidToVendors;
@@ -145,40 +260,37 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
       </Card>
 
       <Card>
-        <CardHeader title="Pagamenti ai fornitori" subtitle="Quanto hai già pagato e quanto manca, diviso per fornitore." />
-        <CardBody className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
-                <th className="py-2 pr-4">Fornitore</th>
-                <th className="py-2 pr-4 text-right">Totale costi</th>
-                <th className="py-2 pr-4 text-right">Pagato</th>
-                <th className="py-2 pr-4 text-right">Residuo da pagare</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vendorRows.map((v) => (
-                <VendorPaymentRow key={v.vendorId ?? "__none__"} dealId={deal.id} vendorId={v.vendorId} label={v.label} cost={v.cost} paid={v.paid} />
-              ))}
-              {vendorRows.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="py-6 text-center text-sm text-slate-400">
-                    Nessuna voce ancora inserita nella scheda Ristrutturazione.
-                  </td>
-                </tr>
-              )}
-              {vendorRows.length > 0 && (
-                <tr className="font-semibold">
-                  <td className="py-2 pr-4">Totale</td>
-                  <td className="py-2 pr-4 text-right">{formatCurrency(totalCost, true)}</td>
-                  <td className="py-2 pr-4 text-right text-emerald-700">{formatCurrency(totalPaidToVendors, true)}</td>
-                  <td className={`py-2 pr-4 text-right ${dueToVendors > 0 ? "text-red-600" : "text-slate-500"}`}>
-                    {formatCurrency(dueToVendors, true)}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <CardHeader
+          title="Pagamenti ai fornitori"
+          subtitle='Diviso per fornitore: fino a 3 acconti (con % calcolata sul totale costi, sempre modificabile) + saldo.'
+        />
+        <CardBody className="grid gap-3">
+          {vendorRows.map((v) => (
+            <VendorPaymentCard
+              key={v.vendorId ?? "__none__"}
+              dealId={deal.id}
+              vendorId={v.vendorId}
+              label={v.label}
+              cost={v.cost}
+              paid={v.paid}
+              payment={v.payment}
+            />
+          ))}
+          {vendorRows.length === 0 && (
+            <p className="py-6 text-center text-sm text-slate-400">Nessuna voce ancora inserita nella scheda Ristrutturazione.</p>
+          )}
+          {vendorRows.length > 0 && (
+            <div className="flex items-center justify-between border-t border-slate-200 pt-3 text-sm font-semibold">
+              <span>Totale</span>
+              <div className="flex gap-4">
+                <span>Costi: {formatCurrency(totalCost, true)}</span>
+                <span className="text-emerald-700">Pagato: {formatCurrency(totalPaidToVendors, true)}</span>
+                <span className={dueToVendors > 0 ? "text-red-600" : "text-slate-500"}>
+                  Residuo: {formatCurrency(dueToVendors, true)}
+                </span>
+              </div>
+            </div>
+          )}
         </CardBody>
       </Card>
     </div>

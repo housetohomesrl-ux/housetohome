@@ -43,13 +43,15 @@ export const dealSettingsRouter = router({
     return serializeDecimals(updated);
   }),
 
+  // Aggiorna solo le rate passate (di solito una alla volta, al blur di un
+  // singolo riquadro), lasciando intatte le altre già salvate.
   upsertVendorPayment: protectedProcedure.input(dealVendorPaymentSchema).mutation(async ({ ctx, input }) => {
     await assertDealAccess(ctx.user.tenantId, input.dealId);
-    const { dealId, vendorId, amountPaid } = input;
+    const { dealId, vendorId, ...data } = input;
     const upserted = await prisma.dealVendorPayment.upsert({
       where: { dealId_vendorId: { dealId, vendorId } },
-      create: { dealId, vendorId, amountPaid },
-      update: { amountPaid },
+      create: { dealId, vendorId, ...data },
+      update: data,
     });
     return serializeDecimals(upserted);
   }),

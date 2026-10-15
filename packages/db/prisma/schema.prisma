@@ -306,17 +306,24 @@ model Vendor {
   @@map("vendors")
 }
 
-// Totale pagato a un fornitore su un deal (RISTRUTTURAZIONE_CLIENTE): inserito
-// a mano come importo complessivo (acconto + acconto + saldo...), non la somma
-// dei paidAmount delle singole voci di costo, perché in pratica i pagamenti ai
-// fornitori sono a rate e non corrispondono 1:1 alle voci di lavorazione.
+// Quanto pagato a un fornitore su un deal (RISTRUTTURAZIONE_CLIENTE), inserito
+// a mano diviso per rata (fino a 3 acconti, ciascuno con la propria % oltre
+// all'importo, + un saldo finale), non la somma dei paidAmount delle singole
+// voci di costo: in pratica i pagamenti ai fornitori sono a rate e non
+// corrispondono 1:1 alle voci di lavorazione.
 model DealVendorPayment {
-  dealId      String
-  deal        Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
-  vendorId    String
-  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  amountPaid  Decimal  @db.Decimal(14, 2) @default(0)
-  updatedAt   DateTime @updatedAt
+  dealId         String
+  deal           Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  vendorId       String
+  vendor         Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  acconto1Pct    Decimal? @db.Decimal(5, 2)
+  acconto1Amount Decimal  @db.Decimal(14, 2) @default(0)
+  acconto2Pct    Decimal? @db.Decimal(5, 2)
+  acconto2Amount Decimal  @db.Decimal(14, 2) @default(0)
+  acconto3Pct    Decimal? @db.Decimal(5, 2)
+  acconto3Amount Decimal  @db.Decimal(14, 2) @default(0)
+  saldoAmount    Decimal  @db.Decimal(14, 2) @default(0)
+  updatedAt      DateTime @updatedAt
 
   @@id([dealId, vendorId])
   @@map("deal_vendor_payments")

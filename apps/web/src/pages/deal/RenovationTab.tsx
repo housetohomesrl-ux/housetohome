@@ -36,6 +36,18 @@ export function autoClientPrice(item: CostLineItemDetail, deal: DealDetail): num
   return item.taxableAmount * (1 + markupPctForGroup(item.category.group, deal) / 100);
 }
 
+/**
+ * Prezzo finale da far pagare al cliente per una voce: prezzo cliente (già
+ * maggiorato) + IVA, solo per i Materiali (l'IVA che paghiamo noi sui
+ * materiali viene rigirata al cliente). Le Lavorazioni e le altre voci non
+ * hanno IVA aggiunta in più sul preventivo.
+ */
+export function clientFinalPrice(item: CostLineItemDetail, deal: DealDetail): number {
+  const price = item.clientPrice ?? autoClientPrice(item, deal);
+  const vat = item.category.group === "MATERIALI" ? (price * item.vatRatePct) / 100 : 0;
+  return price + vat;
+}
+
 /** Come autoClientPrice, ma a partire da un imponibile non ancora salvato (form "Aggiungi voce"). */
 function computeGroupClientPrice(group: string, taxableAmount: number, deal: DealDetail): number {
   return taxableAmount * (1 + markupPctForGroup(group, deal) / 100);
@@ -64,6 +76,7 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
   const [materialMarkupPct, setMaterialMarkupPct] = useState(deal.renovationSettings?.materialMarkupPct?.toString() ?? "0");
   const [laborMarkupPct, setLaborMarkupPct] = useState(deal.renovationSettings?.laborMarkupPct?.toString() ?? "0");
   const [editingItem, setEditingItem] = useState<CostLineItemDetail | null>(null);
+  const [recalculating, setRecalculating] = useState(false);
 
   const saveContingency = trpc.dealSettings.updateRenovationSettings.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
@@ -74,6 +87,24 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
   const updateItem = trpc.costLineItem.update.useMutation({ onSuccess: () => utils.deal.get.invalidate({ id: deal.id }) });
   const deleteItem = trpc.costLineItem.delete.useMutation({ onSuccess: () => utils.deal.get.invalidate({ id: deal.id }) });
   const isClientJob = deal.operationType === "RISTRUTTURAZIONE_CLIENTE";
+
+  // Ogni voce può avere un prezzo cliente impostato a mano: quando è il caso
+  // (es. quasi tutte, impostato in automatico alla creazione), cambiare il
+  // ricarico % qui sopra non lo aggiorna più da solo. Questo pulsante lo
+  // riporta al calcolo automatico (costo + ricarico attuale) per tutte le
+  // voci, cosi il preventivo riflette subito la nuova percentuale.
+  async function recalculateClientPrices() {
+    const toReset = deal.costLineItems.filter(
+      (item) => (item.category.group === "MATERIALI" || item.category.group === "LAVORAZIONI") && item.clientPrice !== null,
+    );
+    if (toReset.length === 0) return;
+    setRecalculating(true);
+    try {
+      await Promise.all(toReset.map((item) => updateItem.mutateAsync({ id: item.id, clientPrice: null })));
+    } finally {
+      setRecalculating(false);
+    }
+  }
 
   const byGroup: Record<string, CostLineItemDetail[]> = {};
   for (const item of deal.costLineItems) {
@@ -150,6 +181,14 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
             >
               Salva
             </Button>
+            <button
+              type="button"
+              className="text-sm text-brand-700 hover:underline disabled:opacity-50"
+              onClick={recalculateClientPrices}
+              disabled={recalculating}
+            >
+              {recalculating ? "Ricalcolo..." : "Ricalcola i prezzi cliente già impostati con il ricarico attuale"}
+            </button>
           </CardBody>
         </Card>
       )}
@@ -309,15 +348,17 @@ function CostLineItemRow({
           onChange={(e) => setPaidAmount(e.target.value)}
           onBlur={commitPaidAmount}
         />
-        <button
-          className="mt-1 whitespace-nowrap text-[11px] text-brand-600 hover:underline"
-          onClick={() => {
-            setPaidAmount(totals.total.toString());
-            if (totals.total !== item.paidAmount) updateItem.mutate({ id: item.id, paidAmount: totals.total });
-          }}
-        >
-          Segna come pagato
-        </button>
+        {!isClientJob && (
+          <button
+            className="mt-1 whitespace-nowrap text-[11px] text-brand-600 hover:underline"
+            onClick={() => {
+              setPaidAmount(totals.total.toString());
+              if (totals.total !== item.paidAmount) updateItem.mutate({ id: item.id, paidAmount: totals.total });
+            }}
+          >
+            Segna come pagato
+          </button>
+        )}
       </td>
       <td className="py-2 pr-2 align-top text-right">{formatCurrency(totals.due, true)}</td>
       <td className="py-2 pr-2 align-top">
@@ -473,7 +514,6 @@ function AddCostItemForm({
                   quantity: newItem.quantity || "1",
                   description: p.specification ? `${p.name} — ${p.specification}` : p.name,
                   taxableAmount: taxableAmount.toFixed(2),
-                  clientPrice: isClientJob ? computeGroupClientPrice(group, taxableAmount, deal).toFixed(2) : newItem.clientPrice,
                 });
               }}
             >
@@ -507,10 +547,6 @@ function AddCostItemForm({
                 ...newItem,
                 quantity: qty,
                 taxableAmount: selectedPriceListItem ? taxableAmount.toFixed(2) : newItem.taxableAmount,
-                clientPrice:
-                  isClientJob && selectedPriceListItem
-                    ? computeGroupClientPrice(group, taxableAmount, deal).toFixed(2)
-                    : newItem.clientPrice,
               });
             }}
           />
@@ -538,16 +574,7 @@ function AddCostItemForm({
           <Input
             type="number"
             value={newItem.taxableAmount}
-            onChange={(e) => {
-              const taxableAmount = e.target.value;
-              setNewItem({
-                ...newItem,
-                taxableAmount,
-                clientPrice: isClientJob
-                  ? computeGroupClientPrice(group, Number(taxableAmount) || 0, deal).toFixed(2)
-                  : newItem.clientPrice,
-              });
-            }}
+            onChange={(e) => setNewItem({ ...newItem, taxableAmount: e.target.value })}
           />
           {selectedPriceListItem && (
             <p className="mt-1 text-xs text-slate-400">Precompilato da quantità × prezzo di listino, modificabile.</p>
