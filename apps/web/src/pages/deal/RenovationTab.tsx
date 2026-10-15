@@ -36,14 +36,20 @@ export function autoClientPrice(item: CostLineItemDetail, deal: DealDetail): num
   return item.taxableAmount * (1 + markupPctForGroup(item.category.group, deal) / 100);
 }
 
+/** Prezzo cliente di una voce, già maggiorato ma senza IVA: la base da usare per il margine (l'IVA è solo un passaggio verso l'erario, non guadagno). */
+export function clientBasePrice(item: CostLineItemDetail, deal: DealDetail): number {
+  return item.clientPrice ?? autoClientPrice(item, deal);
+}
+
 /**
  * Prezzo finale da far pagare al cliente per una voce: prezzo cliente (già
  * maggiorato) + IVA, solo per i Materiali (l'IVA che paghiamo noi sui
  * materiali viene rigirata al cliente). Le Lavorazioni e le altre voci non
- * hanno IVA aggiunta in più sul preventivo.
+ * hanno IVA aggiunta in più sul preventivo. Da usare per gli incassi dal
+ * cliente, non per il margine (vedi clientBasePrice).
  */
 export function clientFinalPrice(item: CostLineItemDetail, deal: DealDetail): number {
-  const price = item.clientPrice ?? autoClientPrice(item, deal);
+  const price = clientBasePrice(item, deal);
   const vat = item.category.group === "MATERIALI" ? (price * item.vatRatePct) / 100 : 0;
   return price + vat;
 }

@@ -5,7 +5,7 @@ import type { DealDetail } from "../../lib/types";
 import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { Input, Label } from "../../components/ui/Field";
 import { Button } from "../../components/ui/Button";
-import { clientFinalPrice } from "./RenovationTab";
+import { clientBasePrice, clientFinalPrice } from "./RenovationTab";
 
 function KpiCard({ label, value, tone }: { label: string; value: string; tone?: "success" | "danger" }) {
   return (
@@ -194,14 +194,23 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
 
   const items = deal.costLineItems.filter((i) => !i.isMemo);
 
+  // Il margine si calcola al netto dell'IVA: quella che paghiamo sui
+  // materiali e quella che giriamo al cliente sono un semplice passaggio
+  // verso l'erario, non un guadagno. "Totale costi" e "Totale preventivo
+  // cliente" restano invece con IVA inclusa, perché sono i flussi di cassa
+  // reali (quanto esce verso i fornitori, quanto entra dal cliente).
   let totalCost = 0;
   let totalClientPrice = 0;
+  let marginCost = 0;
+  let marginRevenue = 0;
   for (const item of items) {
     const costTotal = item.taxableAmount + (item.taxableAmount * item.vatRatePct) / 100 + item.nonTaxableAmount;
     totalCost += costTotal;
     totalClientPrice += clientFinalPrice(item, deal);
+    marginCost += item.taxableAmount + item.nonTaxableAmount;
+    marginRevenue += clientBasePrice(item, deal);
   }
-  const margin = totalClientPrice - totalCost;
+  const margin = marginRevenue - marginCost;
   const receivedFromClient = deal.clientAmountReceived ?? 0;
   const dueFromClient = totalClientPrice - receivedFromClient;
 
