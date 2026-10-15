@@ -9,6 +9,7 @@ import { Input, Label, Select, Textarea } from "../components/ui/Field";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { GROUP_LABEL } from "./deal/RenovationTab";
+import type { PriceListItem } from "../lib/types";
 
 interface ImportRow {
   categoryGroup: "ACQUISIZIONE" | "MATERIALI" | "LAVORAZIONI" | "ENTI_ESTERNI" | "ALTRO";
@@ -33,6 +34,107 @@ const SCOPE_BY_SLUG: Record<string, LibraryScope> = {
   flip: "FLIP",
   ristrutturazione: "RISTRUTTURAZIONE_CLIENTE",
 };
+
+/** Tabella di un gruppo (Materiali, Lavorazioni, ...) con la sua ricerca indipendente, per trovare rapidamente una voce. */
+function PriceListGroupCard({
+  label,
+  items,
+  startEdit,
+  remove,
+  update,
+}: {
+  label: string;
+  items: PriceListItem[];
+  startEdit: (item: PriceListItem) => void;
+  remove: ReturnType<typeof trpc.priceListItem.delete.useMutation>;
+  update: ReturnType<typeof trpc.priceListItem.update.useMutation>;
+}) {
+  const [search, setSearch] = useState("");
+  const query = search.trim().toLowerCase();
+  const filteredItems = query
+    ? items.filter((item) =>
+        [item.name, item.category.name, item.specification, item.vendor?.name].some((v) => v?.toLowerCase().includes(query)),
+      )
+    : items;
+
+  return (
+    <Card className="mt-4">
+      <CardHeader title={label} />
+      <CardBody>
+        <div className="mb-3 sm:w-72">
+          <Input placeholder="Cerca una voce..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
+                <th className="py-2 pr-2">Voce</th>
+                <th className="py-2 pr-2">Categoria</th>
+                <th className="py-2 pr-2">Fornitore</th>
+                <th className="py-2 pr-2">Unità / rif.</th>
+                <th className="py-2 pr-2 text-right">Prezzo</th>
+                <th className="py-2 pr-2">Usa per</th>
+                <th className="py-2 pr-2">Aggiornato</th>
+                <th className="py-2 pr-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {filteredItems.map((item) => (
+                <tr key={item.id} className="border-b border-slate-100 align-top">
+                  <td className="py-2 pr-2">
+                    <div>{item.name}</div>
+                    {item.specification && <div className="mt-0.5 text-xs text-slate-400">{item.specification}</div>}
+                  </td>
+                  <td className="py-2 pr-2 text-slate-500">{item.category.name}</td>
+                  <td className="py-2 pr-2 text-slate-500">{item.vendor?.name ?? "—"}</td>
+                  <td className="py-2 pr-2 text-slate-500">
+                    <div>{item.unit}</div>
+                    {item.referenceQuantity && <div className="mt-0.5 text-xs text-slate-400">{item.referenceQuantity}</div>}
+                  </td>
+                  <td className="py-2 pr-2 text-right font-medium">{formatCurrency(item.unitPrice, true)}</td>
+                  <td className="py-2 pr-2">
+                    <div className="flex flex-wrap gap-1">
+                      <button
+                        className="cursor-pointer"
+                        title="Clic per attivare/disattivare"
+                        onClick={() => update.mutate({ id: item.id, includeInPreventivo: !item.includeInPreventivo })}
+                      >
+                        <Badge tone={item.includeInPreventivo ? "success" : "neutral"}>Preventivo</Badge>
+                      </button>
+                      <button
+                        className="cursor-pointer"
+                        title="Clic per attivare/disattivare"
+                        onClick={() => update.mutate({ id: item.id, includeInBusinessPlan: !item.includeInBusinessPlan })}
+                      >
+                        <Badge tone={item.includeInBusinessPlan ? "info" : "neutral"}>Business plan</Badge>
+                      </button>
+                    </div>
+                  </td>
+                  <td className="py-2 pr-2 text-xs text-slate-400">{formatDate(item.updatedAt)}</td>
+                  <td className="py-2 pr-2 text-right whitespace-nowrap">
+                    <button className="text-xs text-brand-700 hover:underline" onClick={() => startEdit(item)}>
+                      Modifica
+                    </button>
+                    <button className="ml-2 text-xs text-red-500 hover:underline" onClick={() => remove.mutate({ id: item.id })}>
+                      Elimina
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {filteredItems.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="py-4 text-center text-sm text-slate-400">
+                    Nessuna voce trovata per "{search}".
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </CardBody>
+    </Card>
+  );
+}
 
 const EMPTY_FORM = {
   categoryId: "",
@@ -230,76 +332,7 @@ export default function PriceListPage() {
       {Object.entries(GROUP_LABEL).map(([group, label]) => {
         const groupItems = itemsByGroup.get(group);
         if (!groupItems || groupItems.length === 0) return null;
-        return (
-          <Card className="mt-4" key={group}>
-            <CardHeader title={label} />
-            <CardBody>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
-                      <th className="py-2 pr-2">Voce</th>
-                      <th className="py-2 pr-2">Categoria</th>
-                      <th className="py-2 pr-2">Fornitore</th>
-                      <th className="py-2 pr-2">Unità / rif.</th>
-                      <th className="py-2 pr-2 text-right">Prezzo</th>
-                      <th className="py-2 pr-2">Usa per</th>
-                      <th className="py-2 pr-2">Aggiornato</th>
-                      <th className="py-2 pr-2" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {groupItems.map((item) => (
-                      <tr key={item.id} className="border-b border-slate-100 align-top">
-                        <td className="py-2 pr-2">
-                          <div>{item.name}</div>
-                          {item.specification && <div className="mt-0.5 text-xs text-slate-400">{item.specification}</div>}
-                        </td>
-                        <td className="py-2 pr-2 text-slate-500">{item.category.name}</td>
-                        <td className="py-2 pr-2 text-slate-500">{item.vendor?.name ?? "—"}</td>
-                        <td className="py-2 pr-2 text-slate-500">
-                          <div>{item.unit}</div>
-                          {item.referenceQuantity && <div className="mt-0.5 text-xs text-slate-400">{item.referenceQuantity}</div>}
-                        </td>
-                        <td className="py-2 pr-2 text-right font-medium">{formatCurrency(item.unitPrice, true)}</td>
-                        <td className="py-2 pr-2">
-                          <div className="flex flex-wrap gap-1">
-                            <button
-                              className="cursor-pointer"
-                              title="Clic per attivare/disattivare"
-                              onClick={() => update.mutate({ id: item.id, includeInPreventivo: !item.includeInPreventivo })}
-                            >
-                              <Badge tone={item.includeInPreventivo ? "success" : "neutral"}>Preventivo</Badge>
-                            </button>
-                            <button
-                              className="cursor-pointer"
-                              title="Clic per attivare/disattivare"
-                              onClick={() => update.mutate({ id: item.id, includeInBusinessPlan: !item.includeInBusinessPlan })}
-                            >
-                              <Badge tone={item.includeInBusinessPlan ? "info" : "neutral"}>Business plan</Badge>
-                            </button>
-                          </div>
-                        </td>
-                        <td className="py-2 pr-2 text-xs text-slate-400">{formatDate(item.updatedAt)}</td>
-                        <td className="py-2 pr-2 text-right whitespace-nowrap">
-                          <button className="text-xs text-brand-700 hover:underline" onClick={() => startEdit(item)}>
-                            Modifica
-                          </button>
-                          <button
-                            className="ml-2 text-xs text-red-500 hover:underline"
-                            onClick={() => remove.mutate({ id: item.id })}
-                          >
-                            Elimina
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardBody>
-          </Card>
-        );
+        return <PriceListGroupCard key={group} label={label} items={groupItems} startEdit={startEdit} remove={remove} update={update} />;
       })}
 
       <Card className="mt-4">
