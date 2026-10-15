@@ -8,6 +8,7 @@ import { Button } from "../../components/ui/Button";
 export default function HoldingTab({ deal }: { deal: DealDetail }) {
   const utils = trpc.useUtils();
   const h = deal.holdingCosts;
+  const isClientJob = deal.operationType === "RISTRUTTURAZIONE_CLIENTE";
   const [form, setForm] = useState({
     durationMonths: h?.durationMonths.toString() ?? "6",
     monthlyInsurance: h?.monthlyInsurance.toString() ?? "0",
@@ -41,18 +42,24 @@ export default function HoldingTab({ deal }: { deal: DealDetail }) {
           <Label htmlFor="insurance">Assicurazione (€/mese)</Label>
           <Input id="insurance" type="number" value={form.monthlyInsurance} onChange={(e) => setForm({ ...form, monthlyInsurance: e.target.value })} />
         </div>
-        <div>
-          <Label htmlFor="utilities">Utenze (€/mese)</Label>
-          <Input id="utilities" type="number" value={form.monthlyUtilities} onChange={(e) => setForm({ ...form, monthlyUtilities: e.target.value })} />
-        </div>
-        <div>
-          <Label htmlFor="propertyTax">IMU (€/mese)</Label>
-          <Input id="propertyTax" type="number" value={form.monthlyPropertyTax} onChange={(e) => setForm({ ...form, monthlyPropertyTax: e.target.value })} />
-        </div>
-        <div>
-          <Label htmlFor="condo">Spese condominiali (€/mese)</Label>
-          <Input id="condo" type="number" value={form.monthlyCondoFees} onChange={(e) => setForm({ ...form, monthlyCondoFees: e.target.value })} />
-        </div>
+        {!isClientJob && (
+          <div>
+            <Label htmlFor="utilities">Utenze (€/mese)</Label>
+            <Input id="utilities" type="number" value={form.monthlyUtilities} onChange={(e) => setForm({ ...form, monthlyUtilities: e.target.value })} />
+          </div>
+        )}
+        {!isClientJob && (
+          <div>
+            <Label htmlFor="propertyTax">IMU (€/mese)</Label>
+            <Input id="propertyTax" type="number" value={form.monthlyPropertyTax} onChange={(e) => setForm({ ...form, monthlyPropertyTax: e.target.value })} />
+          </div>
+        )}
+        {!isClientJob && (
+          <div>
+            <Label htmlFor="condo">Spese condominiali (€/mese)</Label>
+            <Input id="condo" type="number" value={form.monthlyCondoFees} onChange={(e) => setForm({ ...form, monthlyCondoFees: e.target.value })} />
+          </div>
+        )}
         <div>
           <Label htmlFor="other">Altri costi (€/mese)</Label>
           <Input id="other" type="number" value={form.otherMonthlyCosts} onChange={(e) => setForm({ ...form, otherMonthlyCosts: e.target.value })} />
