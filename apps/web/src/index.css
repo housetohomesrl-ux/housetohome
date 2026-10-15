@@ -23,3 +23,10 @@ body {
 .field-calculated {
   @apply border border-slate-200 bg-slate-100 text-slate-600 cursor-not-allowed;
 }
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

@@ -6,14 +6,20 @@ import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { Input, Label } from "../../components/ui/Field";
 import { Button } from "../../components/ui/Button";
 import { clientBasePrice, quoteVatRatePct } from "./RenovationTab";
+import logoUrl from "../../assets/housetohome-logo.jpg";
+
+function formatDateIt(value: string | Date): string {
+  return new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(value));
+}
 
 /**
- * Preventivo da dare al cliente per un deal RISTRUTTURAZIONE_CLIENTE: elenca
- * le voci di costo con il prezzo già maggiorato (prezzo cliente impostato a
- * mano, altrimenti costo + ricarico % per Materiali/Lavorazioni), senza IVA
- * per voce. L'IVA si applica una sola volta sul totale, con l'aliquota
- * impostata qui sotto (10% privati, 22% società). Non mostra dati interni
- * come pagato/residuo.
+ * Preventivo da dare al cliente per un deal RISTRUTTURAZIONE_CLIENTE, nel
+ * formato del modulo House to Home Srl usato finora (stessa intestazione,
+ * stesso logo, stessi colori, stesso riquadro condizioni/pagamento in
+ * fondo). Le voci di costo restano quelle già gestite dall'app: prezzo già
+ * maggiorato (impostato nella scheda Ristrutturazione, o costo + ricarico %
+ * per Materiali/Lavorazioni), senza IVA per voce — l'IVA si applica una
+ * sola volta sul totale, con l'aliquota impostata qui sotto.
  */
 export default function PreventivoTab({ deal }: { deal: DealDetail }) {
   const utils = trpc.useUtils();
@@ -28,6 +34,12 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
   const currentVatPct = quoteVatRatePct(deal);
   const vatAmount = (subtotal * currentVatPct) / 100;
   const grandTotal = subtotal + vatAmount;
+
+  const acconto1 = grandTotal * 0.25;
+  const acconto2 = grandTotal * 0.5;
+  const saldo = grandTotal - acconto1 - acconto2;
+
+  const quoteStatusLabel = deal.status === "ACQUISIZIONE" ? "confermato" : "in attesa di conferma";
 
   return (
     <div className="grid gap-5">
@@ -69,77 +81,111 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
         </CardBody>
       </Card>
 
-      <Card>
-        <CardHeader title={`Preventivo — ${deal.name}`} subtitle={deal.address ?? undefined} />
-        <CardBody>
-          {(deal.clientName || deal.clientPhone || deal.clientEmail) && (
-            <div className="mb-4 text-sm text-slate-600">
-              {deal.clientName && (
-                <div>
-                  <span className="text-slate-400">Cliente:</span> {deal.clientName}
-                </div>
-              )}
-              {deal.clientPhone && (
-                <div>
-                  <span className="text-slate-400">Telefono:</span> {deal.clientPhone}
-                </div>
-              )}
-              {deal.clientEmail && (
-                <div>
-                  <span className="text-slate-400">Email:</span> {deal.clientEmail}
-                </div>
-              )}
+      {/* Documento stampabile: stessa intestazione/colori/logo del modulo House to Home Srl. */}
+      <div className="bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm print:p-0 print:shadow-none">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-base font-bold tracking-wide">HOUSETOHOME SRL</h1>
+            <div className="mt-3 space-y-0.5">
+              <div>P.IVA 04269211209</div>
+              <div>VIA SANTO STEFANO 97</div>
+              <div>BOLOGNA 40125</div>
+              <div>PEC: housetohome89@pec.it</div>
+              <div>MAIL: housetohomesrl@gmail.com</div>
+              <div>TEL: +39 3395829835</div>
             </div>
-          )}
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
-                <th className="py-2 pr-2">Descrizione</th>
-                <th className="py-2 pr-2">Categoria</th>
-                <th className="py-2 pr-2 text-right">Prezzo</th>
+          </div>
+          <img src={logoUrl} alt="House to Home Srl" className="h-24 shrink-0" />
+          <div className="w-56 shrink-0 text-right">
+            <div className="inline-block bg-cyan-400 px-3 py-0.5 font-semibold text-white">Spett.le</div>
+            <div className="mt-1">{deal.clientName}</div>
+            <div>{deal.clientAddress || deal.address}</div>
+            <div className="mt-4">Data: {deal.quoteDate ? formatDateIt(deal.quoteDate) : formatDateIt(new Date())}</div>
+            <div>Preventivo: {quoteStatusLabel}</div>
+          </div>
+        </div>
+
+        <table className="mt-5 w-full border-collapse">
+          <thead>
+            <tr className="bg-cyan-400 text-left text-white">
+              <th className="border border-slate-300 px-2 py-1">DESCRIZIONE LAVORI</th>
+              <th className="border border-slate-300 px-2 py-1 text-right">MQ</th>
+              <th className="border border-slate-300 px-2 py-1 text-right">PREZZO</th>
+              <th className="border border-slate-300 px-2 py-1 text-right">QTÀ</th>
+              <th className="border border-slate-300 px-2 py-1 text-right">
+                TOTALE
+                <br />€
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ item, price }) => (
+              <tr key={item.id}>
+                <td className="border border-slate-300 px-2 py-1">{item.description}</td>
+                <td className="border border-slate-300 px-2 py-1" />
+                <td className="border border-slate-300 px-2 py-1" />
+                <td className="border border-slate-300 px-2 py-1" />
+                <td className="border border-slate-300 px-2 py-1 text-right">{formatCurrency(price, true)}</td>
               </tr>
-            </thead>
-            <tbody>
-              {rows.map(({ item, price }) => (
-                <tr key={item.id} className="border-b border-slate-100">
-                  <td className="py-2 pr-2">{item.description}</td>
-                  <td className="py-2 pr-2 text-slate-500">{item.category.name}</td>
-                  <td className="py-2 pr-2 text-right font-medium">{formatCurrency(price, true)}</td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="py-6 text-center text-sm text-slate-400">
-                    Nessuna voce ancora inserita nella scheda Ristrutturazione.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-            {rows.length > 0 && (
-              <tfoot>
-                <tr>
-                  <td className="py-2 pr-2" colSpan={2}>
-                    Subtotale
-                  </td>
-                  <td className="py-2 pr-2 text-right">{formatCurrency(subtotal, true)}</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-2" colSpan={2}>
-                    IVA ({currentVatPct}%)
-                  </td>
-                  <td className="py-2 pr-2 text-right">{formatCurrency(vatAmount, true)}</td>
-                </tr>
-                <tr className="font-semibold">
-                  <td className="py-2 pr-2" colSpan={2}>
-                    Totale preventivo
-                  </td>
-                  <td className="py-2 pr-2 text-right">{formatCurrency(grandTotal, true)}</td>
-                </tr>
-              </tfoot>
+            ))}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={5} className="border border-slate-300 px-2 py-6 text-center text-slate-400">
+                  Nessuna voce ancora inserita nella scheda Ristrutturazione.
+                </td>
+              </tr>
             )}
+          </tbody>
+        </table>
+
+        {rows.length > 0 && (
+          <table className="w-full border-collapse">
+            <tbody>
+              <tr className="bg-cyan-400 font-bold italic text-white">
+                <td className="border border-slate-300 px-2 py-1">TOTALE</td>
+                <td className="border border-slate-300 px-2 py-1">{formatCurrency(grandTotal, true)}</td>
+                <td className="border border-slate-300 px-2 py-1" colSpan={3}>
+                  + {currentVatPct}% di IVA
+                </td>
+              </tr>
+              <tr className="bg-cyan-400 font-semibold italic text-white">
+                <td className="border border-slate-300 px-2 py-1" colSpan={2}>
+                  Condizioni
+                </td>
+                <td className="border border-slate-300 px-2 py-1" colSpan={3}>
+                  Pagamento
+                </td>
+              </tr>
+              <tr>
+                <td className="border border-slate-300 px-2 py-2 align-top" colSpan={2}>
+                  Gentile cliente,
+                  <br />
+                  con l'accettazione del presente preventivo, viene richiesto un acconto pari al 25% del totale
+                  preventivo ({formatCurrency(acconto1, true)}) alla conferma del preventivo.
+                  <br />
+                  Un secondo acconto del 50% del totale preventivo ({formatCurrency(acconto2, true)}) a metà lavori.
+                  <br />
+                  Saldo ({formatCurrency(saldo, true)}) a fine lavori.
+                  <br />
+                  Inoltre, dichiara di aver verificato e approvato i costi per le opere descritte all'impresa
+                  incaricata all'esecuzione dei lavori.
+                </td>
+                <td className="border border-slate-300 px-2 py-2 align-top" colSpan={3}>
+                  BANCA DI BOLOGNA
+                  <br />
+                  IBAN: IT53 W 08883 02406 029000294064
+                  <br />
+                  BIC: CCRT IT 2T BDB
+                  <br />
+                  INTESTAZIONE: HOUSETOHOME SRL
+                  <div className="mt-6 text-center font-medium">DATA E FIRMA PER ACCETTAZIONE</div>
+                  <div className="mt-10 border-t border-slate-400" />
+                </td>
+              </tr>
+            </tbody>
           </table>
-        </CardBody>
-      </Card>
+        )}
+      </div>
     </div>
   );
 }
