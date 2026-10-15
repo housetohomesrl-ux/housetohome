@@ -25,15 +25,20 @@ function rowTotals(item: CostLineItemDetail) {
   return { vat, total, due };
 }
 
+function markupPctForGroup(group: string, deal: DealDetail): number {
+  if (group === "MATERIALI") return deal.renovationSettings?.materialMarkupPct ?? 0;
+  if (group === "LAVORAZIONI") return deal.renovationSettings?.laborMarkupPct ?? 0;
+  return 0;
+}
+
 /** Prezzo cliente di default quando la voce non ne ha uno impostato a mano: costo + ricarico % per gruppo (solo Materiali/Lavorazioni). */
 export function autoClientPrice(item: CostLineItemDetail, deal: DealDetail): number {
-  const markupPct =
-    item.category.group === "MATERIALI"
-      ? deal.renovationSettings?.materialMarkupPct ?? 0
-      : item.category.group === "LAVORAZIONI"
-        ? deal.renovationSettings?.laborMarkupPct ?? 0
-        : 0;
-  return item.taxableAmount * (1 + markupPct / 100);
+  return item.taxableAmount * (1 + markupPctForGroup(item.category.group, deal) / 100);
+}
+
+/** Come autoClientPrice, ma a partire da un imponibile non ancora salvato (form "Aggiungi voce"). */
+function computeGroupClientPrice(group: string, taxableAmount: number, deal: DealDetail): number {
+  return taxableAmount * (1 + markupPctForGroup(group, deal) / 100);
 }
 
 const EMPTY_NEW_ITEM = {
@@ -204,6 +209,8 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
 
               <AddCostItemForm
                 dealId={deal.id}
+                deal={deal}
+                group={group}
                 label={label}
                 groupCategories={groupCategories}
                 priceListData={priceList.data}
@@ -343,6 +350,8 @@ function CostLineItemRow({
  */
 function AddCostItemForm({
   dealId,
+  deal,
+  group,
   label,
   groupCategories,
   priceListData,
@@ -352,6 +361,8 @@ function AddCostItemForm({
   isClientJob,
 }: {
   dealId: string;
+  deal: DealDetail;
+  group: string;
   label: string;
   groupCategories: CostCategory[];
   priceListData: PriceListItem[] | undefined;
@@ -420,6 +431,7 @@ function AddCostItemForm({
                 quantity: "1",
                 taxableAmount: "0",
                 nonTaxableAmount: "0",
+                clientPrice: "",
               })
             }
           >
@@ -439,16 +451,18 @@ function AddCostItemForm({
               onChange={(e) => {
                 const p = categoryPriceList.find((x) => x.id === e.target.value);
                 if (!p) {
-                  setNewItem({ ...newItem, priceListItemId: null, description: "", taxableAmount: "0" });
+                  setNewItem({ ...newItem, priceListItemId: null, description: "", taxableAmount: "0", clientPrice: "" });
                   return;
                 }
                 const qty = Number(newItem.quantity) || 1;
+                const taxableAmount = qty * p.unitPrice;
                 setNewItem({
                   ...newItem,
                   priceListItemId: p.id,
                   quantity: newItem.quantity || "1",
                   description: p.specification ? `${p.name} — ${p.specification}` : p.name,
-                  taxableAmount: (qty * p.unitPrice).toFixed(2),
+                  taxableAmount: taxableAmount.toFixed(2),
+                  clientPrice: isClientJob ? computeGroupClientPrice(group, taxableAmount, deal).toFixed(2) : newItem.clientPrice,
                 });
               }}
             >
@@ -477,10 +491,15 @@ function AddCostItemForm({
             value={newItem.quantity}
             onChange={(e) => {
               const qty = e.target.value;
+              const taxableAmount = selectedPriceListItem ? Number(qty || 0) * selectedPriceListItem.unitPrice : Number(newItem.taxableAmount);
               setNewItem({
                 ...newItem,
                 quantity: qty,
-                taxableAmount: selectedPriceListItem ? (Number(qty || 0) * selectedPriceListItem.unitPrice).toFixed(2) : newItem.taxableAmount,
+                taxableAmount: selectedPriceListItem ? taxableAmount.toFixed(2) : newItem.taxableAmount,
+                clientPrice:
+                  isClientJob && selectedPriceListItem
+                    ? computeGroupClientPrice(group, taxableAmount, deal).toFixed(2)
+                    : newItem.clientPrice,
               });
             }}
           />
@@ -497,7 +516,16 @@ function AddCostItemForm({
           <Input
             type="number"
             value={newItem.taxableAmount}
-            onChange={(e) => setNewItem({ ...newItem, taxableAmount: e.target.value })}
+            onChange={(e) => {
+              const taxableAmount = e.target.value;
+              setNewItem({
+                ...newItem,
+                taxableAmount,
+                clientPrice: isClientJob
+                  ? computeGroupClientPrice(group, Number(taxableAmount) || 0, deal).toFixed(2)
+                  : newItem.clientPrice,
+              });
+            }}
           />
           {selectedPriceListItem && (
             <p className="mt-1 text-xs text-slate-400">Precompilato da quantità × prezzo di listino, modificabile.</p>
@@ -512,11 +540,13 @@ function AddCostItemForm({
             <Label>Prezzo cliente (€)</Label>
             <Input
               type="number"
-              placeholder={newItem.taxableAmount}
+              placeholder={computeGroupClientPrice(group, Number(newItem.taxableAmount) || 0, deal).toFixed(2)}
               value={newItem.clientPrice}
               onChange={(e) => setNewItem({ ...newItem, clientPrice: e.target.value })}
             />
-            <p className="mt-1 text-xs text-slate-400">Prezzo fatto pagare al cliente per il preventivo (se vuoto, usa l'imponibile).</p>
+            <p className="mt-1 text-xs text-slate-400">
+              Calcolato in automatico da imponibile + ricarico (Materiali/Lavorazioni), sempre modificabile.
+            </p>
           </div>
         )}
         <div>
