@@ -4,17 +4,37 @@ import { Card, CardBody, CardHeader } from "../components/ui/Card";
 import { Input, Label } from "../components/ui/Field";
 import { Button } from "../components/ui/Button";
 
+const EMPTY_FORM = { name: "", contact: "", specialty: "" };
+
 export default function VendorsPage() {
   const utils = trpc.useUtils();
   const vendors = trpc.vendor.list.useQuery();
-  const [form, setForm] = useState({ name: "", contact: "", specialty: "" });
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const create = trpc.vendor.create.useMutation({
     onSuccess: () => {
       utils.vendor.list.invalidate();
-      setForm({ name: "", contact: "", specialty: "" });
+      setForm(EMPTY_FORM);
+    },
+  });
+  const update = trpc.vendor.update.useMutation({
+    onSuccess: () => {
+      utils.vendor.list.invalidate();
+      setForm(EMPTY_FORM);
+      setEditingId(null);
     },
   });
   const remove = trpc.vendor.delete.useMutation({ onSuccess: () => utils.vendor.list.invalidate() });
+
+  function startEdit(v: { id: string; name: string; contact: string | null; specialty: string | null }) {
+    setEditingId(v.id);
+    setForm({ name: v.name, contact: v.contact ?? "", specialty: v.specialty ?? "" });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+  }
 
   return (
     <div>
@@ -39,8 +59,11 @@ export default function VendorsPage() {
                   <td className="py-2 pr-2">{v.name}</td>
                   <td className="py-2 pr-2 text-slate-500">{v.contact}</td>
                   <td className="py-2 pr-2 text-slate-500">{v.specialty}</td>
-                  <td className="py-2 pr-2 text-right">
-                    <button className="text-xs text-red-500 hover:underline" onClick={() => remove.mutate({ id: v.id })}>
+                  <td className="py-2 pr-2 text-right whitespace-nowrap">
+                    <button className="text-xs text-brand-700 hover:underline" onClick={() => startEdit(v)}>
+                      Modifica
+                    </button>
+                    <button className="ml-2 text-xs text-red-500 hover:underline" onClick={() => remove.mutate({ id: v.id })}>
                       Elimina
                     </button>
                   </td>
@@ -62,10 +85,19 @@ export default function VendorsPage() {
               <Label>Specializzazione</Label>
               <Input value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })} />
             </div>
-            <div className="sm:col-span-3">
-              <Button variant="secondary" disabled={!form.name || create.isPending} onClick={() => create.mutate(form)}>
-                Aggiungi fornitore
+            <div className="flex items-center gap-3 sm:col-span-3">
+              <Button
+                variant="secondary"
+                disabled={!form.name || create.isPending || update.isPending}
+                onClick={() => (editingId ? update.mutate({ id: editingId, ...form }) : create.mutate(form))}
+              >
+                {editingId ? "Salva modifiche" : "Aggiungi fornitore"}
               </Button>
+              {editingId && (
+                <button type="button" className="text-sm text-slate-500 hover:underline" onClick={cancelEdit}>
+                  Annulla modifica
+                </button>
+              )}
             </div>
           </div>
         </CardBody>
