@@ -57,6 +57,9 @@ export const dealCreateSchema = z.object({
   propertyType: z.string().optional(),
   surfaceSqm: z.number().nonnegative().optional(),
   operationType: dealOperationTypeSchema.default("FLIP"),
+  clientName: z.string().optional(),
+  clientPhone: z.string().optional(),
+  clientEmail: z.string().optional(),
   status: dealStatusSchema.default("VALUTAZIONE"),
 });
 

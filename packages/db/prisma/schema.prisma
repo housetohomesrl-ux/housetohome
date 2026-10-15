@@ -117,6 +117,9 @@ model Deal {
   propertyType  String?
   surfaceSqm    Decimal?          @db.Decimal(8, 2)
   operationType DealOperationType @default(FLIP)
+  clientName    String? // solo per RISTRUTTURAZIONE_CLIENTE: il committente a cui va il preventivo
+  clientPhone   String?
+  clientEmail   String?
   status        DealStatus        @default(VALUTAZIONE)
   isDemo        Boolean           @default(false)
   createdAt     DateTime          @default(now())

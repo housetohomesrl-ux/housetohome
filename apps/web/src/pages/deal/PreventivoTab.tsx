@@ -33,6 +33,25 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
       <Card>
         <CardHeader title={`Preventivo — ${deal.name}`} subtitle={deal.address ?? undefined} />
         <CardBody>
+          {(deal.clientName || deal.clientPhone || deal.clientEmail) && (
+            <div className="mb-4 text-sm text-slate-600">
+              {deal.clientName && (
+                <div>
+                  <span className="text-slate-400">Cliente:</span> {deal.clientName}
+                </div>
+              )}
+              {deal.clientPhone && (
+                <div>
+                  <span className="text-slate-400">Telefono:</span> {deal.clientPhone}
+                </div>
+              )}
+              {deal.clientEmail && (
+                <div>
+                  <span className="text-slate-400">Email:</span> {deal.clientEmail}
+                </div>
+              )}
+            </div>
+          )}
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">

@@ -22,8 +22,17 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
   const [purchasePrice, setPurchasePrice] = useState(deal.acquisitionDetails?.purchasePrice.toString() ?? "0");
   const [depositAmount, setDepositAmount] = useState(deal.acquisitionDetails?.depositAmount?.toString() ?? "0");
   const [notes, setNotes] = useState(deal.acquisitionDetails?.notes ?? "");
+  const [client, setClient] = useState({
+    clientName: deal.clientName ?? "",
+    clientPhone: deal.clientPhone ?? "",
+    clientEmail: deal.clientEmail ?? "",
+  });
+  const isClientJob = deal.operationType === "RISTRUTTURAZIONE_CLIENTE";
 
   const saveProperty = trpc.deal.update.useMutation({
+    onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
+  });
+  const saveClient = trpc.deal.update.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
   });
 
@@ -110,42 +119,93 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
         </CardBody>
       </Card>
 
-      <Card>
-        <CardHeader title="Dati di acquisizione" subtitle="Prezzo di acquisto: base per il calcolo della plusvalenza." />
-        <CardBody className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="depositAmount">Acconto / caparra (€)</Label>
-            <Input id="depositAmount" type="number" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} />
-          </div>
-          <div>
-            <Label htmlFor="purchasePrice">Prezzo di acquisto (€)</Label>
-            <Input id="purchasePrice" type="number" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} />
-          </div>
-          <div className="sm:col-span-2">
-            <Label htmlFor="acqNotes">Note</Label>
-            <Input id="acqNotes" value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
-          <p className="text-xs text-slate-500 sm:col-span-2">
-            Spese notarili, imposta di registro/IVA, commissioni agenzia e due diligence si inseriscono come righe di
-            costo nella scheda Ristrutturazione (categoria "Acquisizione").
-          </p>
-          <div className="sm:col-span-2">
-            <Button
-              onClick={() =>
-                saveAcquisition.mutate({
-                  dealId: deal.id,
-                  purchasePrice: Number(purchasePrice),
-                  depositAmount: Number(depositAmount),
-                  notes: notes || undefined,
-                })
-              }
-              disabled={saveAcquisition.isPending}
-            >
-              Salva
-            </Button>
-          </div>
-        </CardBody>
-      </Card>
+      {isClientJob ? (
+        <Card>
+          <CardHeader
+            title="Dati cliente"
+            subtitle="Il committente a cui consegnare il preventivo dei lavori."
+          />
+          <CardBody className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Label htmlFor="clientName">Nome cliente</Label>
+              <Input
+                id="clientName"
+                value={client.clientName}
+                onChange={(e) => setClient({ ...client, clientName: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="clientPhone">Telefono</Label>
+              <Input
+                id="clientPhone"
+                value={client.clientPhone}
+                onChange={(e) => setClient({ ...client, clientPhone: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="clientEmail">Email</Label>
+              <Input
+                id="clientEmail"
+                type="email"
+                value={client.clientEmail}
+                onChange={(e) => setClient({ ...client, clientEmail: e.target.value })}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <Button
+                onClick={() =>
+                  saveClient.mutate({
+                    id: deal.id,
+                    clientName: client.clientName || undefined,
+                    clientPhone: client.clientPhone || undefined,
+                    clientEmail: client.clientEmail || undefined,
+                  })
+                }
+                disabled={saveClient.isPending}
+              >
+                Salva
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader title="Dati di acquisizione" subtitle="Prezzo di acquisto: base per il calcolo della plusvalenza." />
+          <CardBody className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="depositAmount">Acconto / caparra (€)</Label>
+              <Input id="depositAmount" type="number" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="purchasePrice">Prezzo di acquisto (€)</Label>
+              <Input id="purchasePrice" type="number" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} />
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="acqNotes">Note</Label>
+              <Input id="acqNotes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+            </div>
+            <p className="text-xs text-slate-500 sm:col-span-2">
+              Spese notarili, imposta di registro/IVA, commissioni agenzia e due diligence si inseriscono come righe
+              di costo nella scheda Ristrutturazione (categoria "Acquisizione").
+            </p>
+            <div className="sm:col-span-2">
+              <Button
+                onClick={() =>
+                  saveAcquisition.mutate({
+                    dealId: deal.id,
+                    purchasePrice: Number(purchasePrice),
+                    depositAmount: Number(depositAmount),
+                    notes: notes || undefined,
+                  })
+                }
+                disabled={saveAcquisition.isPending}
+              >
+                Salva
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       <Card>
         <CardHeader
