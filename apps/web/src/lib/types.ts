@@ -8,3 +8,4 @@ export type CostLineItemDetail = DealDetail["costLineItems"][number];
 export type LoanDetail = DealDetail["loans"][number];
 export type CostCategory = RouterOutputs["costCategory"]["list"][number];
 export type PriceListItem = RouterOutputs["priceListItem"]["list"][number];
+export type DealSummary = RouterOutputs["deal"]["list"][number];

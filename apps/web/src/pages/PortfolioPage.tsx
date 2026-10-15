@@ -6,6 +6,7 @@ import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { Card } from "../components/ui/Card";
 import { Input, Select } from "../components/ui/Field";
+import type { DealSummary } from "../lib/types";
 
 const STATUS_LABEL: Record<string, string> = {
   VALUTAZIONE: "In valutazione",
@@ -82,6 +83,9 @@ export default function PortfolioPage() {
     });
   }, [deals.data, statusFilter, addressFilter, sortKey]);
 
+  const flipDeals = filtered.filter((d) => d.operationType === "FLIP");
+  const clientDeals = filtered.filter((d) => d.operationType === "RISTRUTTURAZIONE_CLIENTE");
+
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -141,66 +145,109 @@ export default function PortfolioPage() {
         </Select>
       </div>
 
-      <div className="mt-4 grid gap-3">
-        {filtered.map((deal) => (
-          <Card key={deal.id} className="flex items-center hover:border-brand-300">
-            <button className="min-w-0 flex-1 text-left" onClick={() => navigate(`/deals/${deal.id}`)}>
-              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium text-slate-900">{deal.name}</h3>
-                    <Badge tone={STATUS_TONE[deal.status]}>{STATUS_LABEL[deal.status]}</Badge>
-                    {deal.operationType === "RISTRUTTURAZIONE_CLIENTE" && (
-                      <Badge tone="info">Da ristrutturare (cliente)</Badge>
-                    )}
-                    {deal.isDemo && <Badge tone="neutral">Demo</Badge>}
-                  </div>
-                  {deal.address && <p className="mt-1 text-sm text-slate-500">{deal.address}</p>}
-                </div>
-                {deal.summary ? (
-                  <div className="flex gap-6 text-right">
-                    <div>
-                      <div className="text-xs text-slate-400">Utile netto (realistico)</div>
-                      <div className="font-semibold text-slate-900">{formatCurrency(deal.summary.netProfit)}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-slate-400">ROI</div>
-                      <div className={deal.summary.roi >= 0 ? "font-semibold text-emerald-600" : "font-semibold text-red-600"}>
-                        {formatPercent(deal.summary.roi)}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <Badge tone="warning">Dati incompleti</Badge>
-                )}
-              </div>
-            </button>
-            <div className="mr-3 flex shrink-0 items-center gap-2">
-              {deal.status === "VALUTAZIONE" && deal.operationType === "FLIP" && (
-                <Button
-                  variant="secondary"
-                  onClick={() => markPurchased.mutate({ id: deal.id, status: "ACQUISIZIONE" })}
-                  disabled={markPurchased.isPending && markPurchased.variables?.id === deal.id}
-                >
-                  Ho acquistato
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                className="text-red-600 hover:bg-red-50"
-                title="Elimina deal"
-                onClick={() => confirmDelete(deal)}
-                disabled={deleteDeal.isPending && deleteDeal.variables?.id === deal.id}
-              >
-                Elimina
-              </Button>
-            </div>
-          </Card>
-        ))}
-        {filtered.length === 0 && !deals.isLoading && (
-          <p className="py-12 text-center text-sm text-slate-400">Nessun deal. Creane uno per iniziare.</p>
-        )}
+      <div className="mt-6">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          Flip — acquisto e rivendita ({flipDeals.length})
+        </h2>
+        <div className="mt-2 grid gap-3">
+          {flipDeals.map((deal) => (
+            <DealCard
+              key={deal.id}
+              deal={deal}
+              onOpen={() => navigate(`/deals/${deal.id}`)}
+              onDelete={() => confirmDelete(deal)}
+              deleting={deleteDeal.isPending && deleteDeal.variables?.id === deal.id}
+              onMarkPurchased={() => markPurchased.mutate({ id: deal.id, status: "ACQUISIZIONE" })}
+              markingPurchased={markPurchased.isPending && markPurchased.variables?.id === deal.id}
+            />
+          ))}
+          {flipDeals.length === 0 && !deals.isLoading && (
+            <p className="py-6 text-center text-sm text-slate-400">Nessun deal flip. Creane uno per iniziare.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          Ristrutturazioni per clienti — solo preventivo ({clientDeals.length})
+        </h2>
+        <div className="mt-2 grid gap-3">
+          {clientDeals.map((deal) => (
+            <DealCard
+              key={deal.id}
+              deal={deal}
+              onOpen={() => navigate(`/deals/${deal.id}`)}
+              onDelete={() => confirmDelete(deal)}
+              deleting={deleteDeal.isPending && deleteDeal.variables?.id === deal.id}
+            />
+          ))}
+          {clientDeals.length === 0 && !deals.isLoading && (
+            <p className="py-6 text-center text-sm text-slate-400">
+              Nessuna ristrutturazione per cliente. Crea un deal e imposta "Tipo di operazione" su "Ristrutturazione
+              per un cliente" nella sua scheda Acquisizione.
+            </p>
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+function DealCard({
+  deal,
+  onOpen,
+  onDelete,
+  deleting,
+  onMarkPurchased,
+  markingPurchased,
+}: {
+  deal: DealSummary;
+  onOpen: () => void;
+  onDelete: () => void;
+  deleting: boolean;
+  onMarkPurchased?: () => void;
+  markingPurchased?: boolean;
+}) {
+  return (
+    <Card className="flex items-center hover:border-brand-300">
+      <button className="min-w-0 flex-1 text-left" onClick={onOpen}>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-medium text-slate-900">{deal.name}</h3>
+              <Badge tone={STATUS_TONE[deal.status]}>{STATUS_LABEL[deal.status]}</Badge>
+              {deal.isDemo && <Badge tone="neutral">Demo</Badge>}
+            </div>
+            {deal.address && <p className="mt-1 text-sm text-slate-500">{deal.address}</p>}
+          </div>
+          {deal.summary ? (
+            <div className="flex gap-6 text-right">
+              <div>
+                <div className="text-xs text-slate-400">Utile netto (realistico)</div>
+                <div className="font-semibold text-slate-900">{formatCurrency(deal.summary.netProfit)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-400">ROI</div>
+                <div className={deal.summary.roi >= 0 ? "font-semibold text-emerald-600" : "font-semibold text-red-600"}>
+                  {formatPercent(deal.summary.roi)}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Badge tone="warning">Dati incompleti</Badge>
+          )}
+        </div>
+      </button>
+      <div className="mr-3 flex shrink-0 items-center gap-2">
+        {deal.status === "VALUTAZIONE" && onMarkPurchased && (
+          <Button variant="secondary" onClick={onMarkPurchased} disabled={markingPurchased}>
+            Ho acquistato
+          </Button>
+        )}
+        <Button variant="ghost" className="text-red-600 hover:bg-red-50" title="Elimina deal" onClick={onDelete} disabled={deleting}>
+          Elimina
+        </Button>
+      </div>
+    </Card>
   );
 }
