@@ -32,11 +32,6 @@ export default function PortfolioPage() {
   const navigate = useNavigate();
   const deals = trpc.deal.list.useQuery();
   const utils = trpc.useUtils();
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [addressFilter, setAddressFilter] = useState<string>("ALL");
-  const [sortKey, setSortKey] = useState<SortKey>("updated");
-  const [newDealTarget, setNewDealTarget] = useState<"FLIP" | "RISTRUTTURAZIONE_CLIENTE" | null>(null);
-  const [newDealAddress, setNewDealAddress] = useState("");
 
   const createDeal = trpc.deal.create.useMutation({
     onSuccess: async (deal) => {
@@ -44,19 +39,9 @@ export default function PortfolioPage() {
       navigate(`/deals/${deal.id}`);
     },
   });
-
-  function submitNewDeal() {
-    if (!newDealTarget) return;
-    const address = newDealAddress.trim();
-    createDeal.mutate({ name: address || "Nuovo deal", address: address || undefined, operationType: newDealTarget });
-    setNewDealTarget(null);
-    setNewDealAddress("");
-  }
-
   const deleteDeal = trpc.deal.delete.useMutation({
     onSuccess: () => utils.deal.list.invalidate(),
   });
-
   const markPurchased = trpc.deal.update.useMutation({
     onSuccess: () => utils.deal.list.invalidate(),
   });
@@ -68,24 +53,11 @@ export default function PortfolioPage() {
     if (ok) deleteDeal.mutate({ id: deal.id });
   }
 
-  const addresses = useMemo(() => {
-    const set = new Set((deals.data ?? []).map((d) => d.address).filter((a): a is string => !!a));
-    return [...set].sort((a, b) => a.localeCompare(b));
-  }, [deals.data]);
-
-  const filtered = useMemo(() => {
-    const rows = deals.data ?? [];
-    const byStatus = statusFilter === "ALL" ? rows : rows.filter((d) => d.status === statusFilter);
-    const byAddress = addressFilter === "ALL" ? byStatus : byStatus.filter((d) => d.address === addressFilter);
-    return [...byAddress].sort((a, b) => {
-      if (sortKey === "roi") return (b.summary?.roi ?? -Infinity) - (a.summary?.roi ?? -Infinity);
-      if (sortKey === "netProfit") return (b.summary?.netProfit ?? -Infinity) - (a.summary?.netProfit ?? -Infinity);
-      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-    });
-  }, [deals.data, statusFilter, addressFilter, sortKey]);
-
-  const flipDeals = filtered.filter((d) => d.operationType === "FLIP");
-  const clientDeals = filtered.filter((d) => d.operationType === "RISTRUTTURAZIONE_CLIENTE");
+  const flipDeals = useMemo(() => (deals.data ?? []).filter((d) => d.operationType === "FLIP"), [deals.data]);
+  const clientDeals = useMemo(
+    () => (deals.data ?? []).filter((d) => d.operationType === "RISTRUTTURAZIONE_CLIENTE"),
+    [deals.data],
+  );
 
   return (
     <div>
@@ -94,7 +66,99 @@ export default function PortfolioPage() {
         <p className="mt-1 text-sm text-slate-500">Tutte le operazioni di buy-renovate-resell del tuo team.</p>
       </div>
 
-      <div className="mt-4 flex gap-3">
+      <DealSection
+        title="Flip — acquisto e rivendita"
+        deals={flipDeals}
+        loading={deals.isLoading}
+        emptyLabel="Nessun deal flip. Creane uno per iniziare."
+        newDealLabel="+ Nuovo flip"
+        operationType="FLIP"
+        onOpen={(id) => navigate(`/deals/${id}`)}
+        onDelete={confirmDelete}
+        deleteDeal={deleteDeal}
+        createDeal={createDeal}
+        markPurchased={markPurchased}
+      />
+
+      <DealSection
+        title="Ristrutturazioni per clienti — solo preventivo"
+        deals={clientDeals}
+        loading={deals.isLoading}
+        emptyLabel="Nessuna ristrutturazione per cliente. Creane una per iniziare."
+        newDealLabel="+ Nuova ristrutturazione"
+        operationType="RISTRUTTURAZIONE_CLIENTE"
+        onOpen={(id) => navigate(`/deals/${id}`)}
+        onDelete={confirmDelete}
+        deleteDeal={deleteDeal}
+        createDeal={createDeal}
+        className="mt-8"
+      />
+    </div>
+  );
+}
+
+function DealSection({
+  title,
+  deals,
+  loading,
+  emptyLabel,
+  newDealLabel,
+  operationType,
+  onOpen,
+  onDelete,
+  deleteDeal,
+  createDeal,
+  markPurchased,
+  className = "mt-6",
+}: {
+  title: string;
+  deals: DealSummary[];
+  loading: boolean;
+  emptyLabel: string;
+  newDealLabel: string;
+  operationType: "FLIP" | "RISTRUTTURAZIONE_CLIENTE";
+  onOpen: (id: string) => void;
+  onDelete: (deal: { id: string; name: string }) => void;
+  deleteDeal: ReturnType<typeof trpc.deal.delete.useMutation>;
+  createDeal: ReturnType<typeof trpc.deal.create.useMutation>;
+  markPurchased?: ReturnType<typeof trpc.deal.update.useMutation>;
+  className?: string;
+}) {
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [addressFilter, setAddressFilter] = useState<string>("ALL");
+  const [sortKey, setSortKey] = useState<SortKey>("updated");
+  const [showNewDealForm, setShowNewDealForm] = useState(false);
+  const [newDealAddress, setNewDealAddress] = useState("");
+
+  const addresses = useMemo(() => {
+    const set = new Set(deals.map((d) => d.address).filter((a): a is string => !!a));
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [deals]);
+
+  const filtered = useMemo(() => {
+    const byStatus = statusFilter === "ALL" ? deals : deals.filter((d) => d.status === statusFilter);
+    const byAddress = addressFilter === "ALL" ? byStatus : byStatus.filter((d) => d.address === addressFilter);
+    return [...byAddress].sort((a, b) => {
+      if (sortKey === "roi") return (b.summary?.roi ?? -Infinity) - (a.summary?.roi ?? -Infinity);
+      if (sortKey === "netProfit") return (b.summary?.netProfit ?? -Infinity) - (a.summary?.netProfit ?? -Infinity);
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
+  }, [deals, statusFilter, addressFilter, sortKey]);
+
+  function submitNewDeal() {
+    const address = newDealAddress.trim();
+    createDeal.mutate({ name: address || "Nuovo deal", address: address || undefined, operationType });
+    setShowNewDealForm(false);
+    setNewDealAddress("");
+  }
+
+  return (
+    <div className={className}>
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+        {title} ({deals.length})
+      </h2>
+
+      <div className="mt-2 flex gap-3">
         <Select className="max-w-xs" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="ALL">Tutti gli stati</option>
           {Object.entries(STATUS_LABEL).map(([value, label]) => (
@@ -118,102 +182,48 @@ export default function PortfolioPage() {
         </Select>
       </div>
 
-      <div className="mt-6">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Flip — acquisto e rivendita ({flipDeals.length})
-        </h2>
-        <div className="mt-2 grid gap-3">
-          {flipDeals.map((deal) => (
-            <DealCard
-              key={deal.id}
-              deal={deal}
-              onOpen={() => navigate(`/deals/${deal.id}`)}
-              onDelete={() => confirmDelete(deal)}
-              deleting={deleteDeal.isPending && deleteDeal.variables?.id === deal.id}
-              onMarkPurchased={() => markPurchased.mutate({ id: deal.id, status: "ACQUISIZIONE" })}
-              markingPurchased={markPurchased.isPending && markPurchased.variables?.id === deal.id}
-            />
-          ))}
-          {flipDeals.length === 0 && !deals.isLoading && (
-            <p className="py-6 text-center text-sm text-slate-400">Nessun deal flip. Creane uno per iniziare.</p>
-          )}
-        </div>
-        <div className="mt-3">
-          {newDealTarget === "FLIP" ? (
-            <div className="flex items-center gap-2">
-              <Input
-                autoFocus
-                placeholder="Indirizzo dell'immobile"
-                className="w-64"
-                value={newDealAddress}
-                onChange={(e) => setNewDealAddress(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && submitNewDeal()}
-              />
-              <Button onClick={submitNewDeal} disabled={createDeal.isPending}>
-                Crea
-              </Button>
-              <button
-                className="text-sm text-slate-500 hover:underline"
-                onClick={() => {
-                  setNewDealTarget(null);
-                  setNewDealAddress("");
-                }}
-              >
-                Annulla
-              </button>
-            </div>
-          ) : (
-            <Button onClick={() => setNewDealTarget("FLIP")}>+ Nuovo flip</Button>
-          )}
-        </div>
+      <div className="mt-3 grid gap-3">
+        {filtered.map((deal) => (
+          <DealCard
+            key={deal.id}
+            deal={deal}
+            onOpen={() => onOpen(deal.id)}
+            onDelete={() => onDelete(deal)}
+            deleting={deleteDeal.isPending && deleteDeal.variables?.id === deal.id}
+            onMarkPurchased={markPurchased ? () => markPurchased.mutate({ id: deal.id, status: "ACQUISIZIONE" }) : undefined}
+            markingPurchased={markPurchased ? markPurchased.isPending && markPurchased.variables?.id === deal.id : false}
+          />
+        ))}
+        {filtered.length === 0 && !loading && <p className="py-6 text-center text-sm text-slate-400">{emptyLabel}</p>}
       </div>
 
-      <div className="mt-8">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Ristrutturazioni per clienti — solo preventivo ({clientDeals.length})
-        </h2>
-        <div className="mt-2 grid gap-3">
-          {clientDeals.map((deal) => (
-            <DealCard
-              key={deal.id}
-              deal={deal}
-              onOpen={() => navigate(`/deals/${deal.id}`)}
-              onDelete={() => confirmDelete(deal)}
-              deleting={deleteDeal.isPending && deleteDeal.variables?.id === deal.id}
+      <div className="mt-3">
+        {showNewDealForm ? (
+          <div className="flex items-center gap-2">
+            <Input
+              autoFocus
+              placeholder="Indirizzo dell'immobile"
+              className="w-64"
+              value={newDealAddress}
+              onChange={(e) => setNewDealAddress(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submitNewDeal()}
             />
-          ))}
-          {clientDeals.length === 0 && !deals.isLoading && (
-            <p className="py-6 text-center text-sm text-slate-400">Nessuna ristrutturazione per cliente. Creane una per iniziare.</p>
-          )}
-        </div>
-        <div className="mt-3">
-          {newDealTarget === "RISTRUTTURAZIONE_CLIENTE" ? (
-            <div className="flex items-center gap-2">
-              <Input
-                autoFocus
-                placeholder="Indirizzo dell'immobile"
-                className="w-64"
-                value={newDealAddress}
-                onChange={(e) => setNewDealAddress(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && submitNewDeal()}
-              />
-              <Button onClick={submitNewDeal} disabled={createDeal.isPending}>
-                Crea
-              </Button>
-              <button
-                className="text-sm text-slate-500 hover:underline"
-                onClick={() => {
-                  setNewDealTarget(null);
-                  setNewDealAddress("");
-                }}
-              >
-                Annulla
-              </button>
-            </div>
-          ) : (
-            <Button onClick={() => setNewDealTarget("RISTRUTTURAZIONE_CLIENTE")}>+ Nuova ristrutturazione</Button>
-          )}
-        </div>
+            <Button onClick={submitNewDeal} disabled={createDeal.isPending}>
+              Crea
+            </Button>
+            <button
+              className="text-sm text-slate-500 hover:underline"
+              onClick={() => {
+                setShowNewDealForm(false);
+                setNewDealAddress("");
+              }}
+            >
+              Annulla
+            </button>
+          </div>
+        ) : (
+          <Button onClick={() => setShowNewDealForm(true)}>{newDealLabel}</Button>
+        )}
       </div>
     </div>
   );
