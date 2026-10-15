@@ -10,6 +10,7 @@ export const dealInclude = {
   partners: true,
   saleScenarios: true,
   notes: { orderBy: { createdAt: "desc" } },
+  vendorPayments: { include: { vendor: true } },
 } satisfies Prisma.DealInclude;
 
 export type FullDeal = Prisma.DealGetPayload<{ include: typeof dealInclude }>;

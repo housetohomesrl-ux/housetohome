@@ -1,6 +1,7 @@
 import { prisma } from "@flipplan/db";
 import {
   acquisitionDetailsSchema,
+  dealVendorPaymentSchema,
   fiscalSettingsSchema,
   holdingCostsConfigSchema,
   renovationSettingsSchema,
@@ -40,5 +41,16 @@ export const dealSettingsRouter = router({
     const { dealId, ...data } = input;
     const updated = await prisma.holdingCostsConfig.update({ where: { dealId }, data });
     return serializeDecimals(updated);
+  }),
+
+  upsertVendorPayment: protectedProcedure.input(dealVendorPaymentSchema).mutation(async ({ ctx, input }) => {
+    await assertDealAccess(ctx.user.tenantId, input.dealId);
+    const { dealId, vendorId, amountPaid } = input;
+    const upserted = await prisma.dealVendorPayment.upsert({
+      where: { dealId_vendorId: { dealId, vendorId } },
+      create: { dealId, vendorId, amountPaid },
+      update: { amountPaid },
+    });
+    return serializeDecimals(upserted);
   }),
 });

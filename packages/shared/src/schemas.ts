@@ -231,6 +231,12 @@ export const saleScenarioUpsertSchema = z.object({
   closingCosts: z.number().nonnegative(),
 });
 
+export const dealVendorPaymentSchema = z.object({
+  dealId: z.string(),
+  vendorId: z.string(),
+  amountPaid: z.number().nonnegative(),
+});
+
 export const noteCreateSchema = z.object({
   dealId: z.string(),
   relatedEntityType: z.string().nullable().optional(),

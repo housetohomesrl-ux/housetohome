@@ -18,6 +18,52 @@ function KpiCard({ label, value, tone }: { label: string; value: string; tone?: 
   );
 }
 
+function VendorPaymentRow({
+  dealId,
+  vendorId,
+  label,
+  cost,
+  paid,
+}: {
+  dealId: string;
+  vendorId: string | null;
+  label: string;
+  cost: number;
+  paid: number;
+}) {
+  const utils = trpc.useUtils();
+  const [value, setValue] = useState(paid.toString());
+  const savePayment = trpc.dealSettings.upsertVendorPayment.useMutation({
+    onSuccess: () => utils.deal.get.invalidate({ id: dealId }),
+  });
+  const due = cost - paid;
+
+  return (
+    <tr className="border-b border-slate-100">
+      <td className="py-2 pr-4">{label}</td>
+      <td className="py-2 pr-4 text-right">{formatCurrency(cost, true)}</td>
+      <td className="py-2 pr-4 text-right">
+        {vendorId ? (
+          <div className="flex items-center justify-end gap-2">
+            <Input
+              type="number"
+              className="w-28 text-right"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              onBlur={() => {
+                if (Number(value) !== paid) savePayment.mutate({ dealId, vendorId, amountPaid: Number(value || 0) });
+              }}
+            />
+          </div>
+        ) : (
+          <span className="text-emerald-700">{formatCurrency(paid, true)}</span>
+        )}
+      </td>
+      <td className={`py-2 pr-4 text-right ${due > 0 ? "text-red-600" : "text-slate-500"}`}>{formatCurrency(due, true)}</td>
+    </tr>
+  );
+}
+
 /**
  * Risultati per un deal RISTRUTTURAZIONE_CLIENTE: niente ROI/plusvalenza
  * (non c'è acquisto né vendita dell'immobile). Mostra invece quanto si sta
@@ -37,31 +83,38 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
   const items = deal.costLineItems.filter((i) => !i.isMemo);
 
   let totalCost = 0;
-  let totalPaidToVendors = 0;
   let totalClientPrice = 0;
   for (const item of items) {
     const costTotal = item.taxableAmount + (item.taxableAmount * item.vatRatePct) / 100 + item.nonTaxableAmount;
     totalCost += costTotal;
-    totalPaidToVendors += item.paidAmount;
     const clientBase = item.clientPrice ?? autoClientPrice(item, deal);
     totalClientPrice += clientBase + (clientBase * item.vatRatePct) / 100;
   }
-  const dueToVendors = totalCost - totalPaidToVendors;
   const margin = totalClientPrice - totalCost;
   const receivedFromClient = deal.clientAmountReceived ?? 0;
   const dueFromClient = totalClientPrice - receivedFromClient;
 
-  const vendorTotals = new Map<string, { label: string; cost: number; paid: number }>();
+  // Il "Pagato" per fornitore è inserito a mano (vedi VendorPaymentRow sotto),
+  // non la somma dei paidAmount delle singole voci: in pratica i pagamenti
+  // sono a rate (acconto + acconto + saldo) e non corrispondono 1:1 alle
+  // voci di lavorazione. L'eccezione è il gruppo "Senza fornitore", dove non
+  // c'è un fornitore a cui agganciare un pagamento: lì si somma paidAmount.
+  const vendorTotals = new Map<string, { vendorId: string | null; label: string; cost: number }>();
   for (const item of items) {
     const key = item.vendorId ?? "__none__";
     const label = item.vendor?.name ?? "Senza fornitore";
     const costTotal = item.taxableAmount + (item.taxableAmount * item.vatRatePct) / 100 + item.nonTaxableAmount;
-    const g = vendorTotals.get(key) ?? { label, cost: 0, paid: 0 };
+    const g = vendorTotals.get(key) ?? { vendorId: item.vendorId, label, cost: 0 };
     g.cost += costTotal;
-    g.paid += item.paidAmount;
     vendorTotals.set(key, g);
   }
-  const vendorRows = [...vendorTotals.values()].sort((a, b) => b.cost - a.cost);
+  const noVendorPaid = items.filter((i) => !i.vendorId).reduce((sum, i) => sum + i.paidAmount, 0);
+  const paymentByVendorId = new Map(deal.vendorPayments.map((p) => [p.vendorId, p.amountPaid]));
+  const vendorRows = [...vendorTotals.values()]
+    .map((v) => ({ ...v, paid: v.vendorId ? paymentByVendorId.get(v.vendorId) ?? 0 : noVendorPaid }))
+    .sort((a, b) => b.cost - a.cost);
+  const totalPaidToVendors = vendorRows.reduce((sum, v) => sum + v.paid, 0);
+  const dueToVendors = totalCost - totalPaidToVendors;
 
   return (
     <div className="grid gap-5">
@@ -104,19 +157,9 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
               </tr>
             </thead>
             <tbody>
-              {vendorRows.map((v) => {
-                const due = v.cost - v.paid;
-                return (
-                  <tr key={v.label} className="border-b border-slate-100">
-                    <td className="py-2 pr-4">{v.label}</td>
-                    <td className="py-2 pr-4 text-right">{formatCurrency(v.cost, true)}</td>
-                    <td className="py-2 pr-4 text-right text-emerald-700">{formatCurrency(v.paid, true)}</td>
-                    <td className={`py-2 pr-4 text-right ${due > 0 ? "text-red-600" : "text-slate-500"}`}>
-                      {formatCurrency(due, true)}
-                    </td>
-                  </tr>
-                );
-              })}
+              {vendorRows.map((v) => (
+                <VendorPaymentRow key={v.vendorId ?? "__none__"} dealId={deal.id} vendorId={v.vendorId} label={v.label} cost={v.cost} paid={v.paid} />
+              ))}
               {vendorRows.length === 0 && (
                 <tr>
                   <td colSpan={4} className="py-6 text-center text-sm text-slate-400">
