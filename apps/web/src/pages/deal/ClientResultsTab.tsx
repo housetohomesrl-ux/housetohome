@@ -20,16 +20,16 @@ function KpiCard({ label, value, tone }: { label: string; value: string; tone?: 
 
 type VendorPayment = DealDetail["vendorPayments"][number];
 
-/** Un riquadro "Acconto N": % (facoltativa, ricalcola l'importo sul totale costi del fornitore) + importo, sempre modificabile. */
+/** Un riquadro "Acconto N": % (facoltativa, ricalcola l'importo sulla base passata) + importo, sempre modificabile. */
 function InstallmentBox({
   title,
-  cost,
+  base,
   pct,
   amount,
   onCommit,
 }: {
   title: string;
-  cost: number;
+  base: number;
   pct: number | null;
   amount: number;
   onCommit: (data: { pct: number | null; amount: number }) => void;
@@ -43,7 +43,7 @@ function InstallmentBox({
       onCommit({ pct: null, amount: Number(amountValue || 0) });
       return;
     }
-    const amountNum = Math.round(cost * (pctNum / 100) * 100) / 100;
+    const amountNum = Math.round(base * (pctNum / 100) * 100) / 100;
     setAmountValue(amountNum.toString());
     onCommit({ pct: pctNum, amount: amountNum });
   }
@@ -78,9 +78,15 @@ function InstallmentBox({
   );
 }
 
-/** Il riquadro "Saldo": solo importo, nessuna percentuale. */
-function SaldoBox({ amount, onCommit }: { amount: number; onCommit: (amount: number) => void }) {
-  const [value, setValue] = useState(amount.toString());
+/**
+ * Il riquadro "Saldo": solo importo, nessuna percentuale. Si aggiorna da
+ * solo — finché non lo confermi a mano, mostra come suggerimento (placeholder)
+ * quanto resta dopo i 3 acconti, e si ricalcola ogni volta che li modifichi.
+ * Una volta inserito un importo esplicito, quello conta come saldo pagato/
+ * incassato; resta comunque sempre modificabile.
+ */
+function SaldoBox({ remaining, amount, onCommit }: { remaining: number; amount: number; onCommit: (amount: number) => void }) {
+  const [value, setValue] = useState(amount > 0 ? amount.toString() : "");
   return (
     <div className="rounded-md border border-slate-200 p-2">
       <div className="text-xs font-medium text-slate-500">Saldo</div>
@@ -88,9 +94,10 @@ function SaldoBox({ amount, onCommit }: { amount: number; onCommit: (amount: num
         <Input
           type="number"
           className="w-full py-1 text-right text-xs"
+          placeholder={remaining.toFixed(2)}
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          onBlur={() => onCommit(Number(value || 0))}
+          onBlur={() => onCommit(value === "" ? 0 : Number(value))}
         />
         <span className="text-xs text-slate-400">€</span>
       </div>
@@ -118,6 +125,10 @@ function VendorPaymentCard({
     onSuccess: () => utils.deal.get.invalidate({ id: dealId }),
   });
   const due = cost - paid;
+  const acconto1Amount = payment?.acconto1Amount ?? 0;
+  const acconto2Amount = payment?.acconto2Amount ?? 0;
+  const acconto3Amount = payment?.acconto3Amount ?? 0;
+  const saldoRemaining = cost - acconto1Amount - acconto2Amount - acconto3Amount;
 
   if (!vendorId) {
     return (
@@ -143,26 +154,30 @@ function VendorPaymentCard({
       <div className="mt-3 grid gap-2 sm:grid-cols-4">
         <InstallmentBox
           title="Acconto 1"
-          cost={cost}
+          base={cost}
           pct={payment?.acconto1Pct ?? null}
-          amount={payment?.acconto1Amount ?? 0}
+          amount={acconto1Amount}
           onCommit={(d) => save.mutate({ dealId, vendorId, acconto1Pct: d.pct, acconto1Amount: d.amount })}
         />
         <InstallmentBox
           title="Acconto 2"
-          cost={cost}
+          base={cost}
           pct={payment?.acconto2Pct ?? null}
-          amount={payment?.acconto2Amount ?? 0}
+          amount={acconto2Amount}
           onCommit={(d) => save.mutate({ dealId, vendorId, acconto2Pct: d.pct, acconto2Amount: d.amount })}
         />
         <InstallmentBox
           title="Acconto 3"
-          cost={cost}
+          base={cost}
           pct={payment?.acconto3Pct ?? null}
-          amount={payment?.acconto3Amount ?? 0}
+          amount={acconto3Amount}
           onCommit={(d) => save.mutate({ dealId, vendorId, acconto3Pct: d.pct, acconto3Amount: d.amount })}
         />
-        <SaldoBox amount={payment?.saldoAmount ?? 0} onCommit={(amount) => save.mutate({ dealId, vendorId, saldoAmount: amount })} />
+        <SaldoBox
+          remaining={saldoRemaining}
+          amount={payment?.saldoAmount ?? 0}
+          onCommit={(amount) => save.mutate({ dealId, vendorId, saldoAmount: amount })}
+        />
       </div>
       <div className="mt-3 flex items-center justify-between text-sm">
         <span className="text-emerald-700">Pagato: {formatCurrency(paid, true)}</span>
@@ -186,11 +201,10 @@ function vendorPaymentTotal(p: VendorPayment): number {
  */
 export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
   const utils = trpc.useUtils();
-  const [received, setReceived] = useState(deal.clientAmountReceived?.toString() ?? "0");
   const [iresRatePct, setIresRatePct] = useState(deal.fiscalSettings?.iresRatePct.toString() ?? "24");
   const [irapRatePct, setIrapRatePct] = useState(deal.fiscalSettings?.irapRatePct.toString() ?? "3.9");
 
-  const saveReceived = trpc.deal.update.useMutation({
+  const saveClientInstallment = trpc.deal.update.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
   });
   const saveFiscal = trpc.dealSettings.updateFiscalSettings.useMutation({
@@ -224,8 +238,13 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
   const companyTax = margin > 0 ? (margin * companyTaxRatePct) / 100 : 0;
   const netMarginAfterTax = margin - companyTax;
 
-  const receivedFromClient = deal.clientAmountReceived ?? 0;
+  const clientAcconto1Amount = deal.clientAcconto1Amount ?? 0;
+  const clientAcconto2Amount = deal.clientAcconto2Amount ?? 0;
+  const clientAcconto3Amount = deal.clientAcconto3Amount ?? 0;
+  const clientSaldoAmount = deal.clientSaldoAmount ?? 0;
+  const receivedFromClient = clientAcconto1Amount + clientAcconto2Amount + clientAcconto3Amount + clientSaldoAmount;
   const dueFromClient = totalClientPrice - receivedFromClient;
+  const clientSaldoRemaining = totalClientPrice - clientAcconto1Amount - clientAcconto2Amount - clientAcconto3Amount;
 
   // Il "Pagato" per fornitore è inserito a mano (vedi VendorPaymentRow sotto),
   // non la somma dei paidAmount delle singole voci: in pratica i pagamenti
@@ -301,22 +320,43 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
       </Card>
 
       <Card>
-        <CardHeader title="Incassi dal cliente" subtitle="Quanto hai già incassato e quanto resta da farti pagare." />
-        <CardBody className="grid gap-4 sm:grid-cols-3">
-          <KpiCard label="Totale da incassare (preventivo)" value={formatCurrency(totalClientPrice)} />
-          <div>
-            <Label htmlFor="received">Incassato (€)</Label>
-            <Input id="received" type="number" value={received} onChange={(e) => setReceived(e.target.value)} />
-            <Button
-              variant="secondary"
-              className="mt-2"
-              onClick={() => saveReceived.mutate({ id: deal.id, clientAmountReceived: Number(received) })}
-              disabled={saveReceived.isPending}
-            >
-              Salva
-            </Button>
+        <CardHeader
+          title="Incassi dal cliente"
+          subtitle="Fino a 3 acconti (con % calcolata sul totale preventivo, sempre modificabile) + saldo."
+        />
+        <CardBody className="grid gap-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <KpiCard label="Totale da incassare (preventivo)" value={formatCurrency(totalClientPrice)} />
+            <KpiCard label="Residuo da incassare" value={formatCurrency(dueFromClient)} tone={dueFromClient > 0 ? "danger" : "success"} />
           </div>
-          <KpiCard label="Residuo da incassare" value={formatCurrency(dueFromClient)} tone={dueFromClient > 0 ? "danger" : "success"} />
+          <div className="grid gap-2 sm:grid-cols-4">
+            <InstallmentBox
+              title="Acconto 1"
+              base={totalClientPrice}
+              pct={deal.clientAcconto1Pct ?? null}
+              amount={clientAcconto1Amount}
+              onCommit={(d) => saveClientInstallment.mutate({ id: deal.id, clientAcconto1Pct: d.pct, clientAcconto1Amount: d.amount })}
+            />
+            <InstallmentBox
+              title="Acconto 2"
+              base={totalClientPrice}
+              pct={deal.clientAcconto2Pct ?? null}
+              amount={clientAcconto2Amount}
+              onCommit={(d) => saveClientInstallment.mutate({ id: deal.id, clientAcconto2Pct: d.pct, clientAcconto2Amount: d.amount })}
+            />
+            <InstallmentBox
+              title="Acconto 3"
+              base={totalClientPrice}
+              pct={deal.clientAcconto3Pct ?? null}
+              amount={clientAcconto3Amount}
+              onCommit={(d) => saveClientInstallment.mutate({ id: deal.id, clientAcconto3Pct: d.pct, clientAcconto3Amount: d.amount })}
+            />
+            <SaldoBox
+              remaining={clientSaldoRemaining}
+              amount={clientSaldoAmount}
+              onCommit={(amount) => saveClientInstallment.mutate({ id: deal.id, clientSaldoAmount: amount })}
+            />
+          </div>
         </CardBody>
       </Card>
 
