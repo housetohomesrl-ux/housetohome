@@ -96,6 +96,7 @@ export const renovationSettingsSchema = z.object({
   contingencyPct: z.number().min(0).max(100),
   materialMarkupPct: z.number().min(0).max(1000).optional(),
   laborMarkupPct: z.number().min(0).max(1000).optional(),
+  quoteVatRatePct: z.number().min(0).max(100).optional(),
 });
 
 export const costLineItemCreateSchema = z.object({

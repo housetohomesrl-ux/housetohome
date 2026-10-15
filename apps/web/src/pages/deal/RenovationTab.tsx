@@ -42,16 +42,12 @@ export function clientBasePrice(item: CostLineItemDetail, deal: DealDetail): num
 }
 
 /**
- * Prezzo finale da far pagare al cliente per una voce: prezzo cliente (già
- * maggiorato) + IVA, solo per i Materiali (l'IVA che paghiamo noi sui
- * materiali viene rigirata al cliente). Le Lavorazioni e le altre voci non
- * hanno IVA aggiunta in più sul preventivo. Da usare per gli incassi dal
- * cliente, non per il margine (vedi clientBasePrice).
+ * Aliquota IVA del preventivo cliente: una sola, applicata sul totale (non
+ * per singola voce) — 10% per i privati (ristrutturazione edilizia), 22%
+ * per le società, sempre modificabile a mano per deal.
  */
-export function clientFinalPrice(item: CostLineItemDetail, deal: DealDetail): number {
-  const price = clientBasePrice(item, deal);
-  const vat = item.category.group === "MATERIALI" ? (price * item.vatRatePct) / 100 : 0;
-  return price + vat;
+export function quoteVatRatePct(deal: DealDetail): number {
+  return deal.renovationSettings?.quoteVatRatePct ?? 10;
 }
 
 /** Come autoClientPrice, ma a partire da un imponibile non ancora salvato (form "Aggiungi voce"). */

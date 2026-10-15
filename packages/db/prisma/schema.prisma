@@ -196,6 +196,10 @@ model RenovationSettings {
   // cliente impostato manualmente.
   materialMarkupPct Decimal  @db.Decimal(5, 2) @default(0)
   laborMarkupPct    Decimal  @db.Decimal(5, 2) @default(0)
+  // Aliquota IVA applicata una volta sola sul totale del preventivo cliente
+  // (non per singola voce): 10% per i privati (ristrutturazione edilizia),
+  // 22% per le società, sempre modificabile a mano per deal.
+  quoteVatRatePct   Decimal  @db.Decimal(5, 2) @default(10)
   updatedAt         DateTime @updatedAt
 
   @@map("renovation_settings")

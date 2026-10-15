@@ -5,7 +5,7 @@ import type { DealDetail } from "../../lib/types";
 import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { Input, Label } from "../../components/ui/Field";
 import { Button } from "../../components/ui/Button";
-import { clientBasePrice, clientFinalPrice } from "./RenovationTab";
+import { clientBasePrice, quoteVatRatePct } from "./RenovationTab";
 
 function KpiCard({ label, value, tone }: { label: string; value: string; tone?: "success" | "danger" }) {
   return (
@@ -203,19 +203,19 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
   // materiali e quella che giriamo al cliente sono un semplice passaggio
   // verso l'erario, non un guadagno. "Totale costi" e "Totale preventivo
   // cliente" restano invece con IVA inclusa, perché sono i flussi di cassa
-  // reali (quanto esce verso i fornitori, quanto entra dal cliente).
+  // reali (quanto esce verso i fornitori, quanto entra dal cliente). L'IVA
+  // del preventivo è una sola, sul totale (vedi tab Preventivo cliente).
   let totalCost = 0;
-  let totalClientPrice = 0;
+  let clientSubtotal = 0;
   let marginCost = 0;
-  let marginRevenue = 0;
   for (const item of items) {
     const costTotal = item.taxableAmount + (item.taxableAmount * item.vatRatePct) / 100 + item.nonTaxableAmount;
     totalCost += costTotal;
-    totalClientPrice += clientFinalPrice(item, deal);
+    clientSubtotal += clientBasePrice(item, deal);
     marginCost += item.taxableAmount + item.nonTaxableAmount;
-    marginRevenue += clientBasePrice(item, deal);
   }
-  const margin = marginRevenue - marginCost;
+  const totalClientPrice = clientSubtotal * (1 + quoteVatRatePct(deal) / 100);
+  const margin = clientSubtotal - marginCost;
 
   // Stima: IRES + IRAP sul margine (se positivo), con le aliquote della SRL
   // impostate qui sotto. Come per il flip, è una stima — la base imponibile
