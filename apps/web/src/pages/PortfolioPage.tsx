@@ -8,13 +8,20 @@ import { Card } from "../components/ui/Card";
 import { Input, Select } from "../components/ui/Field";
 import type { DealSummary } from "../lib/types";
 
-const STATUS_LABEL: Record<string, string> = {
+const FLIP_STATUS_LABEL: Record<string, string> = {
   VALUTAZIONE: "In valutazione",
   ACQUISIZIONE: "Acquistato",
   RISTRUTTURAZIONE: "In ristrutturazione",
   VENDITA: "In vendita",
   CHIUSO: "Chiuso",
   ARCHIVIATO: "Archiviato",
+};
+
+// I deal "Ristrutturazione per un cliente" non passano da acquisto/vendita:
+// riusano lo stesso DealStatus ma con un vocabolario a due sole fasi.
+const CLIENT_STATUS_LABEL: Record<string, string> = {
+  VALUTAZIONE: "Preventivo per cliente",
+  ACQUISIZIONE: "Preventivo confermato",
 };
 
 const STATUS_TONE: Record<string, "neutral" | "info" | "warning" | "success"> = {
@@ -73,11 +80,12 @@ export default function PortfolioPage() {
         emptyLabel="Nessun deal flip. Creane uno per iniziare."
         newDealLabel="+ Nuovo flip"
         operationType="FLIP"
+        statusLabels={FLIP_STATUS_LABEL}
         onOpen={(id) => navigate(`/deals/${id}`)}
         onDelete={confirmDelete}
         deleteDeal={deleteDeal}
         createDeal={createDeal}
-        markPurchased={markPurchased}
+        stageAction={{ fromStatus: "VALUTAZIONE", toStatus: "ACQUISIZIONE", label: "Ho acquistato", mutation: markPurchased }}
       />
 
       <DealSection
@@ -87,10 +95,12 @@ export default function PortfolioPage() {
         emptyLabel="Nessuna ristrutturazione per cliente. Creane una per iniziare."
         newDealLabel="+ Nuova ristrutturazione"
         operationType="RISTRUTTURAZIONE_CLIENTE"
+        statusLabels={CLIENT_STATUS_LABEL}
         onOpen={(id) => navigate(`/deals/${id}`)}
         onDelete={confirmDelete}
         deleteDeal={deleteDeal}
         createDeal={createDeal}
+        stageAction={{ fromStatus: "VALUTAZIONE", toStatus: "ACQUISIZIONE", label: "Preventivo confermato", mutation: markPurchased }}
         className="mt-8"
       />
     </div>
@@ -104,11 +114,12 @@ function DealSection({
   emptyLabel,
   newDealLabel,
   operationType,
+  statusLabels,
   onOpen,
   onDelete,
   deleteDeal,
   createDeal,
-  markPurchased,
+  stageAction,
   className = "mt-6",
 }: {
   title: string;
@@ -117,11 +128,17 @@ function DealSection({
   emptyLabel: string;
   newDealLabel: string;
   operationType: "FLIP" | "RISTRUTTURAZIONE_CLIENTE";
+  statusLabels: Record<string, string>;
   onOpen: (id: string) => void;
   onDelete: (deal: { id: string; name: string }) => void;
   deleteDeal: ReturnType<typeof trpc.deal.delete.useMutation>;
   createDeal: ReturnType<typeof trpc.deal.create.useMutation>;
-  markPurchased?: ReturnType<typeof trpc.deal.update.useMutation>;
+  stageAction?: {
+    fromStatus: string;
+    toStatus: string;
+    label: string;
+    mutation: ReturnType<typeof trpc.deal.update.useMutation>;
+  };
   className?: string;
 }) {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -161,7 +178,7 @@ function DealSection({
       <div className="mt-2 flex gap-3">
         <Select className="max-w-xs" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="ALL">Tutti gli stati</option>
-          {Object.entries(STATUS_LABEL).map(([value, label]) => (
+          {Object.entries(statusLabels).map(([value, label]) => (
             <option key={value} value={value}>
               {label}
             </option>
@@ -187,11 +204,17 @@ function DealSection({
           <DealCard
             key={deal.id}
             deal={deal}
+            statusLabel={statusLabels[deal.status] ?? deal.status}
             onOpen={() => onOpen(deal.id)}
             onDelete={() => onDelete(deal)}
             deleting={deleteDeal.isPending && deleteDeal.variables?.id === deal.id}
-            onMarkPurchased={markPurchased ? () => markPurchased.mutate({ id: deal.id, status: "ACQUISIZIONE" }) : undefined}
-            markingPurchased={markPurchased ? markPurchased.isPending && markPurchased.variables?.id === deal.id : false}
+            onStageAction={
+              stageAction && deal.status === stageAction.fromStatus
+                ? () => stageAction.mutation.mutate({ id: deal.id, status: stageAction.toStatus as DealSummary["status"] })
+                : undefined
+            }
+            stageActionLabel={stageAction?.label}
+            stageActionPending={stageAction ? stageAction.mutation.isPending && stageAction.mutation.variables?.id === deal.id : false}
           />
         ))}
         {filtered.length === 0 && !loading && <p className="py-6 text-center text-sm text-slate-400">{emptyLabel}</p>}
@@ -231,18 +254,22 @@ function DealSection({
 
 function DealCard({
   deal,
+  statusLabel,
   onOpen,
   onDelete,
   deleting,
-  onMarkPurchased,
-  markingPurchased,
+  onStageAction,
+  stageActionLabel,
+  stageActionPending,
 }: {
   deal: DealSummary;
+  statusLabel: string;
   onOpen: () => void;
   onDelete: () => void;
   deleting: boolean;
-  onMarkPurchased?: () => void;
-  markingPurchased?: boolean;
+  onStageAction?: () => void;
+  stageActionLabel?: string;
+  stageActionPending?: boolean;
 }) {
   return (
     <Card className="flex items-center hover:border-brand-300">
@@ -251,7 +278,7 @@ function DealCard({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-medium text-slate-900">{deal.name}</h3>
-              <Badge tone={STATUS_TONE[deal.status]}>{STATUS_LABEL[deal.status]}</Badge>
+              <Badge tone={STATUS_TONE[deal.status]}>{statusLabel}</Badge>
               {deal.isDemo && <Badge tone="neutral">Demo</Badge>}
             </div>
             {deal.address && <p className="mt-1 text-sm text-slate-500">{deal.address}</p>}
@@ -275,9 +302,9 @@ function DealCard({
         </div>
       </button>
       <div className="mr-3 flex shrink-0 items-center gap-2">
-        {deal.status === "VALUTAZIONE" && onMarkPurchased && (
-          <Button variant="secondary" onClick={onMarkPurchased} disabled={markingPurchased}>
-            Ho acquistato
+        {onStageAction && (
+          <Button variant="secondary" onClick={onStageAction} disabled={stageActionPending}>
+            {stageActionLabel}
           </Button>
         )}
         <Button variant="ghost" className="text-red-600 hover:bg-red-50" title="Elimina deal" onClick={onDelete} disabled={deleting}>
