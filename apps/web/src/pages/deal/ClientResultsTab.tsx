@@ -51,6 +51,18 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
   const receivedFromClient = deal.clientAmountReceived ?? 0;
   const dueFromClient = totalClientPrice - receivedFromClient;
 
+  const vendorTotals = new Map<string, { label: string; cost: number; paid: number }>();
+  for (const item of items) {
+    const key = item.vendorId ?? "__none__";
+    const label = item.vendor?.name ?? "Senza fornitore";
+    const costTotal = item.taxableAmount + (item.taxableAmount * item.vatRatePct) / 100 + item.nonTaxableAmount;
+    const g = vendorTotals.get(key) ?? { label, cost: 0, paid: 0 };
+    g.cost += costTotal;
+    g.paid += item.paidAmount;
+    vendorTotals.set(key, g);
+  }
+  const vendorRows = [...vendorTotals.values()].sort((a, b) => b.cost - a.cost);
+
   return (
     <div className="grid gap-5">
       <div className="grid gap-3 sm:grid-cols-3">
@@ -80,11 +92,50 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
       </Card>
 
       <Card>
-        <CardHeader title="Pagamenti ai fornitori" subtitle="Quanto hai già pagato per i materiali/lavorazioni e quanto manca." />
-        <CardBody className="grid gap-3 sm:grid-cols-3">
-          <KpiCard label="Totale costi" value={formatCurrency(totalCost)} />
-          <KpiCard label="Pagato ai fornitori" value={formatCurrency(totalPaidToVendors)} />
-          <KpiCard label="Residuo da pagare" value={formatCurrency(dueToVendors)} tone={dueToVendors > 0 ? "danger" : "success"} />
+        <CardHeader title="Pagamenti ai fornitori" subtitle="Quanto hai già pagato e quanto manca, diviso per fornitore." />
+        <CardBody className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
+                <th className="py-2 pr-4">Fornitore</th>
+                <th className="py-2 pr-4 text-right">Totale costi</th>
+                <th className="py-2 pr-4 text-right">Pagato</th>
+                <th className="py-2 pr-4 text-right">Residuo da pagare</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vendorRows.map((v) => {
+                const due = v.cost - v.paid;
+                return (
+                  <tr key={v.label} className="border-b border-slate-100">
+                    <td className="py-2 pr-4">{v.label}</td>
+                    <td className="py-2 pr-4 text-right">{formatCurrency(v.cost, true)}</td>
+                    <td className="py-2 pr-4 text-right text-emerald-700">{formatCurrency(v.paid, true)}</td>
+                    <td className={`py-2 pr-4 text-right ${due > 0 ? "text-red-600" : "text-slate-500"}`}>
+                      {formatCurrency(due, true)}
+                    </td>
+                  </tr>
+                );
+              })}
+              {vendorRows.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-6 text-center text-sm text-slate-400">
+                    Nessuna voce ancora inserita nella scheda Ristrutturazione.
+                  </td>
+                </tr>
+              )}
+              {vendorRows.length > 0 && (
+                <tr className="font-semibold">
+                  <td className="py-2 pr-4">Totale</td>
+                  <td className="py-2 pr-4 text-right">{formatCurrency(totalCost, true)}</td>
+                  <td className="py-2 pr-4 text-right text-emerald-700">{formatCurrency(totalPaidToVendors, true)}</td>
+                  <td className={`py-2 pr-4 text-right ${dueToVendors > 0 ? "text-red-600" : "text-slate-500"}`}>
+                    {formatCurrency(dueToVendors, true)}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </CardBody>
       </Card>
     </div>

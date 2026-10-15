@@ -5,7 +5,7 @@ export const dealInclude = {
   fiscalSettings: true,
   renovationSettings: true,
   holdingCosts: true,
-  costLineItems: { include: { category: true }, orderBy: { order: "asc" } },
+  costLineItems: { include: { category: true, vendor: true }, orderBy: { order: "asc" } },
   loans: { include: { manualPayments: true } },
   partners: true,
   saleScenarios: true,

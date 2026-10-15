@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { formatCurrency } from "../../lib/format";
-import type { DealDetail, CostLineItemDetail, CostCategory, PriceListItem } from "../../lib/types";
+import type { DealDetail, CostLineItemDetail, CostCategory, PriceListItem, Vendor } from "../../lib/types";
 import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { Input, Label, Select } from "../../components/ui/Field";
 import { Button } from "../../components/ui/Button";
@@ -52,12 +52,14 @@ const EMPTY_NEW_ITEM = {
   isMemo: false,
   isUnbilled: false,
   priceListItemId: "" as string | null,
+  vendorId: "" as string | null,
 };
 
 export default function RenovationTab({ deal }: { deal: DealDetail }) {
   const utils = trpc.useUtils();
   const categories = trpc.costCategory.list.useQuery();
   const priceList = trpc.priceListItem.list.useQuery();
+  const vendors = trpc.vendor.list.useQuery();
   const [contingencyPct, setContingencyPct] = useState(deal.renovationSettings?.contingencyPct.toString() ?? "12");
   const [materialMarkupPct, setMaterialMarkupPct] = useState(deal.renovationSettings?.materialMarkupPct?.toString() ?? "0");
   const [laborMarkupPct, setLaborMarkupPct] = useState(deal.renovationSettings?.laborMarkupPct?.toString() ?? "0");
@@ -214,6 +216,7 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
                 label={label}
                 groupCategories={groupCategories}
                 priceListData={priceList.data}
+                vendors={vendors.data}
                 updateItem={updateItem}
                 editingItem={editingItem?.category.group === group ? editingItem : null}
                 onCancelEdit={() => setEditingItem(null)}
@@ -279,7 +282,10 @@ function CostLineItemRow({
           )}
         </div>
       </td>
-      <td className="py-2 pr-2 align-top text-slate-500">{item.category.name}</td>
+      <td className="py-2 pr-2 align-top text-slate-500">
+        {item.category.name}
+        {item.vendor && <div className="text-xs text-slate-400">{item.vendor.name}</div>}
+      </td>
       <td className="py-2 pr-2 align-top text-right">{formatCurrency(item.taxableAmount, true)}</td>
       <td className="py-2 pr-2 align-top text-right">{item.vatRatePct}%</td>
       <td className="py-2 pr-2 align-top text-right font-medium">{formatCurrency(totals.total, true)}</td>
@@ -355,6 +361,7 @@ function AddCostItemForm({
   label,
   groupCategories,
   priceListData,
+  vendors,
   updateItem,
   editingItem,
   onCancelEdit,
@@ -366,6 +373,7 @@ function AddCostItemForm({
   label: string;
   groupCategories: CostCategory[];
   priceListData: PriceListItem[] | undefined;
+  vendors: Vendor[] | undefined;
   updateItem: ReturnType<typeof trpc.costLineItem.update.useMutation>;
   editingItem: CostLineItemDetail | null;
   onCancelEdit: () => void;
@@ -399,6 +407,7 @@ function AddCostItemForm({
       isMemo: editingItem.isMemo,
       isUnbilled: editingItem.isUnbilled,
       priceListItemId: editingItem.priceListItemId ?? null,
+      vendorId: editingItem.vendorId ?? null,
     });
     setDetailsOpen(true);
   }, [editingItem]);
@@ -507,6 +516,17 @@ function AddCostItemForm({
             <p className="mt-1 text-xs text-slate-400">{selectedPriceListItem.referenceQuantity}</p>
           )}
         </div>
+        <div>
+          <Label>Fornitore (opzionale)</Label>
+          <Select value={newItem.vendorId ?? ""} onChange={(e) => setNewItem({ ...newItem, vendorId: e.target.value || null })}>
+            <option value="">Nessuno</option>
+            {(vendors ?? []).map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name}
+              </option>
+            ))}
+          </Select>
+        </div>
         <div className="sm:col-span-2 lg:col-span-3">
           <Label>Descrizione</Label>
           <Input value={newItem.description} onChange={(e) => setNewItem({ ...newItem, description: e.target.value })} />
@@ -585,6 +605,7 @@ function AddCostItemForm({
                 isMemo: newItem.isMemo,
                 isUnbilled: newItem.isUnbilled,
                 priceListItemId: newItem.priceListItemId || undefined,
+                vendorId: newItem.vendorId,
               };
               if (editingItem) {
                 updateItem.mutate({ id: editingItem.id, ...data }, { onSuccess: cancelEdit });
