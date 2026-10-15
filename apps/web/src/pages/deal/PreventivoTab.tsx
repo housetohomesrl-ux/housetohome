@@ -102,6 +102,7 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
             <div>{deal.clientAddress || deal.address}</div>
             <div className="mt-4">Data: {deal.quoteDate ? formatDateIt(deal.quoteDate) : formatDateIt(new Date())}</div>
             <div>Preventivo: {quoteStatusLabel}</div>
+            {deal.quoteValidUntil && <div>Valido fino al: {formatDateIt(deal.quoteValidUntil)}</div>}
           </div>
         </div>
 
