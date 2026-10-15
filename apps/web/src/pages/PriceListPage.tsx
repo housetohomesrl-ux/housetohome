@@ -20,6 +20,13 @@ interface ImportRow {
   notes?: string;
 }
 
+type LibraryScope = "FLIP" | "RISTRUTTURAZIONE_CLIENTE";
+
+const LIBRARY_LABEL: Record<LibraryScope, string> = {
+  FLIP: "Libreria Flip",
+  RISTRUTTURAZIONE_CLIENTE: "Libreria Ristrutturazioni",
+};
+
 const EMPTY_FORM = {
   categoryId: "",
   name: "",
@@ -40,6 +47,9 @@ export default function PriceListPage() {
   const vendors = trpc.vendor.list.useQuery();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [libraryScope, setLibraryScope] = useState<LibraryScope>("FLIP");
+
+  const scopedItems = items.data?.filter((i) => i.libraryScope === libraryScope);
 
   const create = trpc.priceListItem.create.useMutation({
     onSuccess: () => {
@@ -58,6 +68,7 @@ export default function PriceListPage() {
 
   function startEdit(item: NonNullable<typeof items.data>[number]) {
     setEditingId(item.id);
+    setLibraryScope(item.libraryScope);
     setForm({
       categoryId: item.categoryId,
       name: item.name,
@@ -141,14 +152,28 @@ export default function PriceListPage() {
     <div>
       <h1 className="text-xl font-semibold text-slate-900">Libreria prezzi</h1>
       <p className="mt-1 text-sm text-slate-500">
-        Il tuo listino personale per categoria di lavoro: si arricchisce nel tempo e velocizza i preventivi futuri.
-        Ogni voce può essere richiamata direttamente quando aggiungi un costo a un deal.
+        Due librerie separate: le voci per i Flip non compaiono nel preventivo di una Ristrutturazione per un cliente,
+        e viceversa. Ogni voce può essere richiamata direttamente quando aggiungi un costo a un deal.
       </p>
+
+      <div className="mt-4 flex gap-2">
+        {(Object.entries(LIBRARY_LABEL) as [LibraryScope, string][]).map(([scope, label]) => (
+          <button
+            key={scope}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+              libraryScope === scope ? "bg-brand-600 text-white" : "bg-white text-slate-600 border border-slate-300 hover:bg-slate-50"
+            }`}
+            onClick={() => setLibraryScope(scope)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       <Card className="mt-4">
         <CardHeader
           title="Importa da CSV"
-          subtitle="Colonne: group, category, name, unit, unitPrice, vendor, specification, referenceQuantity, notes (tutte opzionali tranne le prime quattro)."
+          subtitle={`Importa nella "${LIBRARY_LABEL[libraryScope]}". Colonne: group, category, name, unit, unitPrice, vendor, specification, referenceQuantity, notes (tutte opzionali tranne le prime quattro).`}
         />
         <CardBody>
           <input
@@ -164,7 +189,12 @@ export default function PriceListPage() {
             </Button>
             {importRows && <span className="text-sm text-slate-600">{importRows.length} righe pronte da importare</span>}
             {importRows && (
-              <Button disabled={bulkImport.isPending} onClick={() => bulkImport.mutate({ items: importRows })}>
+              <Button
+                disabled={bulkImport.isPending}
+                onClick={() =>
+                  bulkImport.mutate({ items: importRows.map((r) => ({ ...r, libraryScope })) })
+                }
+              >
                 {bulkImport.isPending ? "Importazione..." : `Conferma importazione (${importRows.length})`}
               </Button>
             )}
@@ -209,7 +239,7 @@ export default function PriceListPage() {
                 </tr>
               </thead>
               <tbody>
-                {items.data?.map((item) => (
+                {scopedItems?.map((item) => (
                   <tr key={item.id} className="border-b border-slate-100 align-top">
                     <td className="py-2 pr-2">
                       <div>{item.name}</div>
@@ -343,7 +373,7 @@ export default function PriceListPage() {
                   if (editingId) {
                     update.mutate({ id: editingId, ...data });
                   } else {
-                    create.mutate(data);
+                    create.mutate({ ...data, libraryScope });
                   }
                 }}
               >

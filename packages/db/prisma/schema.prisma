@@ -321,6 +321,9 @@ model PriceListItem {
   notes             String?
   includeInPreventivo   Boolean  @default(true) // richiamabile nel form "Aggiungi voce" del preventivo di un deal
   includeInBusinessPlan Boolean  @default(false) // taggata per l'inclusione nel business plan (Fase 3)
+  // Due librerie prezzi separate: una voce creata per i Flip non compare
+  // nel menu "Voce" di un deal "Ristrutturazione per un cliente" e viceversa.
+  libraryScope      DealOperationType @default(FLIP)
   updatedAt         DateTime     @updatedAt
 
   costLineItems CostLineItem[]

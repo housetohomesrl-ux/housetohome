@@ -384,7 +384,9 @@ function AddCostItemForm({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const selectedPriceListItem = priceListData?.find((p) => p.id === newItem.priceListItemId) ?? null;
   const categoryPriceList = newItem.categoryId
-    ? (priceListData ?? []).filter((p) => p.categoryId === newItem.categoryId && p.includeInPreventivo)
+    ? (priceListData ?? []).filter(
+        (p) => p.categoryId === newItem.categoryId && p.includeInPreventivo && p.libraryScope === deal.operationType,
+      )
     : [];
 
   const createItem = trpc.costLineItem.create.useMutation({

@@ -101,6 +101,7 @@ export const priceListItemRouter = router({
             notes: row.notes,
             includeInPreventivo: row.includeInPreventivo ?? true,
             includeInBusinessPlan: row.includeInBusinessPlan ?? false,
+            libraryScope: row.libraryScope ?? "FLIP",
           },
         });
         existingNames.add(row.name);
