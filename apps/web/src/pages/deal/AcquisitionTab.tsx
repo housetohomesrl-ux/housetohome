@@ -40,6 +40,9 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
   const saveClient = trpc.deal.update.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
   });
+  const upsertClientDirectory = trpc.clients.upsertByName.useMutation({
+    onSuccess: () => utils.clients.list.invalidate(),
+  });
 
   const [fiscal, setFiscal] = useState({
     regimeType: deal.fiscalSettings?.regimeType ?? "PERSONA_FISICA",
@@ -200,7 +203,7 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
             </div>
             <div className="sm:col-span-2">
               <Button
-                onClick={() =>
+                onClick={() => {
                   saveClient.mutate({
                     id: deal.id,
                     clientName: client.clientName || undefined,
@@ -211,8 +214,18 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
                     clientEmail: client.clientEmail || undefined,
                     quoteDate: client.quoteDate ? new Date(client.quoteDate) : undefined,
                     quoteValidUntil: client.quoteValidUntil ? new Date(client.quoteValidUntil) : undefined,
-                  })
-                }
+                  });
+                  if (client.clientName) {
+                    upsertClientDirectory.mutate({
+                      name: client.clientName,
+                      address: client.clientAddress || undefined,
+                      taxCode: client.clientTaxCode || undefined,
+                      vatNumber: client.clientVatNumber || undefined,
+                      phone: client.clientPhone || undefined,
+                      email: client.clientEmail || undefined,
+                    });
+                  }
+                }}
                 disabled={saveClient.isPending}
               >
                 Salva

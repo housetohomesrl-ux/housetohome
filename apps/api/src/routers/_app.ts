@@ -8,6 +8,7 @@ import { partnerRouter } from "./partner.js";
 import { saleScenarioRouter } from "./saleScenario.js";
 import { noteRouter } from "./note.js";
 import { vendorRouter } from "./vendor.js";
+import { clientRouter } from "./client.js";
 import { priceListItemRouter } from "./priceListItem.js";
 import { costCategoryRouter } from "./costCategory.js";
 import { resultsRouter } from "./results.js";
@@ -22,6 +23,7 @@ export const appRouter = router({
   saleScenario: saleScenarioRouter,
   note: noteRouter,
   vendor: vendorRouter,
+  clients: clientRouter,
   priceListItem: priceListItemRouter,
   costCategory: costCategoryRouter,
   results: resultsRouter,

@@ -31,6 +31,7 @@ model Tenant {
   users               User[]
   deals               Deal[]
   vendors             Vendor[]
+  clients             Client[]
   costCategories      CostCategory[]
   priceListItems      PriceListItem[]
   companyProfile      CompanyProfile?
@@ -317,6 +318,26 @@ model Vendor {
 
   @@index([tenantId])
   @@map("vendors")
+}
+
+// Agenda clienti (RISTRUTTURAZIONE_CLIENTE): memorizzata automaticamente
+// ogni volta che si salvano i "Dati cliente" di un deal (vedi deal.ts), cosi
+// cresce da sola senza bisogno di inserirla a mano una seconda volta.
+model Client {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  address   String?
+  taxCode   String?
+  vatNumber String?
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("clients")
 }
 
 // Quanto pagato a un fornitore su un deal (RISTRUTTURAZIONE_CLIENTE), inserito

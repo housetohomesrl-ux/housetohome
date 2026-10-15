@@ -143,6 +143,19 @@ export const vendorCreateSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const clientCreateSchema = z.object({
+  name: z.string().min(1),
+  address: z.string().optional(),
+  taxCode: z.string().optional(),
+  vatNumber: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().optional(),
+});
+
+// Usato per memorizzare in automatico i "Dati cliente" di un deal
+// nell'agenda clienti: trova per nome (case-insensitive) e aggiorna, o crea.
+export const clientUpsertByNameSchema = clientCreateSchema;
+
 export const priceListItemCreateSchema = z.object({
   categoryId: z.string(),
   name: z.string().min(1),

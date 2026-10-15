@@ -28,6 +28,9 @@ export default function AppLayout() {
             <Link to="/vendors" className="text-sm text-slate-600 hover:text-slate-900">
               Fornitori
             </Link>
+            <Link to="/clients" className="text-sm text-slate-600 hover:text-slate-900">
+              Clienti
+            </Link>
             <Link to="/price-list/flip" className="text-sm text-slate-600 hover:text-slate-900">
               Libreria prezzi Flip
             </Link>

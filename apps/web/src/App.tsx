@@ -6,6 +6,7 @@ import RegisterPage from "./pages/RegisterPage";
 import PortfolioPage from "./pages/PortfolioPage";
 import DealDetailPage from "./pages/DealDetailPage";
 import VendorsPage from "./pages/VendorsPage";
+import ClientsPage from "./pages/ClientsPage";
 import PriceListPage from "./pages/PriceListPage";
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/" element={<PortfolioPage />} />
           <Route path="/deals/:dealId" element={<DealDetailPage />} />
           <Route path="/vendors" element={<VendorsPage />} />
+          <Route path="/clients" element={<ClientsPage />} />
           <Route path="/price-list/:scope" element={<PriceListPage />} />
         </Route>
       </Route>
