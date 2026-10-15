@@ -159,8 +159,11 @@ export default function PriceListPage() {
   const vendors = trpc.vendor.list.useQuery();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [vendorFilter, setVendorFilter] = useState("");
 
-  const scopedItems = libraryScope ? items.data?.filter((i) => i.libraryScope === libraryScope) : undefined;
+  const scopedItems = libraryScope
+    ? items.data?.filter((i) => i.libraryScope === libraryScope && (!vendorFilter || i.vendorId === vendorFilter))
+    : undefined;
   const itemsByGroup = new Map<string, NonNullable<typeof items.data>>();
   for (const item of scopedItems ?? []) {
     const group = item.category.group;
@@ -277,6 +280,18 @@ export default function PriceListPage() {
         voci qui dentro non compaiono mai nell'altra. Ogni voce può essere richiamata direttamente quando aggiungi un
         costo a un deal.
       </p>
+
+      <div className="mt-4 sm:w-72">
+        <Label htmlFor="vendorFilter">Filtra per fornitore</Label>
+        <Select id="vendorFilter" value={vendorFilter} onChange={(e) => setVendorFilter(e.target.value)}>
+          <option value="">Tutti i fornitori</option>
+          {vendors.data?.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.name}
+            </option>
+          ))}
+        </Select>
+      </div>
 
       <Card className="mt-4">
         <CardHeader
