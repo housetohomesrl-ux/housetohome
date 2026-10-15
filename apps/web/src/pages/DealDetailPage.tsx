@@ -25,8 +25,7 @@ export default function DealDetailPage() {
     { id: "acquisizione", label: isClientJob ? "Cliente" : "Acquisizione" },
     { id: "ristrutturazione", label: "Ristrutturazione" },
     { id: "detenzione", label: "Detenzione" },
-    { id: "finanziamento", label: "Finanziamento" },
-    { id: "vendita", label: "Vendita" },
+    ...(isClientJob ? [] : [{ id: "finanziamento", label: "Finanziamento" }, { id: "vendita", label: "Vendita" }]),
     { id: "risultati", label: "Risultati" },
   ];
   const tabs = isClientJob ? [...baseTabs, { id: "preventivo", label: "Preventivo cliente" }] : baseTabs;
