@@ -35,7 +35,7 @@ export default function PortfolioPage() {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [addressFilter, setAddressFilter] = useState<string>("ALL");
   const [sortKey, setSortKey] = useState<SortKey>("updated");
-  const [showNewDealForm, setShowNewDealForm] = useState(false);
+  const [newDealTarget, setNewDealTarget] = useState<"FLIP" | "RISTRUTTURAZIONE_CLIENTE" | null>(null);
   const [newDealAddress, setNewDealAddress] = useState("");
 
   const createDeal = trpc.deal.create.useMutation({
@@ -46,9 +46,10 @@ export default function PortfolioPage() {
   });
 
   function submitNewDeal() {
+    if (!newDealTarget) return;
     const address = newDealAddress.trim();
-    createDeal.mutate({ name: address || "Nuovo deal", address: address || undefined });
-    setShowNewDealForm(false);
+    createDeal.mutate({ name: address || "Nuovo deal", address: address || undefined, operationType: newDealTarget });
+    setNewDealTarget(null);
     setNewDealAddress("");
   }
 
@@ -88,37 +89,9 @@ export default function PortfolioPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Portafoglio deal</h1>
-          <p className="mt-1 text-sm text-slate-500">Tutte le operazioni di buy-renovate-resell del tuo team.</p>
-        </div>
-        {showNewDealForm ? (
-          <div className="flex items-center gap-2">
-            <Input
-              autoFocus
-              placeholder="Indirizzo dell'immobile"
-              className="w-64"
-              value={newDealAddress}
-              onChange={(e) => setNewDealAddress(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submitNewDeal()}
-            />
-            <Button onClick={submitNewDeal} disabled={createDeal.isPending}>
-              Crea
-            </Button>
-            <button
-              className="text-sm text-slate-500 hover:underline"
-              onClick={() => {
-                setShowNewDealForm(false);
-                setNewDealAddress("");
-              }}
-            >
-              Annulla
-            </button>
-          </div>
-        ) : (
-          <Button onClick={() => setShowNewDealForm(true)}>+ Nuovo deal</Button>
-        )}
+      <div>
+        <h1 className="text-xl font-semibold text-slate-900">Portafoglio deal</h1>
+        <p className="mt-1 text-sm text-slate-500">Tutte le operazioni di buy-renovate-resell del tuo team.</p>
       </div>
 
       <div className="mt-4 flex gap-3">
@@ -165,6 +138,34 @@ export default function PortfolioPage() {
             <p className="py-6 text-center text-sm text-slate-400">Nessun deal flip. Creane uno per iniziare.</p>
           )}
         </div>
+        <div className="mt-3">
+          {newDealTarget === "FLIP" ? (
+            <div className="flex items-center gap-2">
+              <Input
+                autoFocus
+                placeholder="Indirizzo dell'immobile"
+                className="w-64"
+                value={newDealAddress}
+                onChange={(e) => setNewDealAddress(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submitNewDeal()}
+              />
+              <Button onClick={submitNewDeal} disabled={createDeal.isPending}>
+                Crea
+              </Button>
+              <button
+                className="text-sm text-slate-500 hover:underline"
+                onClick={() => {
+                  setNewDealTarget(null);
+                  setNewDealAddress("");
+                }}
+              >
+                Annulla
+              </button>
+            </div>
+          ) : (
+            <Button onClick={() => setNewDealTarget("FLIP")}>+ Nuovo flip</Button>
+          )}
+        </div>
       </div>
 
       <div className="mt-8">
@@ -182,10 +183,35 @@ export default function PortfolioPage() {
             />
           ))}
           {clientDeals.length === 0 && !deals.isLoading && (
-            <p className="py-6 text-center text-sm text-slate-400">
-              Nessuna ristrutturazione per cliente. Crea un deal e imposta "Tipo di operazione" su "Ristrutturazione
-              per un cliente" nella sua scheda Acquisizione.
-            </p>
+            <p className="py-6 text-center text-sm text-slate-400">Nessuna ristrutturazione per cliente. Creane una per iniziare.</p>
+          )}
+        </div>
+        <div className="mt-3">
+          {newDealTarget === "RISTRUTTURAZIONE_CLIENTE" ? (
+            <div className="flex items-center gap-2">
+              <Input
+                autoFocus
+                placeholder="Indirizzo dell'immobile"
+                className="w-64"
+                value={newDealAddress}
+                onChange={(e) => setNewDealAddress(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submitNewDeal()}
+              />
+              <Button onClick={submitNewDeal} disabled={createDeal.isPending}>
+                Crea
+              </Button>
+              <button
+                className="text-sm text-slate-500 hover:underline"
+                onClick={() => {
+                  setNewDealTarget(null);
+                  setNewDealAddress("");
+                }}
+              >
+                Annulla
+              </button>
+            </div>
+          ) : (
+            <Button onClick={() => setNewDealTarget("RISTRUTTURAZIONE_CLIENTE")}>+ Nuova ristrutturazione</Button>
           )}
         </div>
       </div>
