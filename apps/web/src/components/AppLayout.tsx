@@ -28,8 +28,11 @@ export default function AppLayout() {
             <Link to="/vendors" className="text-sm text-slate-600 hover:text-slate-900">
               Fornitori
             </Link>
-            <Link to="/price-list" className="text-sm text-slate-600 hover:text-slate-900">
-              Libreria prezzi
+            <Link to="/price-list/flip" className="text-sm text-slate-600 hover:text-slate-900">
+              Libreria prezzi Flip
+            </Link>
+            <Link to="/price-list/ristrutturazione" className="text-sm text-slate-600 hover:text-slate-900">
+              Libreria prezzi Ristrutturazioni
             </Link>
             <span className="text-sm text-slate-400">{me.data?.name}</span>
             <Button variant="secondary" onClick={() => logout.mutate()}>

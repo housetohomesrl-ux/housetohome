@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Navigate, useParams } from "react-router-dom";
 import { trpc } from "../lib/trpc";
 import { formatCurrency, formatDate } from "../lib/format";
 import { parseCsvWithHeader } from "../lib/csv";
@@ -27,6 +28,11 @@ const LIBRARY_LABEL: Record<LibraryScope, string> = {
   RISTRUTTURAZIONE_CLIENTE: "Libreria Ristrutturazioni",
 };
 
+const SCOPE_BY_SLUG: Record<string, LibraryScope> = {
+  flip: "FLIP",
+  ristrutturazione: "RISTRUTTURAZIONE_CLIENTE",
+};
+
 const EMPTY_FORM = {
   categoryId: "",
   name: "",
@@ -41,15 +47,17 @@ const EMPTY_FORM = {
 };
 
 export default function PriceListPage() {
+  const { scope: scopeSlug } = useParams<{ scope: string }>();
+  const libraryScope = scopeSlug ? SCOPE_BY_SLUG[scopeSlug] : undefined;
+
   const utils = trpc.useUtils();
   const items = trpc.priceListItem.list.useQuery();
   const categories = trpc.costCategory.list.useQuery();
   const vendors = trpc.vendor.list.useQuery();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [libraryScope, setLibraryScope] = useState<LibraryScope>("FLIP");
 
-  const scopedItems = items.data?.filter((i) => i.libraryScope === libraryScope);
+  const scopedItems = libraryScope ? items.data?.filter((i) => i.libraryScope === libraryScope) : undefined;
 
   const create = trpc.priceListItem.create.useMutation({
     onSuccess: () => {
@@ -68,7 +76,6 @@ export default function PriceListPage() {
 
   function startEdit(item: NonNullable<typeof items.data>[number]) {
     setEditingId(item.id);
-    setLibraryScope(item.libraryScope);
     setForm({
       categoryId: item.categoryId,
       name: item.name,
@@ -148,27 +155,18 @@ export default function PriceListPage() {
     e.target.value = "";
   }
 
+  if (!libraryScope) {
+    return <Navigate to="/price-list/flip" replace />;
+  }
+
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Libreria prezzi</h1>
+      <h1 className="text-xl font-semibold text-slate-900">{LIBRARY_LABEL[libraryScope]}</h1>
       <p className="mt-1 text-sm text-slate-500">
-        Due librerie separate: le voci per i Flip non compaiono nel preventivo di una Ristrutturazione per un cliente,
-        e viceversa. Ogni voce può essere richiamata direttamente quando aggiungi un costo a un deal.
+        Libreria separata da quella {libraryScope === "FLIP" ? "delle Ristrutturazioni per clienti" : "dei Flip"}: le
+        voci qui dentro non compaiono mai nell'altra. Ogni voce può essere richiamata direttamente quando aggiungi un
+        costo a un deal.
       </p>
-
-      <div className="mt-4 flex gap-2">
-        {(Object.entries(LIBRARY_LABEL) as [LibraryScope, string][]).map(([scope, label]) => (
-          <button
-            key={scope}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-              libraryScope === scope ? "bg-brand-600 text-white" : "bg-white text-slate-600 border border-slate-300 hover:bg-slate-50"
-            }`}
-            onClick={() => setLibraryScope(scope)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
 
       <Card className="mt-4">
         <CardHeader

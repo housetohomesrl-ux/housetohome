@@ -18,7 +18,7 @@ export default function App() {
           <Route path="/" element={<PortfolioPage />} />
           <Route path="/deals/:dealId" element={<DealDetailPage />} />
           <Route path="/vendors" element={<VendorsPage />} />
-          <Route path="/price-list" element={<PriceListPage />} />
+          <Route path="/price-list/:scope" element={<PriceListPage />} />
         </Route>
       </Route>
     </Routes>
