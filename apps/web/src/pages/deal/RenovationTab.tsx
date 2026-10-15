@@ -25,6 +25,17 @@ function rowTotals(item: CostLineItemDetail) {
   return { vat, total, due };
 }
 
+/** Prezzo cliente di default quando la voce non ne ha uno impostato a mano: costo + ricarico % per gruppo (solo Materiali/Lavorazioni). */
+export function autoClientPrice(item: CostLineItemDetail, deal: DealDetail): number {
+  const markupPct =
+    item.category.group === "MATERIALI"
+      ? deal.renovationSettings?.materialMarkupPct ?? 0
+      : item.category.group === "LAVORAZIONI"
+        ? deal.renovationSettings?.laborMarkupPct ?? 0
+        : 0;
+  return item.taxableAmount * (1 + markupPct / 100);
+}
+
 const EMPTY_NEW_ITEM = {
   categoryId: "",
   description: "",
@@ -43,9 +54,14 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
   const categories = trpc.costCategory.list.useQuery();
   const priceList = trpc.priceListItem.list.useQuery();
   const [contingencyPct, setContingencyPct] = useState(deal.renovationSettings?.contingencyPct.toString() ?? "12");
+  const [materialMarkupPct, setMaterialMarkupPct] = useState(deal.renovationSettings?.materialMarkupPct?.toString() ?? "0");
+  const [laborMarkupPct, setLaborMarkupPct] = useState(deal.renovationSettings?.laborMarkupPct?.toString() ?? "0");
   const [editingItem, setEditingItem] = useState<CostLineItemDetail | null>(null);
 
   const saveContingency = trpc.dealSettings.updateRenovationSettings.useMutation({
+    onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
+  });
+  const saveMarkup = trpc.dealSettings.updateRenovationSettings.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
   });
   const updateItem = trpc.costLineItem.update.useMutation({ onSuccess: () => utils.deal.get.invalidate({ id: deal.id }) });
@@ -85,6 +101,51 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
           </Button>
         </CardBody>
       </Card>
+
+      {isClientJob && (
+        <Card>
+          <CardHeader
+            title="Ricarico per il preventivo cliente"
+            subtitle="Determina in automatico il prezzo cliente delle voci di Materiali e Lavorazioni (costo + ricarico), se una voce non ha un prezzo cliente impostato a mano."
+          />
+          <CardBody className="flex flex-wrap items-end gap-3">
+            <div>
+              <Label htmlFor="materialMarkup">Ricarico Materiali (%)</Label>
+              <Input
+                id="materialMarkup"
+                type="number"
+                className="w-32"
+                value={materialMarkupPct}
+                onChange={(e) => setMaterialMarkupPct(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="laborMarkup">Ricarico Lavorazioni (%)</Label>
+              <Input
+                id="laborMarkup"
+                type="number"
+                className="w-32"
+                value={laborMarkupPct}
+                onChange={(e) => setLaborMarkupPct(e.target.value)}
+              />
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() =>
+                saveMarkup.mutate({
+                  dealId: deal.id,
+                  contingencyPct: Number(contingencyPct),
+                  materialMarkupPct: Number(materialMarkupPct),
+                  laborMarkupPct: Number(laborMarkupPct),
+                })
+              }
+              disabled={saveMarkup.isPending}
+            >
+              Salva
+            </Button>
+          </CardBody>
+        </Card>
+      )}
 
       {Object.entries(GROUP_LABEL)
         .filter(([group]) => !(isClientJob && group === "ACQUISIZIONE"))
@@ -129,6 +190,7 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
                         <CostLineItemRow
                           key={item.id}
                           item={item}
+                          deal={deal}
                           updateItem={updateItem}
                           deleteItem={deleteItem}
                           onEdit={() => setEditingItem(item)}
@@ -165,12 +227,14 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
  */
 function CostLineItemRow({
   item,
+  deal,
   updateItem,
   deleteItem,
   onEdit,
   isClientJob,
 }: {
   item: CostLineItemDetail;
+  deal: DealDetail;
   updateItem: ReturnType<typeof trpc.costLineItem.update.useMutation>;
   deleteItem: ReturnType<typeof trpc.costLineItem.delete.useMutation>;
   onEdit: () => void;
@@ -217,7 +281,7 @@ function CostLineItemRow({
           <Input
             type="number"
             className="w-full py-1 text-right text-xs"
-            placeholder={item.taxableAmount.toString()}
+            placeholder={autoClientPrice(item, deal).toFixed(2)}
             value={clientPrice}
             onChange={(e) => setClientPrice(e.target.value)}
             onBlur={commitClientPrice}

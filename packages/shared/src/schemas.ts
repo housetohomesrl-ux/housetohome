@@ -93,6 +93,8 @@ export const fiscalSettingsSchema = z.object({
 export const renovationSettingsSchema = z.object({
   dealId: z.string(),
   contingencyPct: z.number().min(0).max(100),
+  materialMarkupPct: z.number().min(0).max(1000).optional(),
+  laborMarkupPct: z.number().min(0).max(1000).optional(),
 });
 
 export const costLineItemCreateSchema = z.object({

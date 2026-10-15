@@ -2,17 +2,19 @@ import { formatCurrency } from "../../lib/format";
 import type { DealDetail } from "../../lib/types";
 import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
+import { autoClientPrice } from "./RenovationTab";
 
 /**
  * Preventivo da dare al cliente per un deal RISTRUTTURAZIONE_CLIENTE: elenca
- * le voci di costo con il "prezzo cliente" (se impostato, altrimenti
- * l'imponibile) e il relativo totale con IVA. Non mostra pagato/residuo né
- * la porzione fuori campo IVA, che sono dati di tracciamento interno.
+ * le voci di costo con il "prezzo cliente" (se impostato a mano, altrimenti
+ * costo + ricarico % per Materiali/Lavorazioni) e il relativo totale con
+ * IVA. Non mostra pagato/residuo né la porzione fuori campo IVA, che sono
+ * dati di tracciamento interno.
  */
 export default function PreventivoTab({ deal }: { deal: DealDetail }) {
   const items = deal.costLineItems.filter((i) => !i.isMemo);
   const rows = items.map((item) => {
-    const price = item.clientPrice ?? item.taxableAmount;
+    const price = item.clientPrice ?? autoClientPrice(item, deal);
     const vat = (price * item.vatRatePct) / 100;
     return { item, price, vat, total: price + vat };
   });
@@ -23,7 +25,7 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
       <div className="flex items-center justify-between print:hidden">
         <p className="text-sm text-slate-500">
           Elenca le voci di costo con il "Prezzo cliente" impostato nella scheda Ristrutturazione (se una voce non ne
-          ha uno, usa l'imponibile). Non mostra dati interni come pagato/residuo.
+          ha uno, usa costo + ricarico % per Materiali/Lavorazioni). Non mostra dati interni come pagato/residuo.
         </p>
         <Button variant="secondary" onClick={() => window.print()}>
           Stampa preventivo
