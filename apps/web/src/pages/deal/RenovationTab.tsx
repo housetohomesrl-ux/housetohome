@@ -7,7 +7,7 @@ import { Input, Label, Select } from "../../components/ui/Field";
 import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
 
-const GROUP_LABEL: Record<string, string> = {
+export const GROUP_LABEL: Record<string, string> = {
   ACQUISIZIONE: "Acquisto e spese",
   MATERIALI: "Materiali",
   LAVORAZIONI: "Lavorazioni",

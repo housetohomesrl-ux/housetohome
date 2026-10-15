@@ -8,6 +8,7 @@ import { Card, CardBody, CardHeader } from "../components/ui/Card";
 import { Input, Label, Select, Textarea } from "../components/ui/Field";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
+import { GROUP_LABEL } from "./deal/RenovationTab";
 
 interface ImportRow {
   categoryGroup: "ACQUISIZIONE" | "MATERIALI" | "LAVORAZIONI" | "ENTI_ESTERNI" | "ALTRO";
@@ -58,6 +59,13 @@ export default function PriceListPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const scopedItems = libraryScope ? items.data?.filter((i) => i.libraryScope === libraryScope) : undefined;
+  const itemsByGroup = new Map<string, NonNullable<typeof items.data>>();
+  for (const item of scopedItems ?? []) {
+    const group = item.category.group;
+    const list = itemsByGroup.get(group) ?? [];
+    list.push(item);
+    itemsByGroup.set(group, list);
+  }
 
   const create = trpc.priceListItem.create.useMutation({
     onSuccess: () => {
@@ -219,76 +227,84 @@ export default function PriceListPage() {
         </CardBody>
       </Card>
 
-      <Card className="mt-4">
-        <CardHeader title="Voci di listino" />
-        <CardBody>
-          <div className="mb-4 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
-                  <th className="py-2 pr-2">Voce</th>
-                  <th className="py-2 pr-2">Categoria</th>
-                  <th className="py-2 pr-2">Fornitore</th>
-                  <th className="py-2 pr-2">Unità / rif.</th>
-                  <th className="py-2 pr-2 text-right">Prezzo</th>
-                  <th className="py-2 pr-2">Usa per</th>
-                  <th className="py-2 pr-2">Aggiornato</th>
-                  <th className="py-2 pr-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {scopedItems?.map((item) => (
-                  <tr key={item.id} className="border-b border-slate-100 align-top">
-                    <td className="py-2 pr-2">
-                      <div>{item.name}</div>
-                      {item.specification && <div className="mt-0.5 text-xs text-slate-400">{item.specification}</div>}
-                    </td>
-                    <td className="py-2 pr-2 text-slate-500">{item.category.name}</td>
-                    <td className="py-2 pr-2 text-slate-500">{item.vendor?.name ?? "—"}</td>
-                    <td className="py-2 pr-2 text-slate-500">
-                      <div>{item.unit}</div>
-                      {item.referenceQuantity && <div className="mt-0.5 text-xs text-slate-400">{item.referenceQuantity}</div>}
-                    </td>
-                    <td className="py-2 pr-2 text-right font-medium">{formatCurrency(item.unitPrice, true)}</td>
-                    <td className="py-2 pr-2">
-                      <div className="flex flex-wrap gap-1">
-                        <button
-                          className="cursor-pointer"
-                          title="Clic per attivare/disattivare"
-                          onClick={() => update.mutate({ id: item.id, includeInPreventivo: !item.includeInPreventivo })}
-                        >
-                          <Badge tone={item.includeInPreventivo ? "success" : "neutral"}>Preventivo</Badge>
-                        </button>
-                        <button
-                          className="cursor-pointer"
-                          title="Clic per attivare/disattivare"
-                          onClick={() => update.mutate({ id: item.id, includeInBusinessPlan: !item.includeInBusinessPlan })}
-                        >
-                          <Badge tone={item.includeInBusinessPlan ? "info" : "neutral"}>Business plan</Badge>
-                        </button>
-                      </div>
-                    </td>
-                    <td className="py-2 pr-2 text-xs text-slate-400">{formatDate(item.updatedAt)}</td>
-                    <td className="py-2 pr-2 text-right whitespace-nowrap">
-                      <button className="text-xs text-brand-700 hover:underline" onClick={() => startEdit(item)}>
-                        Modifica
-                      </button>
-                      <button
-                        className="ml-2 text-xs text-red-500 hover:underline"
-                        onClick={() => remove.mutate({ id: item.id })}
-                      >
-                        Elimina
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      {Object.entries(GROUP_LABEL).map(([group, label]) => {
+        const groupItems = itemsByGroup.get(group);
+        if (!groupItems || groupItems.length === 0) return null;
+        return (
+          <Card className="mt-4" key={group}>
+            <CardHeader title={label} />
+            <CardBody>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
+                      <th className="py-2 pr-2">Voce</th>
+                      <th className="py-2 pr-2">Categoria</th>
+                      <th className="py-2 pr-2">Fornitore</th>
+                      <th className="py-2 pr-2">Unità / rif.</th>
+                      <th className="py-2 pr-2 text-right">Prezzo</th>
+                      <th className="py-2 pr-2">Usa per</th>
+                      <th className="py-2 pr-2">Aggiornato</th>
+                      <th className="py-2 pr-2" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupItems.map((item) => (
+                      <tr key={item.id} className="border-b border-slate-100 align-top">
+                        <td className="py-2 pr-2">
+                          <div>{item.name}</div>
+                          {item.specification && <div className="mt-0.5 text-xs text-slate-400">{item.specification}</div>}
+                        </td>
+                        <td className="py-2 pr-2 text-slate-500">{item.category.name}</td>
+                        <td className="py-2 pr-2 text-slate-500">{item.vendor?.name ?? "—"}</td>
+                        <td className="py-2 pr-2 text-slate-500">
+                          <div>{item.unit}</div>
+                          {item.referenceQuantity && <div className="mt-0.5 text-xs text-slate-400">{item.referenceQuantity}</div>}
+                        </td>
+                        <td className="py-2 pr-2 text-right font-medium">{formatCurrency(item.unitPrice, true)}</td>
+                        <td className="py-2 pr-2">
+                          <div className="flex flex-wrap gap-1">
+                            <button
+                              className="cursor-pointer"
+                              title="Clic per attivare/disattivare"
+                              onClick={() => update.mutate({ id: item.id, includeInPreventivo: !item.includeInPreventivo })}
+                            >
+                              <Badge tone={item.includeInPreventivo ? "success" : "neutral"}>Preventivo</Badge>
+                            </button>
+                            <button
+                              className="cursor-pointer"
+                              title="Clic per attivare/disattivare"
+                              onClick={() => update.mutate({ id: item.id, includeInBusinessPlan: !item.includeInBusinessPlan })}
+                            >
+                              <Badge tone={item.includeInBusinessPlan ? "info" : "neutral"}>Business plan</Badge>
+                            </button>
+                          </div>
+                        </td>
+                        <td className="py-2 pr-2 text-xs text-slate-400">{formatDate(item.updatedAt)}</td>
+                        <td className="py-2 pr-2 text-right whitespace-nowrap">
+                          <button className="text-xs text-brand-700 hover:underline" onClick={() => startEdit(item)}>
+                            Modifica
+                          </button>
+                          <button
+                            className="ml-2 text-xs text-red-500 hover:underline"
+                            onClick={() => remove.mutate({ id: item.id })}
+                          >
+                            Elimina
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardBody>
+          </Card>
+        );
+      })}
 
-          <h3 className="mb-2 text-sm font-medium text-slate-700">
-            {editingId ? "Modifica voce" : "Aggiungi voce"}
-          </h3>
+      <Card className="mt-4">
+        <CardHeader title={editingId ? "Modifica voce" : "Aggiungi voce"} />
+        <CardBody>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <Label>Categoria</Label>
