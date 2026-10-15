@@ -101,6 +101,7 @@ export default function PortfolioPage() {
         deleteDeal={deleteDeal}
         createDeal={createDeal}
         stageAction={{ fromStatus: "VALUTAZIONE", toStatus: "ACQUISIZIONE", label: "Preventivo confermato", mutation: markPurchased }}
+        showSort={false}
         className="mt-8"
       />
     </div>
@@ -120,6 +121,7 @@ function DealSection({
   deleteDeal,
   createDeal,
   stageAction,
+  showSort = true,
   className = "mt-6",
 }: {
   title: string;
@@ -139,6 +141,7 @@ function DealSection({
     label: string;
     mutation: ReturnType<typeof trpc.deal.update.useMutation>;
   };
+  showSort?: boolean;
   className?: string;
 }) {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -184,11 +187,13 @@ function DealSection({
             </option>
           ))}
         </Select>
-        <Select className="max-w-xs" value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)}>
-          <option value="updated">Ordina per: ultimo aggiornamento</option>
-          <option value="roi">Ordina per: ROI (scenario realistico)</option>
-          <option value="netProfit">Ordina per: utile netto (scenario realistico)</option>
-        </Select>
+        {showSort && (
+          <Select className="max-w-xs" value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)}>
+            <option value="updated">Ordina per: ultimo aggiornamento</option>
+            <option value="roi">Ordina per: ROI (scenario realistico)</option>
+            <option value="netProfit">Ordina per: utile netto (scenario realistico)</option>
+          </Select>
+        )}
         <Select className="max-w-xs" value={addressFilter} onChange={(e) => setAddressFilter(e.target.value)}>
           <option value="ALL">Tutti gli indirizzi</option>
           {addresses.map((address) => (
