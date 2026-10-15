@@ -86,7 +86,9 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
         </CardBody>
       </Card>
 
-      {Object.entries(GROUP_LABEL).map(([group, label]) => {
+      {Object.entries(GROUP_LABEL)
+        .filter(([group]) => !(isClientJob && group === "ACQUISIZIONE"))
+        .map(([group, label]) => {
         const items = byGroup[group] ?? [];
         const groupCategories = categories.data?.filter((c) => c.group === group) ?? [];
         return (

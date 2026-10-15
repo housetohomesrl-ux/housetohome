@@ -24,8 +24,13 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
   const [notes, setNotes] = useState(deal.acquisitionDetails?.notes ?? "");
   const [client, setClient] = useState({
     clientName: deal.clientName ?? "",
+    clientAddress: deal.clientAddress ?? "",
+    clientTaxCode: deal.clientTaxCode ?? "",
+    clientVatNumber: deal.clientVatNumber ?? "",
     clientPhone: deal.clientPhone ?? "",
     clientEmail: deal.clientEmail ?? "",
+    quoteDate: deal.quoteDate ? deal.quoteDate.slice(0, 10) : "",
+    quoteValidUntil: deal.quoteValidUntil ? deal.quoteValidUntil.slice(0, 10) : "",
   });
   const isClientJob = deal.operationType === "RISTRUTTURAZIONE_CLIENTE";
 
@@ -127,11 +132,35 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
           />
           <CardBody className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <Label htmlFor="clientName">Nome cliente</Label>
+              <Label htmlFor="clientName">Nome e cognome</Label>
               <Input
                 id="clientName"
                 value={client.clientName}
                 onChange={(e) => setClient({ ...client, clientName: e.target.value })}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="clientAddress">Indirizzo</Label>
+              <Input
+                id="clientAddress"
+                value={client.clientAddress}
+                onChange={(e) => setClient({ ...client, clientAddress: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="clientTaxCode">Codice fiscale</Label>
+              <Input
+                id="clientTaxCode"
+                value={client.clientTaxCode}
+                onChange={(e) => setClient({ ...client, clientTaxCode: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="clientVatNumber">P.IVA</Label>
+              <Input
+                id="clientVatNumber"
+                value={client.clientVatNumber}
+                onChange={(e) => setClient({ ...client, clientVatNumber: e.target.value })}
               />
             </div>
             <div>
@@ -151,14 +180,37 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
                 onChange={(e) => setClient({ ...client, clientEmail: e.target.value })}
               />
             </div>
+            <div>
+              <Label htmlFor="quoteDate">Data creazione preventivo</Label>
+              <Input
+                id="quoteDate"
+                type="date"
+                value={client.quoteDate}
+                onChange={(e) => setClient({ ...client, quoteDate: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="quoteValidUntil">Data validità preventivo</Label>
+              <Input
+                id="quoteValidUntil"
+                type="date"
+                value={client.quoteValidUntil}
+                onChange={(e) => setClient({ ...client, quoteValidUntil: e.target.value })}
+              />
+            </div>
             <div className="sm:col-span-2">
               <Button
                 onClick={() =>
                   saveClient.mutate({
                     id: deal.id,
                     clientName: client.clientName || undefined,
+                    clientAddress: client.clientAddress || undefined,
+                    clientTaxCode: client.clientTaxCode || undefined,
+                    clientVatNumber: client.clientVatNumber || undefined,
                     clientPhone: client.clientPhone || undefined,
                     clientEmail: client.clientEmail || undefined,
+                    quoteDate: client.quoteDate ? new Date(client.quoteDate) : undefined,
+                    quoteValidUntil: client.quoteValidUntil ? new Date(client.quoteValidUntil) : undefined,
                   })
                 }
                 disabled={saveClient.isPending}
@@ -207,6 +259,7 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
         </Card>
       )}
 
+      {!isClientJob && (
       <Card>
         <CardHeader
           title="Impostazioni fiscali del deal"
@@ -297,6 +350,7 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
           </div>
         </CardBody>
       </Card>
+      )}
     </div>
   );
 }

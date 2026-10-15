@@ -11,15 +11,6 @@ import SaleTab from "./deal/SaleTab";
 import ResultsTab from "./deal/ResultsTab";
 import PreventivoTab from "./deal/PreventivoTab";
 
-const BASE_TABS = [
-  { id: "acquisizione", label: "Acquisizione" },
-  { id: "ristrutturazione", label: "Ristrutturazione" },
-  { id: "detenzione", label: "Detenzione" },
-  { id: "finanziamento", label: "Finanziamento" },
-  { id: "vendita", label: "Vendita" },
-  { id: "risultati", label: "Risultati" },
-];
-
 export default function DealDetailPage() {
   const { dealId } = useParams<{ dealId: string }>();
   const [activeTab, setActiveTab] = useState("acquisizione");
@@ -30,7 +21,15 @@ export default function DealDetailPage() {
 
   const openWarnings = deal.data.notes.filter((n) => !n.isResolved && n.severity !== "INFO").length;
   const isClientJob = deal.data.operationType === "RISTRUTTURAZIONE_CLIENTE";
-  const tabs = isClientJob ? [...BASE_TABS, { id: "preventivo", label: "Preventivo cliente" }] : BASE_TABS;
+  const baseTabs = [
+    { id: "acquisizione", label: isClientJob ? "Cliente" : "Acquisizione" },
+    { id: "ristrutturazione", label: "Ristrutturazione" },
+    { id: "detenzione", label: "Detenzione" },
+    { id: "finanziamento", label: "Finanziamento" },
+    { id: "vendita", label: "Vendita" },
+    { id: "risultati", label: "Risultati" },
+  ];
+  const tabs = isClientJob ? [...baseTabs, { id: "preventivo", label: "Preventivo cliente" }] : baseTabs;
 
   return (
     <div>
