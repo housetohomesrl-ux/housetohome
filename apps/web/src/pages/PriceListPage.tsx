@@ -42,12 +42,14 @@ function PriceListGroupCard({
   startEdit,
   remove,
   update,
+  showUsagePlan,
 }: {
   label: string;
   items: PriceListItem[];
   startEdit: (item: PriceListItem) => void;
   remove: ReturnType<typeof trpc.priceListItem.delete.useMutation>;
   update: ReturnType<typeof trpc.priceListItem.update.useMutation>;
+  showUsagePlan: boolean;
 }) {
   const [search, setSearch] = useState("");
   const query = search.trim().toLowerCase();
@@ -73,7 +75,7 @@ function PriceListGroupCard({
                 <th className="py-2 pr-2">Fornitore</th>
                 <th className="py-2 pr-2">Unità / rif.</th>
                 <th className="py-2 pr-2 text-right">Prezzo</th>
-                <th className="py-2 pr-2">Usa per</th>
+                {showUsagePlan && <th className="py-2 pr-2">Usa per</th>}
                 <th className="py-2 pr-2">Aggiornato</th>
                 <th className="py-2 pr-2" />
               </tr>
@@ -92,24 +94,26 @@ function PriceListGroupCard({
                     {item.referenceQuantity && <div className="mt-0.5 text-xs text-slate-400">{item.referenceQuantity}</div>}
                   </td>
                   <td className="py-2 pr-2 text-right font-medium">{formatCurrency(item.unitPrice, true)}</td>
-                  <td className="py-2 pr-2">
-                    <div className="flex flex-wrap gap-1">
-                      <button
-                        className="cursor-pointer"
-                        title="Clic per attivare/disattivare"
-                        onClick={() => update.mutate({ id: item.id, includeInPreventivo: !item.includeInPreventivo })}
-                      >
-                        <Badge tone={item.includeInPreventivo ? "success" : "neutral"}>Preventivo</Badge>
-                      </button>
-                      <button
-                        className="cursor-pointer"
-                        title="Clic per attivare/disattivare"
-                        onClick={() => update.mutate({ id: item.id, includeInBusinessPlan: !item.includeInBusinessPlan })}
-                      >
-                        <Badge tone={item.includeInBusinessPlan ? "info" : "neutral"}>Business plan</Badge>
-                      </button>
-                    </div>
-                  </td>
+                  {showUsagePlan && (
+                    <td className="py-2 pr-2">
+                      <div className="flex flex-wrap gap-1">
+                        <button
+                          className="cursor-pointer"
+                          title="Clic per attivare/disattivare"
+                          onClick={() => update.mutate({ id: item.id, includeInPreventivo: !item.includeInPreventivo })}
+                        >
+                          <Badge tone={item.includeInPreventivo ? "success" : "neutral"}>Preventivo</Badge>
+                        </button>
+                        <button
+                          className="cursor-pointer"
+                          title="Clic per attivare/disattivare"
+                          onClick={() => update.mutate({ id: item.id, includeInBusinessPlan: !item.includeInBusinessPlan })}
+                        >
+                          <Badge tone={item.includeInBusinessPlan ? "info" : "neutral"}>Business plan</Badge>
+                        </button>
+                      </div>
+                    </td>
+                  )}
                   <td className="py-2 pr-2 text-xs text-slate-400">{formatDate(item.updatedAt)}</td>
                   <td className="py-2 pr-2 text-right whitespace-nowrap">
                     <button className="text-xs text-brand-700 hover:underline" onClick={() => startEdit(item)}>
@@ -123,7 +127,7 @@ function PriceListGroupCard({
               ))}
               {filteredItems.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-4 text-center text-sm text-slate-400">
+                  <td colSpan={showUsagePlan ? 8 : 7} className="py-4 text-center text-sm text-slate-400">
                     Nessuna voce trovata per "{search}".
                   </td>
                 </tr>
@@ -347,7 +351,17 @@ export default function PriceListPage() {
       {Object.entries(GROUP_LABEL).map(([group, label]) => {
         const groupItems = itemsByGroup.get(group);
         if (!groupItems || groupItems.length === 0) return null;
-        return <PriceListGroupCard key={group} label={label} items={groupItems} startEdit={startEdit} remove={remove} update={update} />;
+        return (
+          <PriceListGroupCard
+            key={group}
+            label={label}
+            items={groupItems}
+            startEdit={startEdit}
+            remove={remove}
+            update={update}
+            showUsagePlan={libraryScope === "FLIP"}
+          />
+        );
       })}
 
       <Card className="mt-4">

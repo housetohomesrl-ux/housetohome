@@ -42,8 +42,10 @@ export const priceListItemRouter = router({
 
   // Import in blocco da CSV (vedi apps/web PriceListPage): per ogni riga trova o
   // crea la categoria (tenant-scoped, riusa quella di sistema se il nome combacia),
-  // poi crea la voce di listino. Salta le voci con un nome già presente per il
-  // tenant, per poter re-importare lo stesso file senza duplicare nulla.
+  // poi crea la voce di listino. Salta le voci con un nome già presente nella
+  // STESSA libreria (libraryScope), per poter re-importare lo stesso file senza
+  // duplicare nulla — ma la stessa voce può comunque esistere in entrambe le
+  // librerie (Flip e Ristrutturazioni), che sono volutamente indipendenti.
   bulkImport: protectedProcedure.input(priceListBulkImportSchema).mutation(async ({ ctx, input }) => {
     const tenantId = ctx.user.tenantId;
 
@@ -55,8 +57,8 @@ export const priceListItemRouter = router({
     const existingVendors = await prisma.vendor.findMany({ where: { tenantId } });
     const vendorByName = new Map(existingVendors.map((v) => [v.name, v]));
 
-    const existingItems = await prisma.priceListItem.findMany({ where: { tenantId }, select: { name: true } });
-    const existingNames = new Set(existingItems.map((i) => i.name));
+    const existingItems = await prisma.priceListItem.findMany({ where: { tenantId }, select: { name: true, libraryScope: true } });
+    const existingNames = new Set(existingItems.map((i) => `${i.libraryScope}::${i.name}`));
 
     let created = 0;
     let skipped = 0;
@@ -65,7 +67,8 @@ export const priceListItemRouter = router({
     const failed: Array<{ name: string; error: string }> = [];
 
     for (const row of input.items) {
-      if (existingNames.has(row.name)) {
+      const dedupKey = `${row.libraryScope ?? "FLIP"}::${row.name}`;
+      if (existingNames.has(dedupKey)) {
         skipped++;
         continue;
       }
@@ -104,7 +107,7 @@ export const priceListItemRouter = router({
             libraryScope: row.libraryScope ?? "FLIP",
           },
         });
-        existingNames.add(row.name);
+        existingNames.add(dedupKey);
         created++;
       } catch (err) {
         failed.push({ name: row.name, error: err instanceof Error ? err.message : "errore sconosciuto" });
