@@ -258,7 +258,7 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Totale preventivo cliente" value={formatCurrency(totalClientPrice)} />
         <KpiCard label="Totale costi" value={formatCurrency(totalCost)} />
-        <KpiCard label="Margine sulla ristrutturazione" value={formatCurrency(margin)} tone={margin >= 0 ? "success" : "danger"} />
+        <KpiCard label="Margine sulla ristrutturazione (al netto di IVA)" value={formatCurrency(margin)} tone={margin >= 0 ? "success" : "danger"} />
         <KpiCard
           label={`Margine netto (dopo tasse SRL, ${companyTaxRatePct.toFixed(1)}%)`}
           value={formatCurrency(netMarginAfterTax)}
