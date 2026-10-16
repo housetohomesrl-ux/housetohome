@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { formatCurrency } from "../../lib/format";
 import type { DealDetail } from "../../lib/types";
@@ -50,6 +50,12 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
   const materialsTotal = rows
     .filter((r) => r.item.category.group === "MATERIALI")
     .reduce((sum, r) => sum + r.price, 0);
+  // Indice dell'ultima voce Materiali nell'ordine stampato: la riga
+  // "Totale materiale" va subito dopo, non in fondo a tutto il documento.
+  const lastMaterialIndex = printRows.reduce(
+    (last, r, i) => (r.item.category.group === "MATERIALI" ? i : last),
+    -1,
+  );
 
   const acconto1 = grandTotal * 0.25;
   const acconto2 = grandTotal * 0.5;
@@ -161,35 +167,37 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
             </tr>
           </thead>
           <tbody>
-            {printRows.map(({ item, price }) => {
+            {printRows.map(({ item, price }, i) => {
               const hidePrice = unifyMaterials && item.category.group === "MATERIALI";
               const qty = item.quantity ?? null;
               const unitPrice = qty ? price / qty : null;
               const isMq = item.unit === "mq";
               return (
-                <tr key={item.id}>
-                  <td className="border border-slate-300 px-2 py-1">{item.description}</td>
-                  <td className="border border-slate-300 px-2 py-1 text-right">{qty && isMq ? qty : ""}</td>
-                  <td className="border border-slate-300 px-2 py-1 text-right">
-                    {!hidePrice && unitPrice !== null ? formatCurrency(unitPrice, true) : ""}
-                  </td>
-                  <td className="border border-slate-300 px-2 py-1 text-right">
-                    {qty && !isMq ? `${qty}${item.unit ? ` ${item.unit}` : ""}` : ""}
-                  </td>
-                  <td className="border border-slate-300 px-2 py-1 text-right">
-                    {hidePrice ? "" : formatCurrency(price, true)}
-                  </td>
-                </tr>
+                <Fragment key={item.id}>
+                  <tr>
+                    <td className="border border-slate-300 px-2 py-1">{item.description}</td>
+                    <td className="border border-slate-300 px-2 py-1 text-right">{qty && isMq ? qty : ""}</td>
+                    <td className="border border-slate-300 px-2 py-1 text-right">
+                      {!hidePrice && unitPrice !== null ? formatCurrency(unitPrice, true) : ""}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1 text-right">
+                      {qty && !isMq ? `${qty}${item.unit ? ` ${item.unit}` : ""}` : ""}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1 text-right">
+                      {hidePrice ? "" : formatCurrency(price, true)}
+                    </td>
+                  </tr>
+                  {unifyMaterials && i === lastMaterialIndex && materialsTotal > 0 && (
+                    <tr className="font-semibold">
+                      <td className="border border-slate-300 px-2 py-1 text-right" colSpan={4}>
+                        Totale materiale
+                      </td>
+                      <td className="border border-slate-300 px-2 py-1 text-right">{formatCurrency(materialsTotal, true)}</td>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })}
-            {unifyMaterials && materialsTotal > 0 && (
-              <tr className="font-semibold">
-                <td className="border border-slate-300 px-2 py-1 text-right" colSpan={4}>
-                  Totale materiale
-                </td>
-                <td className="border border-slate-300 px-2 py-1 text-right">{formatCurrency(materialsTotal, true)}</td>
-              </tr>
-            )}
             {rows.length === 0 && (
               <tr>
                 <td colSpan={5} className="border border-slate-300 px-2 py-6 text-center text-slate-400">
