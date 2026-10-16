@@ -17,6 +17,10 @@ function rowTotal(item: CostLineItemDetail): number {
  * quel fornitore in questo deal e i prezzi che paghiamo noi (non quelli del
  * cliente). Serve a far firmare al fornitore l'accordo preparato da noi,
  * invece di aspettare un suo preventivo.
+ *
+ * Solo voci di gruppo Lavorazioni (manodopera, es. Sergio/Mattia/Gianni): i
+ * fornitori di solo materiale (es. Cambielli) hanno già un loro preventivo
+ * firmato e restano fuori da questa tab.
  */
 export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
   const [printingVendorId, setPrintingVendorId] = useState<string | null>(null);
@@ -27,7 +31,7 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
     return () => window.removeEventListener("afterprint", reset);
   }, []);
 
-  const items = deal.costLineItems.filter((i) => !i.isMemo && i.vendor);
+  const items = deal.costLineItems.filter((i) => !i.isMemo && i.vendor && i.category.group === "LAVORAZIONI");
   const byVendor = new Map<string, { vendor: VendorInfo; items: CostLineItemDetail[] }>();
   for (const item of items) {
     const vendor = item.vendor;
@@ -41,13 +45,14 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
   return (
     <div className="grid gap-5">
       <p className="text-sm text-slate-500 print:hidden">
-        Un contratto lavori per ogni fornitore, con solo le voci di costo a lui assegnate in questo deal (stesso
-        formato del preventivo cliente, ma con i prezzi che paghi tu, non quelli del cliente).
+        Un contratto lavori per ogni fornitore di manodopera (Lavorazioni), con solo le voci di costo a lui
+        assegnate in questo deal e i prezzi che paghi tu, non quelli del cliente. I fornitori di solo materiale non
+        compaiono qui, perché hanno già un loro preventivo firmato.
       </p>
 
       {vendorGroups.length === 0 && (
         <p className="text-sm text-slate-400 print:hidden">
-          Nessuna voce di costo con un fornitore assegnato nella scheda Ristrutturazione.
+          Nessuna voce di Lavorazioni con un fornitore assegnato nella scheda Ristrutturazione.
         </p>
       )}
 
