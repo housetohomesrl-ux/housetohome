@@ -109,15 +109,25 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {vendorItems.map((item) => (
-                    <tr key={item.id}>
-                      <td className="border border-slate-300 px-2 py-1">{item.description}</td>
-                      <td className="border border-slate-300 px-2 py-1" />
-                      <td className="border border-slate-300 px-2 py-1" />
-                      <td className="border border-slate-300 px-2 py-1" />
-                      <td className="border border-slate-300 px-2 py-1 text-right">{formatCurrency(rowTotal(item), true)}</td>
-                    </tr>
-                  ))}
+                  {vendorItems.map((item) => {
+                    const total = rowTotal(item);
+                    const qty = item.quantity ?? null;
+                    const unitPrice = qty ? total / qty : null;
+                    const isMq = item.unit === "mq";
+                    return (
+                      <tr key={item.id}>
+                        <td className="border border-slate-300 px-2 py-1">{item.description}</td>
+                        <td className="border border-slate-300 px-2 py-1 text-right">{qty && isMq ? qty : ""}</td>
+                        <td className="border border-slate-300 px-2 py-1 text-right">
+                          {unitPrice !== null ? formatCurrency(unitPrice, true) : ""}
+                        </td>
+                        <td className="border border-slate-300 px-2 py-1 text-right">
+                          {qty && !isMq ? `${qty}${item.unit ? ` ${item.unit}` : ""}` : ""}
+                        </td>
+                        <td className="border border-slate-300 px-2 py-1 text-right">{formatCurrency(total, true)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
 

@@ -104,12 +104,15 @@ export const renovationSettingsSchema = z.object({
   materialMarkupPct: z.number().min(0).max(1000).optional(),
   laborMarkupPct: z.number().min(0).max(1000).optional(),
   quoteVatRatePct: z.number().min(0).max(100).optional(),
+  unifyMaterialPricesInQuote: z.boolean().optional(),
 });
 
 export const costLineItemCreateSchema = z.object({
   dealId: z.string(),
   categoryId: z.string(),
   description: z.string().min(1, "La descrizione è obbligatoria"),
+  quantity: z.number().nonnegative().nullable().optional(),
+  unit: z.string().nullable().optional(),
   taxableAmount: z.number().nonnegative(),
   vatRatePct: z.number().min(0).max(100),
   nonTaxableAmount: z.number().nonnegative().default(0),
@@ -138,6 +141,8 @@ export const costLineItemBulkImportSchema = z.object({
         categoryGroup: costCategoryGroupSchema,
         categoryName: z.string().min(1),
         description: z.string().min(1),
+        quantity: z.number().nonnegative().optional(),
+        unit: z.string().optional(),
         taxableAmount: z.number().nonnegative(),
         vatRatePct: z.number().min(0).max(100).optional(),
         nonTaxableAmount: z.number().nonnegative().optional(),

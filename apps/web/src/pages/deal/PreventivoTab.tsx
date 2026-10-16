@@ -27,6 +27,10 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
   const saveVat = trpc.dealSettings.updateRenovationSettings.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
   });
+  const toggleUnifyMaterials = trpc.dealSettings.updateRenovationSettings.useMutation({
+    onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
+  });
+  const unifyMaterials = deal.renovationSettings?.unifyMaterialPricesInQuote ?? false;
 
   const items = deal.costLineItems.filter((i) => !i.isMemo);
   const rows = items.map((item) => ({ item, price: clientBasePrice(item, deal) }));
@@ -34,6 +38,9 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
   const currentVatPct = quoteVatRatePct(deal);
   const vatAmount = (subtotal * currentVatPct) / 100;
   const grandTotal = subtotal + vatAmount;
+  const materialsTotal = rows
+    .filter((r) => r.item.category.group === "MATERIALI")
+    .reduce((sum, r) => sum + r.price, 0);
 
   const acconto1 = grandTotal * 0.25;
   const acconto2 = grandTotal * 0.5;
@@ -81,6 +88,31 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
         </CardBody>
       </Card>
 
+      <Card className="print:hidden">
+        <CardHeader
+          title="Prezzi materiali nel preventivo"
+          subtitle="Con il prezzo unificato, ogni voce materiale resta elencata (così il cliente vede cosa è incluso) ma senza un prezzo per singolo articolo: solo un totale unico a fine gruppo."
+        />
+        <CardBody>
+          <Button
+            variant="secondary"
+            disabled={toggleUnifyMaterials.isPending}
+            onClick={() =>
+              toggleUnifyMaterials.mutate({
+                dealId: deal.id,
+                contingencyPct: deal.renovationSettings?.contingencyPct ?? 12,
+                materialMarkupPct: deal.renovationSettings?.materialMarkupPct,
+                laborMarkupPct: deal.renovationSettings?.laborMarkupPct,
+                quoteVatRatePct: deal.renovationSettings?.quoteVatRatePct,
+                unifyMaterialPricesInQuote: !unifyMaterials,
+              })
+            }
+          >
+            {unifyMaterials ? "Mostra prezzo per ogni voce materiale" : "Unifica prezzo materiali"}
+          </Button>
+        </CardBody>
+      </Card>
+
       {/* Documento stampabile: stessa intestazione/colori/logo del modulo House to Home Srl. */}
       <div className="bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm print:p-10 print:shadow-none">
         <div className="flex items-start justify-between gap-4">
@@ -120,15 +152,35 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ item, price }) => (
-              <tr key={item.id}>
-                <td className="border border-slate-300 px-2 py-1">{item.description}</td>
-                <td className="border border-slate-300 px-2 py-1" />
-                <td className="border border-slate-300 px-2 py-1" />
-                <td className="border border-slate-300 px-2 py-1" />
-                <td className="border border-slate-300 px-2 py-1 text-right">{formatCurrency(price, true)}</td>
+            {rows.map(({ item, price }) => {
+              const hidePrice = unifyMaterials && item.category.group === "MATERIALI";
+              const qty = item.quantity ?? null;
+              const unitPrice = qty ? price / qty : null;
+              const isMq = item.unit === "mq";
+              return (
+                <tr key={item.id}>
+                  <td className="border border-slate-300 px-2 py-1">{item.description}</td>
+                  <td className="border border-slate-300 px-2 py-1 text-right">{qty && isMq ? qty : ""}</td>
+                  <td className="border border-slate-300 px-2 py-1 text-right">
+                    {!hidePrice && unitPrice !== null ? formatCurrency(unitPrice, true) : ""}
+                  </td>
+                  <td className="border border-slate-300 px-2 py-1 text-right">
+                    {qty && !isMq ? `${qty}${item.unit ? ` ${item.unit}` : ""}` : ""}
+                  </td>
+                  <td className="border border-slate-300 px-2 py-1 text-right">
+                    {hidePrice ? "" : formatCurrency(price, true)}
+                  </td>
+                </tr>
+              );
+            })}
+            {unifyMaterials && materialsTotal > 0 && (
+              <tr className="font-semibold">
+                <td className="border border-slate-300 px-2 py-1 text-right" colSpan={4}>
+                  Totale materiale
+                </td>
+                <td className="border border-slate-300 px-2 py-1 text-right">{formatCurrency(materialsTotal, true)}</td>
               </tr>
-            ))}
+            )}
             {rows.length === 0 && (
               <tr>
                 <td colSpan={5} className="border border-slate-300 px-2 py-6 text-center text-slate-400">

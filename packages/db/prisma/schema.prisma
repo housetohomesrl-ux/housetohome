@@ -210,6 +210,11 @@ model RenovationSettings {
   // (non per singola voce): 10% per i privati (ristrutturazione edilizia),
   // 22% per le società, sempre modificabile a mano per deal.
   quoteVatRatePct   Decimal  @db.Decimal(5, 2) @default(10)
+  // Nel preventivo cliente: se true, le voci Materiali restano elencate (una
+  // riga per voce, con descrizione) ma senza prezzo singolo — solo un totale
+  // unico a fine gruppo, cosi' il cliente vede cosa e' incluso senza i prezzi
+  // di ogni articolo. Se false, ogni voce materiale mostra il suo prezzo.
+  unifyMaterialPricesInQuote Boolean @default(false)
   updatedAt         DateTime @updatedAt
 
   @@map("renovation_settings")
@@ -258,6 +263,8 @@ model CostLineItem {
   categoryId       String
   category         CostCategory       @relation(fields: [categoryId], references: [id])
   description      String
+  quantity         Decimal?           @db.Decimal(10, 3) // mq/pz/ml ecc. — solo per mostrare MQ/Prezzo/Qtà nel preventivo stampato, taxableAmount resta il valore di riferimento
+  unit             String?            // "mq", "pz", "ml", ecc.
   taxableAmount    Decimal            @db.Decimal(14, 2) // imponibile — input
   vatRatePct       Decimal            @db.Decimal(5, 2)  @default(22) // input: 22 / 10 / 0 / altro
   nonTaxableAmount Decimal            @db.Decimal(14, 2) @default(0) // porzione fuori campo IVA dello stesso costo (es. pagata in contanti senza fattura)

@@ -112,6 +112,8 @@ export const costLineItemRouter = router({
             dealId: input.dealId,
             categoryId: category.id,
             description: row.description,
+            quantity: row.quantity,
+            unit: row.unit,
             taxableAmount: row.taxableAmount,
             vatRatePct: row.vatRatePct ?? 22,
             nonTaxableAmount: row.nonTaxableAmount ?? 0,

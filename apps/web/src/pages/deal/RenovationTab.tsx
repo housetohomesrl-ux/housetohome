@@ -23,6 +23,8 @@ interface CostImportRow {
   categoryGroup: "ACQUISIZIONE" | "MATERIALI" | "LAVORAZIONI" | "ENTI_ESTERNI" | "ALTRO";
   categoryName: string;
   description: string;
+  quantity?: number;
+  unit?: string;
   taxableAmount: number;
   vatRatePct?: number;
   nonTaxableAmount?: number;
@@ -78,15 +80,16 @@ function emptyNewItem(group: string) {
   return {
     categoryId: "",
     description: "",
-    quantity: "1",
+    quantity: "",
+    unit: "",
     taxableAmount: "0",
     vatRatePct: defaultCostVatRatePct(group),
     nonTaxableAmount: "0",
     clientPrice: "",
     isMemo: false,
     isUnbilled: false,
-    priceListItemId: "" as string | null,
-    vendorId: "" as string | null,
+    priceListItemId: null as string | null,
+    vendorId: null as string | null,
   };
 }
 
@@ -153,6 +156,8 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
             categoryGroup: group.data,
             categoryName: r.category,
             description: r.description,
+            quantity: r.quantity ? Number(r.quantity) : undefined,
+            unit: r.unit || undefined,
             taxableAmount,
             vatRatePct: r.vatRatePct ? Number(r.vatRatePct) : undefined,
             nonTaxableAmount: r.nonTaxableAmount ? Number(r.nonTaxableAmount) : undefined,
@@ -278,7 +283,7 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
       <Card>
         <CardHeader
           title="Importa voci di costo da CSV"
-          subtitle='Per un preventivo fornitore ricevuto in PDF/Excel: fattelo preparare in CSV, poi caricalo qui per creare le voci direttamente in questo deal (Materiali/Lavorazioni/altro, in base al gruppo indicato), senza passare dalla libreria prezzi. Colonne: group, category, description, taxableAmount, vatRatePct, nonTaxableAmount, vendor, clientPrice, notes (tutte opzionali tranne le prime quattro).'
+          subtitle='Per un preventivo fornitore ricevuto in PDF/Excel: fattelo preparare in CSV, poi caricalo qui per creare le voci direttamente in questo deal (Materiali/Lavorazioni/altro, in base al gruppo indicato), senza passare dalla libreria prezzi. Colonne: group, category, description, taxableAmount, quantity, unit, vatRatePct, nonTaxableAmount, vendor, clientPrice, notes (tutte opzionali tranne le prime quattro). Quantity/unit (es. mq, pz, ml) compaiono nel preventivo stampato.'
         />
         <CardBody>
           <input
@@ -572,7 +577,8 @@ function AddCostItemForm({
     setNewItem({
       categoryId: editingItem.categoryId,
       description: editingItem.description,
-      quantity: "1",
+      quantity: editingItem.quantity?.toString() ?? "",
+      unit: editingItem.unit ?? "",
       taxableAmount: editingItem.taxableAmount.toString(),
       vatRatePct: editingItem.vatRatePct.toString(),
       nonTaxableAmount: editingItem.nonTaxableAmount.toString(),
@@ -610,7 +616,8 @@ function AddCostItemForm({
                 categoryId: e.target.value,
                 priceListItemId: null,
                 description: "",
-                quantity: "1",
+                quantity: "",
+                unit: "",
                 taxableAmount: "0",
                 nonTaxableAmount: "0",
                 clientPrice: "",
@@ -642,8 +649,10 @@ function AddCostItemForm({
                   ...newItem,
                   priceListItemId: p.id,
                   quantity: newItem.quantity || "1",
+                  unit: p.unit ?? "",
                   description: p.specification ? `${p.name} — ${p.specification}` : p.name,
                   taxableAmount: taxableAmount.toFixed(2),
+                  vendorId: p.vendorId ?? newItem.vendorId,
                 });
               }}
             >
@@ -663,12 +672,11 @@ function AddCostItemForm({
           )}
         </div>
         <div>
-          <Label>{selectedPriceListItem ? `Quantità (${selectedPriceListItem.unit || "unità"})` : "Quantità"}</Label>
+          <Label>Quantità (opzionale)</Label>
           <Input
             type="number"
             min="0"
             step="0.01"
-            disabled={!selectedPriceListItem}
             value={newItem.quantity}
             onChange={(e) => {
               const qty = e.target.value;
@@ -683,6 +691,15 @@ function AddCostItemForm({
           {selectedPriceListItem?.referenceQuantity && (
             <p className="mt-1 text-xs text-slate-400">{selectedPriceListItem.referenceQuantity}</p>
           )}
+        </div>
+        <div>
+          <Label>Unità (mq, pz, ml...)</Label>
+          <Input
+            placeholder={selectedPriceListItem?.unit || "mq"}
+            value={newItem.unit}
+            onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+          />
+          <p className="mt-1 text-xs text-slate-400">Insieme alla quantità, compare nel preventivo stampato (colonne MQ/Qtà/Prezzo).</p>
         </div>
         <div>
           <Label>Fornitore (opzionale)</Label>
@@ -757,6 +774,8 @@ function AddCostItemForm({
               const data = {
                 categoryId: newItem.categoryId,
                 description: newItem.description,
+                quantity: newItem.quantity === "" ? null : Number(newItem.quantity),
+                unit: newItem.unit || null,
                 taxableAmount: Number(newItem.taxableAmount),
                 vatRatePct: Number(newItem.vatRatePct),
                 nonTaxableAmount: Number(newItem.nonTaxableAmount),
@@ -775,6 +794,9 @@ function AddCostItemForm({
           >
             {editingItem ? "Salva modifiche" : "Aggiungi voce"}
           </Button>
+          {(createItem.error || updateItem.error) && (
+            <p className="text-sm text-red-600">Errore: {(createItem.error ?? updateItem.error)?.message}</p>
+          )}
           {editingItem && (
             <button type="button" className="text-sm text-slate-500 hover:underline" onClick={cancelEdit}>
               Annulla modifica
