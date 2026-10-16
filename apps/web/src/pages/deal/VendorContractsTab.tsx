@@ -99,8 +99,6 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
                 <thead>
                   <tr className="bg-cyan-400 text-left text-white">
                     <th className="border border-slate-300 px-2 py-1">DESCRIZIONE LAVORI</th>
-                    <th className="border border-slate-300 px-2 py-1 text-right">MQ</th>
-                    <th className="border border-slate-300 px-2 py-1 text-right">PREZZO</th>
                     <th className="border border-slate-300 px-2 py-1 text-right">QTÀ</th>
                     <th className="border border-slate-300 px-2 py-1 text-right">
                       TOTALE
@@ -110,21 +108,14 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
                 </thead>
                 <tbody>
                   {vendorItems.map((item) => {
-                    const total = rowTotal(item);
                     const qty = item.quantity ?? null;
-                    const unitPrice = qty ? total / qty : null;
-                    const isMq = item.unit === "mq";
                     return (
                       <tr key={item.id}>
                         <td className="border border-slate-300 px-2 py-1">{item.description}</td>
-                        <td className="border border-slate-300 px-2 py-1 text-right">{qty && isMq ? qty : ""}</td>
                         <td className="border border-slate-300 px-2 py-1 text-right">
-                          {unitPrice !== null ? formatCurrency(unitPrice, true) : ""}
+                          {qty ? `${qty}${item.unit ? ` ${item.unit}` : ""}` : ""}
                         </td>
-                        <td className="border border-slate-300 px-2 py-1 text-right">
-                          {qty && !isMq ? `${qty}${item.unit ? ` ${item.unit}` : ""}` : ""}
-                        </td>
-                        <td className="border border-slate-300 px-2 py-1 text-right">{formatCurrency(total, true)}</td>
+                        <td className="border border-slate-300 px-2 py-1 text-right">{formatCurrency(rowTotal(item), true)}</td>
                       </tr>
                     );
                   })}
@@ -135,12 +126,12 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
                 <tbody>
                   <tr className="bg-cyan-400 font-bold italic text-white">
                     <td className="border border-slate-300 px-2 py-1">TOTALE</td>
-                    <td className="border border-slate-300 px-2 py-1" colSpan={4}>
+                    <td className="border border-slate-300 px-2 py-1" colSpan={2}>
                       {formatCurrency(total, true)}
                     </td>
                   </tr>
                   <tr>
-                    <td className="border border-slate-300 px-2 py-6" colSpan={5}>
+                    <td className="border border-slate-300 px-2 py-6" colSpan={3}>
                       <div className="text-center font-medium">DATA E FIRMA PER ACCETTAZIONE</div>
                       <div className="mx-auto mt-10 w-80 border-t border-slate-400" />
                     </td>
