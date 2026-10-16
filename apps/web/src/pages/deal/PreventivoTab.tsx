@@ -34,6 +34,15 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
 
   const items = deal.costLineItems.filter((i) => !i.isMemo);
   const rows = items.map((item) => ({ item, price: clientBasePrice(item, deal) }));
+  // L'allestimento cantiere va sempre stampato come ultima voce, qualunque
+  // sia il suo ordine tra le altre voci di costo del deal.
+  const isAllestimentoCantiere = (description: string) => {
+    const d = description.toLowerCase();
+    return d.includes("allestimento") && d.includes("cantiere");
+  };
+  const printRows = [...rows].sort(
+    (a, b) => Number(isAllestimentoCantiere(a.item.description)) - Number(isAllestimentoCantiere(b.item.description)),
+  );
   const subtotal = rows.reduce((sum, r) => sum + r.price, 0);
   const currentVatPct = quoteVatRatePct(deal);
   const vatAmount = (subtotal * currentVatPct) / 100;
@@ -152,7 +161,7 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ item, price }) => {
+            {printRows.map(({ item, price }) => {
               const hidePrice = unifyMaterials && item.category.group === "MATERIALI";
               const qty = item.quantity ?? null;
               const unitPrice = qty ? price / qty : null;
