@@ -328,6 +328,13 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
         </CardBody>
       </Card>
 
+      <BulkAddFromLibrary
+        dealId={deal.id}
+        deal={deal}
+        categories={categories.data ?? []}
+        priceListData={priceList.data}
+      />
+
       {Object.entries(GROUP_LABEL)
         .filter(([group]) => !(isClientJob && group === "ACQUISIZIONE"))
         .map(([group, label]) => {
@@ -521,6 +528,168 @@ function CostLineItemRow({
         </button>
       </td>
     </tr>
+  );
+}
+
+/**
+ * Selettore multiplo dalla libreria prezzi: invece di aggiungere una voce
+ * alla volta col form "+ Aggiungi voce" per ogni gruppo, qui si spuntano più
+ * voci della libreria (di qualunque gruppo), si imposta la quantità per
+ * ciascuna e si aggiungono tutte insieme al deal in un solo click. Utile per
+ * montare velocemente un preventivo con molte voci già presenti in libreria.
+ */
+function BulkAddFromLibrary({
+  dealId,
+  deal,
+  categories,
+  priceListData,
+}: {
+  dealId: string;
+  deal: DealDetail;
+  categories: CostCategory[];
+  priceListData: PriceListItem[] | undefined;
+}) {
+  const utils = trpc.useUtils();
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Record<string, string>>({});
+  const [lastAdded, setLastAdded] = useState<number | null>(null);
+
+  const bulkAdd = trpc.costLineItem.bulkImport.useMutation({
+    onSuccess: (result) => {
+      utils.deal.get.invalidate({ id: dealId });
+      setLastAdded(result.created);
+      setSelected({});
+    },
+  });
+
+  const available = (priceListData ?? []).filter(
+    (p) => p.libraryScope === deal.operationType && p.includeInPreventivo,
+  );
+  const filtered = search.trim()
+    ? available.filter((p) => p.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : available;
+
+  const categoryById = new Map(categories.map((c) => [c.id, c]));
+  const selectedCount = Object.keys(selected).length;
+  const selectedTotal = Object.entries(selected).reduce((sum, [id, qtyStr]) => {
+    const p = available.find((x) => x.id === id);
+    if (!p) return sum;
+    return sum + (Number(qtyStr) || 0) * p.unitPrice;
+  }, 0);
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = { ...prev };
+      if (id in next) delete next[id];
+      else next[id] = "1";
+      return next;
+    });
+  }
+
+  function handleAdd() {
+    const items = Object.entries(selected)
+      .map(([id, qtyStr]) => {
+        const p = available.find((x) => x.id === id);
+        if (!p) return null;
+        const category = categoryById.get(p.categoryId);
+        if (!category) return null;
+        const qty = Number(qtyStr) || 1;
+        return {
+          categoryGroup: category.group as "ACQUISIZIONE" | "MATERIALI" | "LAVORAZIONI" | "ENTI_ESTERNI" | "ALTRO",
+          categoryName: category.name,
+          description: p.specification ? `${p.name} — ${p.specification}` : p.name,
+          quantity: qty,
+          unit: p.unit || undefined,
+          taxableAmount: qty * p.unitPrice,
+          vatRatePct: category.group === "LAVORAZIONI" ? 0 : 22,
+          vendorName: p.vendor?.name,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+    if (items.length === 0) return;
+    bulkAdd.mutate({ dealId, items });
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title="Aggiungi più voci dalla libreria prezzi"
+        subtitle="Spunta più voci, imposta la quantità e aggiungile tutte insieme al deal in un colpo solo, invece di una alla volta."
+      />
+      <CardBody>
+        <Input
+          placeholder="Cerca per nome..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="mb-3"
+        />
+        <div className="max-h-96 overflow-y-auto rounded-md border border-slate-200">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-white">
+              <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
+                <th className="py-2 pl-3 pr-2" />
+                <th className="py-2 pr-2">Voce</th>
+                <th className="py-2 pr-2">Categoria</th>
+                <th className="py-2 pr-2">Fornitore</th>
+                <th className="py-2 pr-2 text-right">Prezzo</th>
+                <th className="py-2 pr-2 text-right">Quantità</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((p) => {
+                const category = categoryById.get(p.categoryId);
+                const isSelected = p.id in selected;
+                return (
+                  <tr key={p.id} className="border-b border-slate-100 last:border-0">
+                    <td className="py-1.5 pl-3 pr-2">
+                      <input type="checkbox" checked={isSelected} onChange={() => toggle(p.id)} />
+                    </td>
+                    <td className="py-1.5 pr-2">
+                      {p.name}
+                      {p.specification && <div className="text-xs text-slate-400">{p.specification}</div>}
+                    </td>
+                    <td className="py-1.5 pr-2 text-xs text-slate-500">{category?.name ?? "—"}</td>
+                    <td className="py-1.5 pr-2 text-xs text-slate-500">{p.vendor?.name ?? "—"}</td>
+                    <td className="py-1.5 pr-2 text-right text-xs text-slate-500">
+                      {formatCurrency(p.unitPrice, true)}
+                      {p.unit ? ` / ${p.unit}` : ""}
+                    </td>
+                    <td className="py-1.5 pr-2 text-right">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="w-20 text-right"
+                        disabled={!isSelected}
+                        value={selected[p.id] ?? "1"}
+                        onChange={(e) => setSelected((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-xs text-slate-400">
+                    Nessuna voce trovata in libreria.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <Button variant="secondary" disabled={selectedCount === 0 || bulkAdd.isPending} onClick={handleAdd}>
+            {bulkAdd.isPending ? "Aggiunta in corso..." : `Aggiungi ${selectedCount} voci`}
+          </Button>
+          {selectedCount > 0 && (
+            <span className="text-sm text-slate-500">Totale stimato: {formatCurrency(selectedTotal, true)}</span>
+          )}
+          {lastAdded !== null && <Badge tone="success">{lastAdded} voci aggiunte</Badge>}
+        </div>
+        {bulkAdd.error && <p className="mt-2 text-sm text-red-600">Errore: {bulkAdd.error.message}</p>}
+      </CardBody>
+    </Card>
   );
 }
 
