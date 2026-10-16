@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { formatCurrency } from "../../lib/format";
+import { parseCsvWithHeader } from "../../lib/csv";
+import { costCategoryGroupSchema } from "@flipplan/shared";
 import type { DealDetail, CostLineItemDetail, CostCategory, PriceListItem, Vendor } from "../../lib/types";
 import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { Input, Label, Select } from "../../components/ui/Field";
@@ -16,6 +18,18 @@ export const GROUP_LABEL: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = { DA_FARE: "Da fare", IN_CORSO: "In corso", COMPLETATO: "Completato" };
+
+interface CostImportRow {
+  categoryGroup: "ACQUISIZIONE" | "MATERIALI" | "LAVORAZIONI" | "ENTI_ESTERNI" | "ALTRO";
+  categoryName: string;
+  description: string;
+  taxableAmount: number;
+  vatRatePct?: number;
+  nonTaxableAmount?: number;
+  vendorName?: string;
+  clientPrice?: number;
+  notes?: string;
+}
 
 function rowTotals(item: CostLineItemDetail) {
   const taxable = item.taxableAmount;
@@ -86,6 +100,15 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
   const [laborMarkupPct, setLaborMarkupPct] = useState(deal.renovationSettings?.laborMarkupPct?.toString() ?? "0");
   const [editingItem, setEditingItem] = useState<CostLineItemDetail | null>(null);
   const [recalculating, setRecalculating] = useState(false);
+  const costImportInputRef = useRef<HTMLInputElement>(null);
+  const [costImportRows, setCostImportRows] = useState<CostImportRow[] | null>(null);
+  const [costImportError, setCostImportError] = useState<string | null>(null);
+  const [costImportResult, setCostImportResult] = useState<{
+    created: number;
+    categoriesCreated: number;
+    vendorsCreated: number;
+    failed: { description: string; error: string }[];
+  } | null>(null);
 
   const saveContingency = trpc.dealSettings.updateRenovationSettings.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
@@ -95,7 +118,57 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
   });
   const updateItem = trpc.costLineItem.update.useMutation({ onSuccess: () => utils.deal.get.invalidate({ id: deal.id }) });
   const deleteItem = trpc.costLineItem.delete.useMutation({ onSuccess: () => utils.deal.get.invalidate({ id: deal.id }) });
+  const bulkImportCostItems = trpc.costLineItem.bulkImport.useMutation({
+    onSuccess: (result) => {
+      utils.deal.get.invalidate({ id: deal.id });
+      utils.costCategory.list.invalidate();
+      utils.vendor.list.invalidate();
+      setCostImportResult(result);
+      setCostImportRows(null);
+    },
+  });
   const isClientJob = deal.operationType === "RISTRUTTURAZIONE_CLIENTE";
+
+  // Preventivo fornitore caricato dall'utente (CSV preparato in chat da un
+  // PDF/Excel): crea le voci di costo direttamente in questo deal, divise
+  // per gruppo/categoria in automatico, senza toccare la libreria prezzi.
+  function handleCostFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCostImportResult(null);
+    setCostImportError(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result ?? "");
+        const rows = parseCsvWithHeader(text);
+        const parsed: CostImportRow[] = rows.map((r, i) => {
+          const group = costCategoryGroupSchema.safeParse(r.group?.toUpperCase());
+          if (!group.success) throw new Error(`Riga ${i + 2}: gruppo "${r.group}" non valido (usa ACQUISIZIONE/MATERIALI/LAVORAZIONI/ENTI_ESTERNI/ALTRO)`);
+          if (!r.category) throw new Error(`Riga ${i + 2}: categoria mancante`);
+          if (!r.description) throw new Error(`Riga ${i + 2}: descrizione mancante`);
+          const taxableAmount = Number(r.taxableAmount);
+          if (Number.isNaN(taxableAmount)) throw new Error(`Riga ${i + 2}: imponibile "${r.taxableAmount}" non è un numero`);
+          return {
+            categoryGroup: group.data,
+            categoryName: r.category,
+            description: r.description,
+            taxableAmount,
+            vatRatePct: r.vatRatePct ? Number(r.vatRatePct) : undefined,
+            nonTaxableAmount: r.nonTaxableAmount ? Number(r.nonTaxableAmount) : undefined,
+            vendorName: r.vendor || undefined,
+            clientPrice: r.clientPrice ? Number(r.clientPrice) : undefined,
+            notes: r.notes || undefined,
+          };
+        });
+        setCostImportRows(parsed);
+      } catch (err) {
+        setCostImportError(err instanceof Error ? err.message : "File non leggibile");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
 
   // Ogni voce può avere un prezzo cliente impostato a mano: quando è il caso
   // (es. quasi tutte, impostato in automatico alla creazione), cambiare il
@@ -201,6 +274,54 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
           </CardBody>
         </Card>
       )}
+
+      <Card>
+        <CardHeader
+          title="Importa voci di costo da CSV"
+          subtitle='Per un preventivo fornitore ricevuto in PDF/Excel: fattelo preparare in CSV, poi caricalo qui per creare le voci direttamente in questo deal (Materiali/Lavorazioni/altro, in base al gruppo indicato), senza passare dalla libreria prezzi. Colonne: group, category, description, taxableAmount, vatRatePct, nonTaxableAmount, vendor, clientPrice, notes (tutte opzionali tranne le prime quattro).'
+        />
+        <CardBody>
+          <input
+            ref={costImportInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={handleCostFileSelected}
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="secondary" onClick={() => costImportInputRef.current?.click()}>
+              Scegli file CSV
+            </Button>
+            {costImportRows && <span className="text-sm text-slate-600">{costImportRows.length} righe pronte da importare</span>}
+            {costImportRows && (
+              <Button
+                disabled={bulkImportCostItems.isPending}
+                onClick={() => bulkImportCostItems.mutate({ dealId: deal.id, items: costImportRows })}
+              >
+                {bulkImportCostItems.isPending ? "Importazione..." : `Conferma importazione (${costImportRows.length})`}
+              </Button>
+            )}
+          </div>
+          {costImportError && <p className="mt-2 text-sm text-red-600">{costImportError}</p>}
+          {costImportResult && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge tone="success">{costImportResult.created} voci create</Badge>
+              {costImportResult.categoriesCreated > 0 && <Badge tone="info">{costImportResult.categoriesCreated} nuove categorie</Badge>}
+              {costImportResult.vendorsCreated > 0 && <Badge tone="info">{costImportResult.vendorsCreated} nuovi fornitori</Badge>}
+              {costImportResult.failed.length > 0 && <Badge tone="danger">{costImportResult.failed.length} fallite</Badge>}
+            </div>
+          )}
+          {costImportResult && costImportResult.failed.length > 0 && (
+            <ul className="mt-2 text-xs text-red-600">
+              {costImportResult.failed.map((f) => (
+                <li key={f.description}>
+                  {f.description}: {f.error}
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardBody>
+      </Card>
 
       {Object.entries(GROUP_LABEL)
         .filter(([group]) => !(isClientJob && group === "ACQUISIZIONE"))

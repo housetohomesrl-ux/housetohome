@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { prisma } from "@flipplan/db";
-import { costLineItemCreateSchema, costLineItemUpdateSchema, quoteCreateSchema } from "@flipplan/shared";
+import {
+  costLineItemBulkImportSchema,
+  costLineItemCreateSchema,
+  costLineItemUpdateSchema,
+  quoteCreateSchema,
+} from "@flipplan/shared";
 import { protectedProcedure, router } from "../trpc.js";
 import { assertDealAccess } from "../lib/tenantAccess.js";
 import { serializeDecimals } from "../lib/serialize.js";
@@ -52,5 +57,76 @@ export const costLineItemRouter = router({
     await assertCostLineItemAccess(ctx.user.tenantId, input.costLineItemId);
     const quotes = await prisma.quote.findMany({ where: { costLineItemId: input.costLineItemId }, orderBy: { createdAt: "desc" } });
     return serializeDecimals(quotes);
+  }),
+
+  // Import in blocco di voci di costo direttamente in un deal, da un
+  // preventivo fornitore caricato dall'utente (vedi apps/web RenovationTab):
+  // per ogni riga trova o crea la categoria (tenant-scoped, riusa quella di
+  // sistema se il nome combacia) e il fornitore, poi crea la voce di costo.
+  // Non tocca la libreria prezzi.
+  bulkImport: protectedProcedure.input(costLineItemBulkImportSchema).mutation(async ({ ctx, input }) => {
+    const tenantId = ctx.user.tenantId;
+    await assertDealAccess(tenantId, input.dealId);
+
+    const existingCategories = await prisma.costCategory.findMany({
+      where: { OR: [{ tenantId: null }, { tenantId }] },
+    });
+    const categoryByName = new Map(existingCategories.map((c) => [c.name, c]));
+
+    const existingVendors = await prisma.vendor.findMany({ where: { tenantId } });
+    const vendorByName = new Map(existingVendors.map((v) => [v.name, v]));
+
+    const lastItem = await prisma.costLineItem.findFirst({
+      where: { dealId: input.dealId },
+      orderBy: { order: "desc" },
+    });
+    let nextOrder = (lastItem?.order ?? -1) + 1;
+
+    let created = 0;
+    let categoriesCreated = 0;
+    let vendorsCreated = 0;
+    const failed: Array<{ description: string; error: string }> = [];
+
+    for (const row of input.items) {
+      try {
+        let category = categoryByName.get(row.categoryName);
+        if (!category) {
+          category = await prisma.costCategory.create({
+            data: { tenantId, group: row.categoryGroup, name: row.categoryName, order: 50 },
+          });
+          categoryByName.set(row.categoryName, category);
+          categoriesCreated++;
+        }
+        let vendorId: string | undefined;
+        if (row.vendorName) {
+          let vendor = vendorByName.get(row.vendorName);
+          if (!vendor) {
+            vendor = await prisma.vendor.create({ data: { tenantId, name: row.vendorName } });
+            vendorByName.set(row.vendorName, vendor);
+            vendorsCreated++;
+          }
+          vendorId = vendor.id;
+        }
+        await prisma.costLineItem.create({
+          data: {
+            dealId: input.dealId,
+            categoryId: category.id,
+            description: row.description,
+            taxableAmount: row.taxableAmount,
+            vatRatePct: row.vatRatePct ?? 22,
+            nonTaxableAmount: row.nonTaxableAmount ?? 0,
+            clientPrice: row.clientPrice,
+            vendorId,
+            notes: row.notes,
+            order: nextOrder++,
+          },
+        });
+        created++;
+      } catch (err) {
+        failed.push({ description: row.description, error: err instanceof Error ? err.message : "errore sconosciuto" });
+      }
+    }
+
+    return { created, categoriesCreated, vendorsCreated, failed };
   }),
 });

@@ -128,6 +128,28 @@ export const costLineItemUpdateSchema = costLineItemCreateSchema.partial().exten
   id: z.string(),
 });
 
+// Import in blocco di voci di costo direttamente in un deal (preventivo
+// fornitore caricato dall'utente), senza passare dalla libreria prezzi.
+export const costLineItemBulkImportSchema = z.object({
+  dealId: z.string(),
+  items: z
+    .array(
+      z.object({
+        categoryGroup: costCategoryGroupSchema,
+        categoryName: z.string().min(1),
+        description: z.string().min(1),
+        taxableAmount: z.number().nonnegative(),
+        vatRatePct: z.number().min(0).max(100).optional(),
+        nonTaxableAmount: z.number().nonnegative().optional(),
+        vendorName: z.string().optional(),
+        clientPrice: z.number().nonnegative().optional(),
+        notes: z.string().optional(),
+      }),
+    )
+    .min(1)
+    .max(500),
+});
+
 export const quoteCreateSchema = z.object({
   costLineItemId: z.string(),
   vendorId: z.string().nullable().optional(),
