@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { formatCurrency } from "../../lib/format";
 import { parseCsvWithHeader } from "../../lib/csv";
@@ -562,14 +562,36 @@ function BulkAddFromLibrary({
     },
   });
 
-  const available = (priceListData ?? []).filter(
-    (p) => p.libraryScope === deal.operationType && p.includeInPreventivo,
-  );
+  const categoryById = new Map(categories.map((c) => [c.id, c]));
+
+  // Ordine di visualizzazione: Lavorazioni di Sergio (muratore), poi Mattia
+  // (idraulico), poi Gianni (elettricista), poi Materiali, poi il resto —
+  // così le voci da spuntare per montare un preventivo seguono l'ordine in
+  // cui si lavora un cantiere.
+  const VENDOR_PRIORITY = ["Sergio", "Mattia Scarpuzza", "Gianni Montanari"];
+  function priority(p: PriceListItem): number {
+    const group = categoryById.get(p.categoryId)?.group;
+    if (group === "LAVORAZIONI") {
+      const idx = VENDOR_PRIORITY.indexOf(p.vendor?.name ?? "");
+      return idx >= 0 ? idx : VENDOR_PRIORITY.length;
+    }
+    if (group === "MATERIALI") return VENDOR_PRIORITY.length + 1;
+    return VENDOR_PRIORITY.length + 2;
+  }
+
+  function groupLabel(p: PriceListItem): string {
+    const group = categoryById.get(p.categoryId)?.group;
+    if (group === "LAVORAZIONI") return `Lavorazioni — ${p.vendor?.name ?? "altro fornitore"}`;
+    if (group === "MATERIALI") return "Materiali";
+    return GROUP_LABEL[group ?? ""] ?? "Altro";
+  }
+
+  const available = (priceListData ?? [])
+    .filter((p) => p.libraryScope === deal.operationType && p.includeInPreventivo)
+    .sort((a, b) => priority(a) - priority(b) || a.name.localeCompare(b.name));
   const filtered = search.trim()
     ? available.filter((p) => p.name.toLowerCase().includes(search.trim().toLowerCase()))
     : available;
-
-  const categoryById = new Map(categories.map((c) => [c.id, c]));
   const selectedCount = Object.keys(selected).length;
   const selectedTotal = Object.entries(selected).reduce((sum, [id, qtyStr]) => {
     const p = available.find((x) => x.id === id);
@@ -636,36 +658,48 @@ function BulkAddFromLibrary({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p) => {
+              {filtered.map((p, i) => {
                 const category = categoryById.get(p.categoryId);
                 const isSelected = p.id in selected;
+                const label = groupLabel(p);
+                const prev = i > 0 ? filtered[i - 1] : undefined;
+                const showGroupHeader = !prev || groupLabel(prev) !== label;
                 return (
-                  <tr key={p.id} className="border-b border-slate-100 last:border-0">
-                    <td className="py-1.5 pl-3 pr-2">
-                      <input type="checkbox" checked={isSelected} onChange={() => toggle(p.id)} />
-                    </td>
-                    <td className="py-1.5 pr-2">
-                      {p.name}
-                      {p.specification && <div className="text-xs text-slate-400">{p.specification}</div>}
-                    </td>
-                    <td className="py-1.5 pr-2 text-xs text-slate-500">{category?.name ?? "—"}</td>
-                    <td className="py-1.5 pr-2 text-xs text-slate-500">{p.vendor?.name ?? "—"}</td>
-                    <td className="py-1.5 pr-2 text-right text-xs text-slate-500">
-                      {formatCurrency(p.unitPrice, true)}
-                      {p.unit ? ` / ${p.unit}` : ""}
-                    </td>
-                    <td className="py-1.5 pr-2 text-right">
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className="w-20 text-right"
-                        disabled={!isSelected}
-                        value={selected[p.id] ?? "1"}
-                        onChange={(e) => setSelected((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                      />
-                    </td>
-                  </tr>
+                  <Fragment key={p.id}>
+                    {showGroupHeader && (
+                      <tr key={`group-${label}-${p.id}`} className="bg-slate-50">
+                        <td colSpan={6} className="py-1.5 pl-3 pr-2 text-xs font-semibold uppercase text-slate-500">
+                          {label}
+                        </td>
+                      </tr>
+                    )}
+                    <tr key={p.id} className="border-b border-slate-100 last:border-0">
+                      <td className="py-1.5 pl-3 pr-2">
+                        <input type="checkbox" checked={isSelected} onChange={() => toggle(p.id)} />
+                      </td>
+                      <td className="py-1.5 pr-2">
+                        {p.name}
+                        {p.specification && <div className="text-xs text-slate-400">{p.specification}</div>}
+                      </td>
+                      <td className="py-1.5 pr-2 text-xs text-slate-500">{category?.name ?? "—"}</td>
+                      <td className="py-1.5 pr-2 text-xs text-slate-500">{p.vendor?.name ?? "—"}</td>
+                      <td className="py-1.5 pr-2 text-right text-xs text-slate-500">
+                        {formatCurrency(p.unitPrice, true)}
+                        {p.unit ? ` / ${p.unit}` : ""}
+                      </td>
+                      <td className="py-1.5 pr-2 text-right">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="w-20 text-right"
+                          disabled={!isSelected}
+                          value={selected[p.id] ?? "1"}
+                          onChange={(e) => setSelected((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                        />
+                      </td>
+                    </tr>
+                  </Fragment>
                 );
               })}
               {filtered.length === 0 && (
