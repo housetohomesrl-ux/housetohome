@@ -71,9 +71,9 @@ function computeGroupClientPrice(group: string, taxableAmount: number, deal: Dea
   return taxableAmount * (1 + markupPctForGroup(group, deal) / 100);
 }
 
-/** IVA di default sul costo (quella che paghiamo noi a fornitori/subappaltatori): 22% sui Materiali, 0% sulle Lavorazioni, sempre modificabile a mano. */
+/** IVA di default sul costo (quella che paghiamo noi a fornitori/subappaltatori): 22% solo sui Materiali, 0% su tutto il resto (Lavorazioni, Altro/varie, ecc.), sempre modificabile a mano. */
 function defaultCostVatRatePct(group: string): string {
-  return group === "LAVORAZIONI" ? "0" : "22";
+  return group === "MATERIALI" ? "22" : "0";
 }
 
 function emptyNewItem(group: string) {
@@ -623,7 +623,7 @@ function BulkAddFromLibrary({
           quantity: qty,
           unit: p.unit || undefined,
           taxableAmount: qty * p.unitPrice,
-          vatRatePct: category.group === "LAVORAZIONI" ? 0 : 22,
+          vatRatePct: category.group === "MATERIALI" ? 22 : 0,
           vendorName: p.vendor?.name,
         };
       })

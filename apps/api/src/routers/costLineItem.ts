@@ -115,7 +115,7 @@ export const costLineItemRouter = router({
             quantity: row.quantity,
             unit: row.unit,
             taxableAmount: row.taxableAmount,
-            vatRatePct: row.vatRatePct ?? 22,
+            vatRatePct: row.vatRatePct ?? (row.categoryGroup === "MATERIALI" ? 22 : 0),
             nonTaxableAmount: row.nonTaxableAmount ?? 0,
             clientPrice: row.clientPrice,
             vendorId,
