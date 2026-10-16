@@ -8,7 +8,7 @@ import { Button } from "../../components/ui/Button";
 import { clientBasePrice, quoteVatRatePct } from "./RenovationTab";
 import logoUrl from "../../assets/housetohome-logo.jpg";
 
-function formatDateIt(value: string | Date): string {
+export function formatDateIt(value: string | Date): string {
   return new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(value));
 }
 
