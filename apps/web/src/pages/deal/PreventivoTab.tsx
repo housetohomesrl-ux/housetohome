@@ -90,7 +90,15 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
   const acconto2 = grandTotal * 0.5;
   const saldo = grandTotal - acconto1 - acconto2;
 
-  const quoteStatusLabel = QUOTE_STATUS_PRINT_LABEL[deal.quoteStatus] ?? QUOTE_STATUS_PRINT_LABEL.BOZZA;
+  // Il deal ha anche uno stato "pipeline" più vecchio (VALUTAZIONE/ACQUISIZIONE,
+  // mostrato nel Portafoglio come "Preventivo per cliente"/"Preventivo
+  // confermato"): per i deal confermati PRIMA che esistesse questo campo
+  // dedicato, quoteStatus è rimasto sul default "Bozza". Finché non viene
+  // scelto esplicitamente un altro stato, lo deduciamo da lì per non mostrare
+  // due stati diversi per la stessa cosa.
+  const effectiveQuoteStatus =
+    deal.status === "ACQUISIZIONE" && deal.quoteStatus === "BOZZA" ? "ACCETTATO" : deal.quoteStatus;
+  const quoteStatusLabel = QUOTE_STATUS_PRINT_LABEL[effectiveQuoteStatus] ?? QUOTE_STATUS_PRINT_LABEL.BOZZA;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -162,14 +170,17 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
       )}
 
       <Card className="print:hidden">
-        <CardHeader title="Stato preventivo" subtitle="Avanzamento verso il cliente: bozza, inviato, accettato o rifiutato." />
+        <CardHeader
+          title="Stato preventivo"
+          subtitle='Avanzamento verso il cliente: bozza, inviato, accettato o rifiutato. Collegato al pulsante "Preventivo confermato" nel Portafoglio — confermarlo da lì imposta anche questo su Accettato.'
+        />
         <CardBody className="flex flex-wrap items-end gap-3">
           <div>
             <Label htmlFor="quoteStatus">Stato</Label>
             <Select
               id="quoteStatus"
               className="w-48"
-              value={deal.quoteStatus}
+              value={effectiveQuoteStatus}
               onChange={(e) => updateQuoteStatus.mutate({ id: deal.id, quoteStatus: e.target.value as DealDetail["quoteStatus"] })}
             >
               {Object.entries(QUOTE_STATUS_LABEL).map(([value, label]) => (

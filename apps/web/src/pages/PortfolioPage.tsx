@@ -100,7 +100,13 @@ export default function PortfolioPage() {
         onDelete={confirmDelete}
         deleteDeal={deleteDeal}
         createDeal={createDeal}
-        stageAction={{ fromStatus: "VALUTAZIONE", toStatus: "ACQUISIZIONE", label: "Preventivo confermato", mutation: markPurchased }}
+        stageAction={{
+          fromStatus: "VALUTAZIONE",
+          toStatus: "ACQUISIZIONE",
+          label: "Preventivo confermato",
+          mutation: markPurchased,
+          extraData: { quoteStatus: "ACCETTATO" },
+        }}
         showSort={false}
         className="mt-8"
       />
@@ -140,6 +146,7 @@ function DealSection({
     toStatus: string;
     label: string;
     mutation: ReturnType<typeof trpc.deal.update.useMutation>;
+    extraData?: Record<string, unknown>;
   };
   showSort?: boolean;
   className?: string;
@@ -215,7 +222,12 @@ function DealSection({
             deleting={deleteDeal.isPending && deleteDeal.variables?.id === deal.id}
             onStageAction={
               stageAction && deal.status === stageAction.fromStatus
-                ? () => stageAction.mutation.mutate({ id: deal.id, status: stageAction.toStatus as DealSummary["status"] })
+                ? () =>
+                    stageAction.mutation.mutate({
+                      id: deal.id,
+                      status: stageAction.toStatus as DealSummary["status"],
+                      ...stageAction.extraData,
+                    })
                 : undefined
             }
             stageActionLabel={stageAction?.label}
