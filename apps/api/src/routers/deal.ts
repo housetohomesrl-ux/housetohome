@@ -6,6 +6,7 @@ import { protectedProcedure, router } from "../trpc.js";
 import { assertDealAccess } from "../lib/tenantAccess.js";
 import { dealInclude } from "../lib/dealInclude.js";
 import { mapDealToFinancialsInput } from "../lib/mapDealToFinancialsInput.js";
+import { computeClientJobNetProfit } from "../lib/clientJobSummary.js";
 import { serializeDecimals } from "../lib/serialize.js";
 
 const SALE_SCENARIO_DEFAULTS = [
@@ -23,9 +24,7 @@ export const dealRouter = router({
     });
 
     return deals.map((deal) => {
-      const input = mapDealToFinancialsInput(deal, "REALISTICO");
-      const summary = input ? computeDealFinancials(input) : null;
-      return {
+      const base = {
         id: deal.id,
         name: deal.name,
         address: deal.address,
@@ -34,6 +33,19 @@ export const dealRouter = router({
         status: deal.status,
         isDemo: deal.isDemo,
         updatedAt: deal.updatedAt,
+      };
+
+      // Ristrutturazione per un cliente: niente acquisto/vendita immobile,
+      // quindi niente ROI/plusvalenza — solo il margine netto sulla
+      // ristrutturazione (stessa formula della tab Risultati del deal).
+      if (deal.operationType === "RISTRUTTURAZIONE_CLIENTE") {
+        return { ...base, summary: { netProfit: computeClientJobNetProfit(deal), roi: null, totalProjectCost: null } };
+      }
+
+      const input = mapDealToFinancialsInput(deal, "REALISTICO");
+      const summary = input ? computeDealFinancials(input) : null;
+      return {
+        ...base,
         summary: summary
           ? { netProfit: summary.sale.netProfit, roi: summary.kpis.roi, totalProjectCost: summary.totals.totalProjectCost }
           : null,

@@ -303,15 +303,17 @@ function DealCard({
           {deal.summary ? (
             <div className="flex gap-6 text-right">
               <div>
-                <div className="text-xs text-slate-400">Utile netto (realistico)</div>
+                <div className="text-xs text-slate-400">{deal.summary.roi === null ? "Utile netto" : "Utile netto (realistico)"}</div>
                 <div className="font-semibold text-slate-900">{formatCurrency(deal.summary.netProfit)}</div>
               </div>
-              <div>
-                <div className="text-xs text-slate-400">ROI</div>
-                <div className={deal.summary.roi >= 0 ? "font-semibold text-emerald-600" : "font-semibold text-red-600"}>
-                  {formatPercent(deal.summary.roi)}
+              {deal.summary.roi !== null && (
+                <div>
+                  <div className="text-xs text-slate-400">ROI</div>
+                  <div className={deal.summary.roi >= 0 ? "font-semibold text-emerald-600" : "font-semibold text-red-600"}>
+                    {formatPercent(deal.summary.roi)}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : (
             <Badge tone="warning">Dati incompleti</Badge>
