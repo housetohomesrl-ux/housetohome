@@ -33,6 +33,8 @@ export const dealRouter = router({
         status: deal.status,
         isDemo: deal.isDemo,
         updatedAt: deal.updatedAt,
+        quoteStatus: deal.quoteStatus,
+        quoteValidUntil: deal.quoteValidUntil,
       };
 
       // Ristrutturazione per un cliente: niente acquisto/vendita immobile,

@@ -8,6 +8,7 @@ import { Card } from "../components/ui/Card";
 import { Input, Select } from "../components/ui/Field";
 import type { DealSummary } from "../lib/types";
 import { FLIP_STATUS_LABEL, CLIENT_STATUS_LABEL } from "../lib/dealStatus";
+import { formatDateIt } from "./deal/PreventivoTab";
 
 const STATUS_TONE: Record<string, "neutral" | "info" | "warning" | "success"> = {
   VALUTAZIONE: "neutral",
@@ -51,12 +52,57 @@ export default function PortfolioPage() {
     [deals.data],
   );
 
+  // Preventivi inviati al cliente e in scadenza entro 7 giorni o già
+  // scaduti: per non doverli controllare uno a uno aprendo ogni deal.
+  const pendingQuotes = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return clientDeals
+      .filter((d) => d.quoteStatus === "INVIATO" && d.quoteValidUntil)
+      .map((d) => {
+        const validUntil = new Date(d.quoteValidUntil!);
+        const daysToExpiry = Math.ceil((validUntil.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        return { ...d, validUntil, daysToExpiry };
+      })
+      .filter((d) => d.daysToExpiry <= 7)
+      .sort((a, b) => a.daysToExpiry - b.daysToExpiry);
+  }, [clientDeals]);
+
   return (
     <div>
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Portafoglio deal</h1>
         <p className="mt-1 text-sm text-slate-500">Tutte le operazioni di buy-renovate-resell del tuo team.</p>
       </div>
+
+      {pendingQuotes.length > 0 && (
+        <Card className="mt-4 border-amber-300 bg-amber-50">
+          <div className="px-4 py-3">
+            <h2 className="text-sm font-semibold text-amber-800">Preventivi in sospeso</h2>
+            <div className="mt-2 grid gap-1">
+              {pendingQuotes.map((d) => (
+                <button
+                  key={d.id}
+                  className="flex items-center justify-between text-left text-sm hover:underline"
+                  onClick={() => navigate(`/deals/${d.id}`)}
+                >
+                  <span className="text-slate-800">
+                    {d.name}
+                    {d.address ? ` — ${d.address}` : ""}
+                  </span>
+                  <span className={d.daysToExpiry < 0 ? "font-medium text-red-700" : "font-medium text-amber-700"}>
+                    {d.daysToExpiry < 0
+                      ? `scaduto il ${formatDateIt(d.validUntil)}`
+                      : d.daysToExpiry === 0
+                        ? "scade oggi"
+                        : `scade tra ${d.daysToExpiry} giorn${d.daysToExpiry === 1 ? "o" : "i"}`}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
 
       <DealSection
         title="Flip — acquisto e rivendita"

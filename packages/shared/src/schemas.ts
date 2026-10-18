@@ -320,6 +320,11 @@ export const quoteSnapshotCreateSchema = z.object({
         quantity: z.number().nullable().optional(),
         unit: z.string().nullable().optional(),
         price: z.number(),
+        // Costo (imponibile + non imponibile, senza IVA) della voce al momento
+        // dello snapshot: serve per ricostruire il margine stimato di allora
+        // e confrontarlo col margine reale a consuntivo. Opzionale per
+        // compatibilità con snapshot salvati prima che questo campo esistesse.
+        cost: z.number().optional(),
       }),
     )
     .min(0)

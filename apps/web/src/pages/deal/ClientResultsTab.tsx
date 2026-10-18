@@ -6,6 +6,7 @@ import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { Input, Label } from "../../components/ui/Field";
 import { Button } from "../../components/ui/Button";
 import { clientBasePrice, quoteVatRatePct } from "./RenovationTab";
+import { formatDateIt } from "./PreventivoTab";
 
 function KpiCard({ label, value, tone }: { label: string; value: string; tone?: "success" | "danger" }) {
   return (
@@ -247,6 +248,19 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
   const companyTax = margin > 0 ? (margin * companyTaxRatePct) / 100 : 0;
   const netMarginAfterTax = margin - companyTax;
 
+  // Preventivo iniziale vs consuntivo: confronta il margine stimato nella
+  // versione PIÙ VECCHIA del preventivo salvata (vedi tab Preventivo
+  // cliente, storico versioni) con il margine reale di oggi, per capire se
+  // si sfora sistematicamente il preventivo iniziale.
+  const snapshots = trpc.quoteSnapshot.list.useQuery({ dealId: deal.id });
+  const earliestSnapshot =
+    snapshots.data && snapshots.data.length > 0 ? snapshots.data[snapshots.data.length - 1] : null;
+  const hasHistoricalCostData = earliestSnapshot ? earliestSnapshot.items.every((i) => i.cost !== undefined) : false;
+  const estimatedPrice = earliestSnapshot ? earliestSnapshot.items.reduce((s, i) => s + i.price, 0) : 0;
+  const estimatedCost = earliestSnapshot ? earliestSnapshot.items.reduce((s, i) => s + (i.cost ?? 0), 0) : 0;
+  const estimatedMargin = estimatedPrice - estimatedCost;
+  const marginDelta = margin - estimatedMargin;
+
   const clientAcconto1Amount = deal.clientAcconto1Amount ?? 0;
   const clientAcconto2Amount = deal.clientAcconto2Amount ?? 0;
   const clientAcconto3Amount = deal.clientAcconto3Amount ?? 0;
@@ -300,6 +314,38 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
           /mese, scheda Detenzione).
         </p>
       )}
+
+      <Card>
+        <CardHeader
+          title="Preventivo iniziale vs consuntivo"
+          subtitle="Margine stimato nella versione più vecchia del preventivo salvata (tab Preventivo cliente → Storico versioni) contro il margine reale di oggi, al netto di IVA. Non include i costi di detenzione, non ancora tracciati nello storico."
+        />
+        <CardBody>
+          {!earliestSnapshot && (
+            <p className="text-sm text-slate-400">
+              Nessuna versione del preventivo salvata ancora: stampa o scarica il preventivo (tab "Preventivo cliente") per iniziare a tracciare
+              il confronto.
+            </p>
+          )}
+          {earliestSnapshot && !hasHistoricalCostData && (
+            <p className="text-sm text-slate-400">
+              La versione più vecchia salvata ({formatDateIt(earliestSnapshot.createdAt)}) non ha dati di costo storici (salvata prima che
+              questa funzione esistesse): stampa o scarica di nuovo il preventivo per iniziare a tracciare il confronto da adesso.
+            </p>
+          )}
+          {earliestSnapshot && hasHistoricalCostData && (
+            <div className="grid gap-3 sm:grid-cols-3">
+              <KpiCard label={`Margine stimato (preventivo del ${formatDateIt(earliestSnapshot.createdAt)})`} value={formatCurrency(estimatedMargin)} />
+              <KpiCard label="Margine attuale (consuntivo)" value={formatCurrency(margin)} tone={margin >= 0 ? "success" : "danger"} />
+              <KpiCard
+                label="Differenza"
+                value={`${marginDelta >= 0 ? "+" : ""}${formatCurrency(marginDelta)}`}
+                tone={marginDelta >= 0 ? "success" : "danger"}
+              />
+            </div>
+          )}
+        </CardBody>
+      </Card>
 
       <Card>
         <CardHeader

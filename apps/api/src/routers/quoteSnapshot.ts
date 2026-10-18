@@ -5,7 +5,13 @@ import { quoteSnapshotCreateSchema } from "@flipplan/shared";
 import { protectedProcedure, router } from "../trpc.js";
 import { assertDealAccess } from "../lib/tenantAccess.js";
 
-type SnapshotItem = { description: string; quantity: number | null; unit: string | null; price: number };
+type SnapshotItem = {
+  description: string;
+  quantity: number | null;
+  unit: string | null;
+  price: number;
+  cost?: number;
+};
 
 // Il campo items è JSON: lo mappiamo esplicitamente qui (invece di passare
 // per serializeDecimals<T>, generico) perché composto con il tipo Json di

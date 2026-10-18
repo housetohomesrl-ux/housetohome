@@ -117,6 +117,7 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
         quantity: item.quantity ?? null,
         unit: item.unit ?? null,
         price,
+        cost: item.taxableAmount + item.nonTaxableAmount,
       })),
     });
   }
