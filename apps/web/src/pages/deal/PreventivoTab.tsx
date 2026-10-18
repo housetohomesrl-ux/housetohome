@@ -3,7 +3,7 @@ import { trpc } from "../../lib/trpc";
 import { formatCurrency } from "../../lib/format";
 import type { DealDetail } from "../../lib/types";
 import { Card, CardBody, CardHeader } from "../../components/ui/Card";
-import { Input, Label } from "../../components/ui/Field";
+import { Input, Label, Select } from "../../components/ui/Field";
 import { Button } from "../../components/ui/Button";
 import { clientBasePrice, quoteVatRatePct } from "./RenovationTab";
 import { downloadElementAsPdf } from "../../lib/pdf";
@@ -12,6 +12,20 @@ import logoUrl from "../../assets/housetohome-logo.jpg";
 export function formatDateIt(value: string | Date): string {
   return new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(value));
 }
+
+const QUOTE_STATUS_LABEL: Record<string, string> = {
+  BOZZA: "Bozza",
+  INVIATO: "Inviato",
+  ACCETTATO: "Accettato",
+  RIFIUTATO: "Rifiutato",
+};
+
+const QUOTE_STATUS_PRINT_LABEL: Record<string, string> = {
+  BOZZA: "in attesa di conferma",
+  INVIATO: "inviato, in attesa di conferma",
+  ACCETTATO: "confermato",
+  RIFIUTATO: "rifiutato",
+};
 
 /**
  * Preventivo da dare al cliente per un deal RISTRUTTURAZIONE_CLIENTE, nel
@@ -34,6 +48,18 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
   });
   const unifyMaterials = deal.renovationSettings?.unifyMaterialPricesInQuote ?? false;
+
+  const updateQuoteStatus = trpc.deal.update.useMutation({
+    onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
+  });
+  const snapshots = trpc.quoteSnapshot.list.useQuery({ dealId: deal.id });
+  const createSnapshot = trpc.quoteSnapshot.create.useMutation({
+    onSuccess: () => utils.quoteSnapshot.list.invalidate({ dealId: deal.id }),
+  });
+  const deleteSnapshot = trpc.quoteSnapshot.delete.useMutation({
+    onSuccess: () => utils.quoteSnapshot.list.invalidate({ dealId: deal.id }),
+  });
+  const [expandedSnapshotId, setExpandedSnapshotId] = useState<string | null>(null);
 
   const items = deal.costLineItems.filter((i) => !i.isMemo);
   const rows = items.map((item) => ({ item, price: clientBasePrice(item, deal) }));
@@ -64,7 +90,28 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
   const acconto2 = grandTotal * 0.5;
   const saldo = grandTotal - acconto1 - acconto2;
 
-  const quoteStatusLabel = deal.status === "ACQUISIZIONE" ? "confermato" : "in attesa di conferma";
+  const quoteStatusLabel = QUOTE_STATUS_PRINT_LABEL[deal.quoteStatus] ?? QUOTE_STATUS_PRINT_LABEL.BOZZA;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const validUntil = deal.quoteValidUntil ? new Date(deal.quoteValidUntil) : null;
+  const daysToExpiry = validUntil ? Math.ceil((validUntil.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : null;
+  const isExpired = deal.quoteStatus === "INVIATO" && daysToExpiry !== null && daysToExpiry < 0;
+  const isExpiringSoon = deal.quoteStatus === "INVIATO" && daysToExpiry !== null && daysToExpiry >= 0 && daysToExpiry <= 7;
+
+  function saveSnapshot() {
+    createSnapshot.mutate({
+      dealId: deal.id,
+      grandTotal,
+      vatRatePct: currentVatPct,
+      items: printRows.map(({ item, price }) => ({
+        description: item.description,
+        quantity: item.quantity ?? null,
+        unit: item.unit ?? null,
+        price,
+      })),
+    });
+  }
 
   return (
     <div className="grid gap-5">
@@ -74,7 +121,13 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
           ricarico % per Materiali/Lavorazioni), senza IVA per voce. Non mostra dati interni come pagato/residuo.
         </p>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => window.print()}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              saveSnapshot();
+              window.print();
+            }}
+          >
             Stampa preventivo
           </Button>
           <Button
@@ -82,6 +135,7 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
             disabled={downloading}
             onClick={async () => {
               if (!printRef.current) return;
+              saveSnapshot();
               setDownloading(true);
               try {
                 await downloadElementAsPdf(printRef.current, `Preventivo ${deal.name}.pdf`);
@@ -94,6 +148,39 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
           </Button>
         </div>
       </div>
+
+      {(isExpired || isExpiringSoon) && (
+        <div
+          className={`rounded-md border px-4 py-2 text-sm print:hidden ${
+            isExpired ? "border-red-300 bg-red-50 text-red-700" : "border-amber-300 bg-amber-50 text-amber-700"
+          }`}
+        >
+          {isExpired
+            ? `Preventivo inviato e scaduto il ${formatDateIt(validUntil!)} (nessuna risposta dal cliente): valuta se aggiornare la validità o lo stato.`
+            : `Preventivo inviato, in scadenza tra ${daysToExpiry} giorn${daysToExpiry === 1 ? "o" : "i"} (${formatDateIt(validUntil!)}).`}
+        </div>
+      )}
+
+      <Card className="print:hidden">
+        <CardHeader title="Stato preventivo" subtitle="Avanzamento verso il cliente: bozza, inviato, accettato o rifiutato." />
+        <CardBody className="flex flex-wrap items-end gap-3">
+          <div>
+            <Label htmlFor="quoteStatus">Stato</Label>
+            <Select
+              id="quoteStatus"
+              className="w-48"
+              value={deal.quoteStatus}
+              onChange={(e) => updateQuoteStatus.mutate({ id: deal.id, quoteStatus: e.target.value as DealDetail["quoteStatus"] })}
+            >
+              {Object.entries(QUOTE_STATUS_LABEL).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </CardBody>
+      </Card>
 
       <Card className="print:hidden">
         <CardHeader
@@ -276,6 +363,60 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
           </table>
         )}
       </div>
+
+      <Card className="print:hidden">
+        <CardHeader
+          title="Storico versioni"
+          subtitle="Uno snapshot viene salvato automaticamente ogni volta che stampi o scarichi il PDF, per confrontare cosa è stato proposto al cliente nel tempo."
+        />
+        <CardBody>
+          {(snapshots.data ?? []).length === 0 && (
+            <p className="text-sm text-slate-400">Nessuna versione salvata ancora: stampa o scarica il preventivo per crearne una.</p>
+          )}
+          <div className="grid gap-2">
+            {(snapshots.data ?? []).map((s) => {
+              const expanded = expandedSnapshotId === s.id;
+              const snapshotItems = s.items;
+              return (
+                <div key={s.id} className="rounded-md border border-slate-200">
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
+                    <button
+                      type="button"
+                      className="text-left text-brand-700 hover:underline"
+                      onClick={() => setExpandedSnapshotId(expanded ? null : s.id)}
+                    >
+                      {formatDateIt(s.createdAt)} — {formatCurrency(s.grandTotal, true)} (IVA {s.vatRatePct}%, {snapshotItems.length} voci)
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs text-red-600 hover:underline"
+                      disabled={deleteSnapshot.isPending}
+                      onClick={() => deleteSnapshot.mutate({ id: s.id })}
+                    >
+                      Elimina
+                    </button>
+                  </div>
+                  {expanded && (
+                    <table className="w-full border-t border-slate-200 text-xs">
+                      <tbody>
+                        {snapshotItems.map((item, i) => (
+                          <tr key={i} className="border-b border-slate-100 last:border-0">
+                            <td className="px-3 py-1">{item.description}</td>
+                            <td className="px-3 py-1 text-right text-slate-500">
+                              {item.quantity ? `${item.quantity}${item.unit ? ` ${item.unit}` : ""}` : ""}
+                            </td>
+                            <td className="px-3 py-1 text-right">{formatCurrency(item.price, true)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </CardBody>
+      </Card>
     </div>
   );
 }

@@ -15,6 +15,8 @@ export const dealStatusSchema = z.enum([
 
 export const dealOperationTypeSchema = z.enum(["FLIP", "RISTRUTTURAZIONE_CLIENTE"]);
 
+export const quoteStatusSchema = z.enum(["BOZZA", "INVIATO", "ACCETTATO", "RIFIUTATO"]);
+
 export const costCategoryGroupSchema = z.enum(["ACQUISIZIONE", "MATERIALI", "LAVORAZIONI", "ENTI_ESTERNI", "ALTRO"]);
 
 export const costLineItemStatusSchema = z.enum(["DA_FARE", "IN_CORSO", "COMPLETATO"]);
@@ -65,6 +67,7 @@ export const dealCreateSchema = z.object({
   clientEmail: z.string().optional(),
   quoteDate: z.coerce.date().optional(),
   quoteValidUntil: z.coerce.date().optional(),
+  quoteStatus: quoteStatusSchema.optional(),
   clientAmountReceived: z.number().nonnegative().optional(),
   clientAcconto1Pct: z.number().min(0).max(100).nullable().optional(),
   clientAcconto1Amount: z.number().nonnegative().optional(),
@@ -301,6 +304,26 @@ export const dealVendorPaymentSchema = z.object({
   acconto3Pct: z.number().min(0).max(100).nullable().optional(),
   acconto3Amount: z.number().nonnegative().optional(),
   saldoAmount: z.number().nonnegative().optional(),
+});
+
+// Storico versioni del preventivo cliente: uno snapshot congelato delle
+// voci/totale/IVA al momento della stampa/download, per confrontare cosa è
+// stato proposto al cliente nel tempo.
+export const quoteSnapshotCreateSchema = z.object({
+  dealId: z.string(),
+  grandTotal: z.number().nonnegative(),
+  vatRatePct: z.number().min(0).max(100),
+  items: z
+    .array(
+      z.object({
+        description: z.string(),
+        quantity: z.number().nullable().optional(),
+        unit: z.string().nullable().optional(),
+        price: z.number(),
+      }),
+    )
+    .min(0)
+    .max(500),
 });
 
 export const noteCreateSchema = z.object({

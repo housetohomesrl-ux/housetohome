@@ -127,6 +127,7 @@ model Deal {
   clientEmail     String?
   quoteDate       DateTime? // data di creazione del preventivo
   quoteValidUntil DateTime? // data di validità del preventivo
+  quoteStatus     QuoteStatus @default(BOZZA) // avanzamento del preventivo cliente: bozza -> inviato -> accettato/rifiutato
   clientAmountReceived Decimal? @db.Decimal(14, 2) // deprecato, non più scritto: vedi clientAcconto1Amount ecc.
   // Incassi dal cliente a rate (RISTRUTTURAZIONE_CLIENTE): fino a 3 acconti
   // (ciascuno con % sul totale preventivo + importo) più un saldo finale.
@@ -154,9 +155,35 @@ model Deal {
   attachments        Attachment[]
   businessPlanDeals  BusinessPlanDeal[]
   vendorPayments     DealVendorPayment[]
+  quoteSnapshots     QuoteSnapshot[]
 
   @@index([tenantId, status])
   @@map("deals")
+}
+
+enum QuoteStatus {
+  BOZZA
+  INVIATO
+  ACCETTATO
+  RIFIUTATO
+}
+
+// Storico versioni del preventivo cliente: uno snapshot viene salvato ogni
+// volta che il preventivo viene stampato/scaricato, per poter confrontare
+// cosa è stato proposto al cliente nel tempo (es. dopo una trattativa sul
+// prezzo). Le voci sono congelate in JSON: non seguono modifiche successive
+// alle voci di costo reali del deal.
+model QuoteSnapshot {
+  id         String   @id @default(cuid())
+  dealId     String
+  deal       Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  grandTotal Decimal  @db.Decimal(14, 2)
+  vatRatePct Decimal  @db.Decimal(5, 2)
+  items      Json // [{ description, quantity, unit, price }]
+
+  @@index([dealId])
+  @@map("quote_snapshots")
 }
 
 // Prezzo di acquisto isolato dagli altri costi di acquisizione (notaio,

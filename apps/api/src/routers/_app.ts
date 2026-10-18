@@ -12,6 +12,7 @@ import { clientRouter } from "./client.js";
 import { priceListItemRouter } from "./priceListItem.js";
 import { costCategoryRouter } from "./costCategory.js";
 import { costTemplateRouter } from "./costTemplate.js";
+import { quoteSnapshotRouter } from "./quoteSnapshot.js";
 import { resultsRouter } from "./results.js";
 
 export const appRouter = router({
@@ -28,6 +29,7 @@ export const appRouter = router({
   priceListItem: priceListItemRouter,
   costCategory: costCategoryRouter,
   costTemplate: costTemplateRouter,
+  quoteSnapshot: quoteSnapshotRouter,
   results: resultsRouter,
 });
 
