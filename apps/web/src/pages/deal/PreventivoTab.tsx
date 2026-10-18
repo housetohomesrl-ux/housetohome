@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { formatCurrency } from "../../lib/format";
 import type { DealDetail } from "../../lib/types";
@@ -6,6 +6,7 @@ import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { Input, Label } from "../../components/ui/Field";
 import { Button } from "../../components/ui/Button";
 import { clientBasePrice, quoteVatRatePct } from "./RenovationTab";
+import { downloadElementAsPdf } from "../../lib/pdf";
 import logoUrl from "../../assets/housetohome-logo.jpg";
 
 export function formatDateIt(value: string | Date): string {
@@ -23,6 +24,8 @@ export function formatDateIt(value: string | Date): string {
  */
 export default function PreventivoTab({ deal }: { deal: DealDetail }) {
   const utils = trpc.useUtils();
+  const printRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
   const [vatPct, setVatPct] = useState(quoteVatRatePct(deal).toString());
   const saveVat = trpc.dealSettings.updateRenovationSettings.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
@@ -70,9 +73,26 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
           Elenca le voci di costo con il prezzo già maggiorato (impostato nella scheda Ristrutturazione, o costo +
           ricarico % per Materiali/Lavorazioni), senza IVA per voce. Non mostra dati interni come pagato/residuo.
         </p>
-        <Button variant="secondary" onClick={() => window.print()}>
-          Stampa preventivo
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => window.print()}>
+            Stampa preventivo
+          </Button>
+          <Button
+            variant="secondary"
+            disabled={downloading}
+            onClick={async () => {
+              if (!printRef.current) return;
+              setDownloading(true);
+              try {
+                await downloadElementAsPdf(printRef.current, `Preventivo ${deal.name}.pdf`);
+              } finally {
+                setDownloading(false);
+              }
+            }}
+          >
+            {downloading ? "Generazione PDF..." : "Scarica PDF"}
+          </Button>
+        </div>
       </div>
 
       <Card className="print:hidden">
@@ -129,7 +149,7 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
       </Card>
 
       {/* Documento stampabile: stessa intestazione/colori/logo del modulo House to Home Srl. */}
-      <div className="bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm print:p-10 print:shadow-none">
+      <div ref={printRef} className="bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm print:p-10 print:shadow-none">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-base font-bold tracking-wide">HOUSETOHOME SRL</h1>

@@ -11,6 +11,7 @@ import { vendorRouter } from "./vendor.js";
 import { clientRouter } from "./client.js";
 import { priceListItemRouter } from "./priceListItem.js";
 import { costCategoryRouter } from "./costCategory.js";
+import { costTemplateRouter } from "./costTemplate.js";
 import { resultsRouter } from "./results.js";
 
 export const appRouter = router({
@@ -26,6 +27,7 @@ export const appRouter = router({
   clients: clientRouter,
   priceListItem: priceListItemRouter,
   costCategory: costCategoryRouter,
+  costTemplate: costTemplateRouter,
   results: resultsRouter,
 });
 

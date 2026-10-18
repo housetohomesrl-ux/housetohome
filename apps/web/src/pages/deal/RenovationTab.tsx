@@ -553,6 +553,8 @@ function BulkAddFromLibrary({
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Record<string, string>>({});
   const [lastAdded, setLastAdded] = useState<number | null>(null);
+  const [templateName, setTemplateName] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
 
   const bulkAdd = trpc.costLineItem.bulkImport.useMutation({
     onSuccess: (result) => {
@@ -560,6 +562,17 @@ function BulkAddFromLibrary({
       setLastAdded(result.created);
       setSelected({});
     },
+  });
+
+  const templates = trpc.costTemplate.list.useQuery({ libraryScope: deal.operationType });
+  const saveTemplate = trpc.costTemplate.create.useMutation({
+    onSuccess: () => {
+      utils.costTemplate.list.invalidate();
+      setTemplateName("");
+    },
+  });
+  const deleteTemplate = trpc.costTemplate.delete.useMutation({
+    onSuccess: () => utils.costTemplate.list.invalidate(),
   });
 
   const categoryById = new Map(categories.map((c) => [c.id, c]));
@@ -608,6 +621,30 @@ function BulkAddFromLibrary({
     });
   }
 
+  function loadTemplate(templateId: string) {
+    const tpl = templates.data?.find((t) => t.id === templateId);
+    if (!tpl) return;
+    const next: Record<string, string> = {};
+    for (const item of tpl.items) {
+      if (available.some((p) => p.id === item.priceListItemId)) {
+        next[item.priceListItemId] = String(item.quantity);
+      }
+    }
+    setSelected(next);
+  }
+
+  function handleSaveTemplate() {
+    if (!templateName.trim() || selectedCount === 0) return;
+    saveTemplate.mutate({
+      name: templateName.trim(),
+      libraryScope: deal.operationType,
+      items: Object.entries(selected).map(([priceListItemId, qtyStr]) => ({
+        priceListItemId,
+        quantity: Number(qtyStr) || 1,
+      })),
+    });
+  }
+
   function handleAdd() {
     const items = Object.entries(selected)
       .map(([id, qtyStr]) => {
@@ -639,6 +676,57 @@ function BulkAddFromLibrary({
         subtitle="Spunta più voci, imposta la quantità e aggiungile tutte insieme al deal in un colpo solo, invece di una alla volta."
       />
       <CardBody>
+        <div className="mb-3 flex flex-wrap items-end gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+          <div>
+            <Label>Carica modello</Label>
+            <Select
+              className="w-56"
+              value={selectedTemplateId}
+              onChange={(e) => {
+                setSelectedTemplateId(e.target.value);
+                if (e.target.value) loadTemplate(e.target.value);
+              }}
+            >
+              <option value="">Nessuno — scegli un modello</option>
+              {(templates.data ?? []).map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} ({t.items.length} voci)
+                </option>
+              ))}
+            </Select>
+          </div>
+          {selectedTemplateId && (
+            <button
+              type="button"
+              className="text-sm text-red-600 hover:underline"
+              disabled={deleteTemplate.isPending}
+              onClick={() => {
+                deleteTemplate.mutate({ id: selectedTemplateId });
+                setSelectedTemplateId("");
+              }}
+            >
+              Elimina modello
+            </button>
+          )}
+          <div className="ml-auto flex items-end gap-2">
+            <div>
+              <Label>Salva selezione come modello</Label>
+              <Input
+                placeholder="Nome modello (es. Bagno standard)"
+                className="w-56"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+              />
+            </div>
+            <Button
+              variant="secondary"
+              disabled={selectedCount === 0 || !templateName.trim() || saveTemplate.isPending}
+              onClick={handleSaveTemplate}
+            >
+              Salva modello
+            </Button>
+          </div>
+        </div>
         <Input
           placeholder="Cerca per nome..."
           value={search}

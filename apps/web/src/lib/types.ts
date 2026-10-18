@@ -11,3 +11,4 @@ export type PriceListItem = RouterOutputs["priceListItem"]["list"][number];
 export type DealSummary = RouterOutputs["deal"]["list"][number];
 export type Vendor = RouterOutputs["vendor"]["list"][number];
 export type Client = RouterOutputs["clients"]["list"][number];
+export type CostTemplate = RouterOutputs["costTemplate"]["list"][number];

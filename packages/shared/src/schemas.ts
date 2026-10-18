@@ -219,6 +219,18 @@ export const priceListBulkImportSchema = z.object({
     .max(1000),
 });
 
+// Pacchetto riutilizzabile di voci della libreria prezzi (es. "Bagno
+// standard"): si salva una selezione fatta nel selettore multiplo e la si
+// riapplica con un click ai deal successivi dello stesso tipo.
+export const costTemplateCreateSchema = z.object({
+  name: z.string().min(1),
+  libraryScope: dealOperationTypeSchema,
+  items: z
+    .array(z.object({ priceListItemId: z.string(), quantity: z.number().positive() }))
+    .min(1)
+    .max(200),
+});
+
 export const costCategoryCreateSchema = z.object({
   group: costCategoryGroupSchema,
   name: z.string().min(1),

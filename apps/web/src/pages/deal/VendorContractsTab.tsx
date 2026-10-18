@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatCurrency } from "../../lib/format";
 import type { DealDetail, CostLineItemDetail } from "../../lib/types";
 import { Button } from "../../components/ui/Button";
+import { downloadElementAsPdf } from "../../lib/pdf";
 import logoUrl from "../../assets/housetohome-logo.jpg";
 import { formatDateIt } from "./PreventivoTab";
 
@@ -24,6 +25,8 @@ function rowTotal(item: CostLineItemDetail): number {
  */
 export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
   const [printingVendorId, setPrintingVendorId] = useState<string | null>(null);
+  const [downloadingVendorId, setDownloadingVendorId] = useState<string | null>(null);
+  const printRefs = useRef(new Map<string, HTMLDivElement>());
 
   useEffect(() => {
     const reset = () => setPrintingVendorId(null);
@@ -61,7 +64,7 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
         const hidden = printingVendorId !== null && printingVendorId !== vendor.id;
         return (
           <div key={vendor.id} className={hidden ? "print:hidden" : undefined}>
-            <div className="flex justify-end print:hidden">
+            <div className="flex justify-end gap-2 print:hidden">
               <Button
                 variant="secondary"
                 onClick={() => {
@@ -71,9 +74,31 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
               >
                 Stampa contratto {vendor.name}
               </Button>
+              <Button
+                variant="secondary"
+                disabled={downloadingVendorId === vendor.id}
+                onClick={async () => {
+                  const el = printRefs.current.get(vendor.id);
+                  if (!el) return;
+                  setDownloadingVendorId(vendor.id);
+                  try {
+                    await downloadElementAsPdf(el, `Contratto ${vendor.name} - ${deal.name}.pdf`);
+                  } finally {
+                    setDownloadingVendorId(null);
+                  }
+                }}
+              >
+                {downloadingVendorId === vendor.id ? "Generazione PDF..." : "Scarica PDF"}
+              </Button>
             </div>
 
-            <div className="mt-2 bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm print:p-10 print:shadow-none">
+            <div
+              ref={(el) => {
+                if (el) printRefs.current.set(vendor.id, el);
+                else printRefs.current.delete(vendor.id);
+              }}
+              className="mt-2 bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm print:p-10 print:shadow-none"
+            >
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h1 className="text-base font-bold tracking-wide">HOUSETOHOME SRL</h1>

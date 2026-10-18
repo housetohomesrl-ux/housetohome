@@ -34,6 +34,7 @@ model Tenant {
   clients             Client[]
   costCategories      CostCategory[]
   priceListItems      PriceListItem[]
+  costTemplates       CostTemplate[]
   companyProfile      CompanyProfile?
   businessPlanTemplates BusinessPlanTemplate[]
   businessPlans       BusinessPlan[]
@@ -393,10 +394,43 @@ model PriceListItem {
   updatedAt         DateTime     @updatedAt
 
   costLineItems CostLineItem[]
+  templateItems CostTemplateItem[]
 
   @@index([tenantId])
   @@index([vendorId])
   @@map("price_list_items")
+}
+
+// Pacchetto di voci della libreria prezzi riutilizzabile (es. "Bagno
+// standard"): invece di spuntare ogni volta le stesse voci nel selettore
+// multiplo, si salva la selezione una volta e la si applica in un click ai
+// deal successivi dello stesso tipo (libraryScope).
+model CostTemplate {
+  id           String            @id @default(cuid())
+  tenantId     String
+  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  libraryScope DealOperationType
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  items CostTemplateItem[]
+
+  @@index([tenantId])
+  @@map("cost_templates")
+}
+
+model CostTemplateItem {
+  id              String       @id @default(cuid())
+  templateId      String
+  template        CostTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  priceListItemId String
+  priceListItem   PriceListItem @relation(fields: [priceListItemId], references: [id], onDelete: Cascade)
+  quantity        Decimal      @db.Decimal(10, 3) @default(1)
+  order           Int          @default(0)
+
+  @@index([templateId])
+  @@map("cost_template_items")
 }
 
 // ---------------------------------------------------------------------------
