@@ -13,3 +13,5 @@ export type Vendor = RouterOutputs["vendor"]["list"][number];
 export type Client = RouterOutputs["clients"]["list"][number];
 export type CostTemplate = RouterOutputs["costTemplate"]["list"][number];
 export type QuoteSnapshot = RouterOutputs["quoteSnapshot"]["list"][number];
+export type FlipRevenue = RouterOutputs["revenue"]["flip"];
+export type RistrutturazioneRevenue = RouterOutputs["revenue"]["ristrutturazione"];

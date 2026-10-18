@@ -6,7 +6,7 @@ import { protectedProcedure, router } from "../trpc.js";
 import { assertDealAccess } from "../lib/tenantAccess.js";
 import { dealInclude } from "../lib/dealInclude.js";
 import { mapDealToFinancialsInput } from "../lib/mapDealToFinancialsInput.js";
-import { computeClientJobNetProfit } from "../lib/clientJobSummary.js";
+import { computeClientJobSummary } from "../lib/clientJobSummary.js";
 import { serializeDecimals } from "../lib/serialize.js";
 
 const SALE_SCENARIO_DEFAULTS = [
@@ -39,7 +39,7 @@ export const dealRouter = router({
       // quindi niente ROI/plusvalenza — solo il margine netto sulla
       // ristrutturazione (stessa formula della tab Risultati del deal).
       if (deal.operationType === "RISTRUTTURAZIONE_CLIENTE") {
-        return { ...base, summary: { netProfit: computeClientJobNetProfit(deal), roi: null, totalProjectCost: null } };
+        return { ...base, summary: { netProfit: computeClientJobSummary(deal).netMargin, roi: null, totalProjectCost: null } };
       }
 
       const input = mapDealToFinancialsInput(deal, "REALISTICO");

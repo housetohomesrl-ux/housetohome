@@ -17,13 +17,13 @@ function clientBasePrice(item: ClientCostLineItem, deal: FullDeal): number {
 }
 
 /**
- * Margine netto (dopo IRES+IRAP) di un deal RISTRUTTURAZIONE_CLIENTE, stessa
- * formula usata in ClientResultsTab lato web: niente ROI/plusvalenza (non
- * c'è acquisto/vendita dell'immobile), solo quanto si guadagna sulla
- * ristrutturazione al netto di IVA, costi di detenzione del cantiere e
- * tasse societarie stimate.
+ * Margine lordo e netto (dopo IRES+IRAP) di un deal RISTRUTTURAZIONE_CLIENTE,
+ * stessa formula usata in ClientResultsTab lato web: niente ROI/plusvalenza
+ * (non c'è acquisto/vendita dell'immobile), solo quanto si guadagna sulla
+ * ristrutturazione al netto di IVA, costi di detenzione del cantiere e,
+ * per il netto, tasse societarie stimate.
  */
-export function computeClientJobNetProfit(deal: FullDeal): number {
+export function computeClientJobSummary(deal: FullDeal): { grossMargin: number; netMargin: number } {
   const items = deal.costLineItems.filter((i) => !i.isMemo);
   let clientSubtotal = 0;
   let marginCost = 0;
@@ -36,9 +36,9 @@ export function computeClientJobNetProfit(deal: FullDeal): number {
   const holdingCostsTotal = holdingCosts
     ? holdingCosts.durationMonths * (holdingCosts.monthlyInsurance.toNumber() + holdingCosts.otherMonthlyCosts.toNumber())
     : 0;
-  const margin = clientSubtotal - marginCost - holdingCostsTotal;
+  const grossMargin = clientSubtotal - marginCost - holdingCostsTotal;
 
   const companyTaxRatePct = (deal.fiscalSettings?.iresRatePct.toNumber() ?? 24) + (deal.fiscalSettings?.irapRatePct.toNumber() ?? 3.9);
-  const companyTax = margin > 0 ? (margin * companyTaxRatePct) / 100 : 0;
-  return margin - companyTax;
+  const companyTax = grossMargin > 0 ? (grossMargin * companyTaxRatePct) / 100 : 0;
+  return { grossMargin, netMargin: grossMargin - companyTax };
 }

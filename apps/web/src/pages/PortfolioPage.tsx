@@ -7,22 +7,7 @@ import { Badge } from "../components/ui/Badge";
 import { Card } from "../components/ui/Card";
 import { Input, Select } from "../components/ui/Field";
 import type { DealSummary } from "../lib/types";
-
-const FLIP_STATUS_LABEL: Record<string, string> = {
-  VALUTAZIONE: "In valutazione",
-  ACQUISIZIONE: "Acquistato",
-  RISTRUTTURAZIONE: "In ristrutturazione",
-  VENDITA: "In vendita",
-  CHIUSO: "Chiuso",
-  ARCHIVIATO: "Archiviato",
-};
-
-// I deal "Ristrutturazione per un cliente" non passano da acquisto/vendita:
-// riusano lo stesso DealStatus ma con un vocabolario a due sole fasi.
-const CLIENT_STATUS_LABEL: Record<string, string> = {
-  VALUTAZIONE: "Preventivo per cliente",
-  ACQUISIZIONE: "Preventivo confermato",
-};
+import { FLIP_STATUS_LABEL, CLIENT_STATUS_LABEL } from "../lib/dealStatus";
 
 const STATUS_TONE: Record<string, "neutral" | "info" | "warning" | "success"> = {
   VALUTAZIONE: "neutral",

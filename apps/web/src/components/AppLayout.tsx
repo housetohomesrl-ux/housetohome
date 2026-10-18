@@ -37,6 +37,12 @@ export default function AppLayout() {
             <Link to="/price-list/ristrutturazione" className="text-sm text-slate-600 hover:text-slate-900">
               Libreria prezzi Ristrutturazioni
             </Link>
+            <Link to="/revenue/flip" className="text-sm text-slate-600 hover:text-slate-900">
+              Fatturato Flip
+            </Link>
+            <Link to="/revenue/ristrutturazione" className="text-sm text-slate-600 hover:text-slate-900">
+              Fatturato Ristrutturazione
+            </Link>
             <span className="text-sm text-slate-400">{me.data?.name}</span>
             <Button variant="secondary" onClick={() => logout.mutate()}>
               Esci
