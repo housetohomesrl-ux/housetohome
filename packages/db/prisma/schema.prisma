@@ -35,6 +35,7 @@ model Tenant {
   costCategories      CostCategory[]
   priceListItems      PriceListItem[]
   costTemplates       CostTemplate[]
+  companyLoans        CompanyLoan[]
   companyProfile      CompanyProfile?
   businessPlanTemplates BusinessPlanTemplate[]
   businessPlans       BusinessPlan[]
@@ -194,12 +195,16 @@ model QuoteSnapshot {
 // agenzia, due diligence, ecc. sono CostLineItem con categoria group=ACQUISIZIONE):
 // serve come base imponibile per la plusvalenza e per il breakeven.
 model AcquisitionDetails {
-  dealId        String   @id
-  deal          Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
-  purchasePrice Decimal  @db.Decimal(14, 2)
-  depositAmount Decimal? @db.Decimal(14, 2) // acconto/caparra già versata, a titolo informativo (non modifica il costo totale di acquisizione)
+  dealId        String    @id
+  deal          Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  purchasePrice Decimal   @db.Decimal(14, 2)
+  depositAmount Decimal?  @db.Decimal(14, 2) // acconto/caparra già versata, a titolo informativo (non modifica il costo totale di acquisizione)
+  // Data reale (o prevista) di acquisto: punto di partenza per calcolare
+  // quali rate dei finanziamenti aziendali (CompanyLoan) ricadono nella
+  // finestra di detenzione di questo flip.
+  purchaseDate  DateTime?
   notes         String?
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime  @updatedAt
 
   @@map("acquisition_details")
 }
@@ -512,6 +517,37 @@ model LoanPayment {
 
   @@unique([loanId, month])
   @@map("loan_payments")
+}
+
+// Finanziamento aziendale "reale" (non legato a un singolo deal): un mutuo o
+// prestito con un piano di ammortamento reale fornito dalla banca, importato
+// una volta sola con le rate vere (data + quota capitale + quota interessi).
+// Usato per calcolare in automatico gli interessi di un flip in base alla
+// finestra [AcquisitionDetails.purchaseDate, +durata cantiere]: si sommano
+// le quote interessi delle rate di TUTTI i CompanyLoan del tenant che cadono
+// in quella finestra, invece di stimare un tasso teorico per ogni deal.
+model CompanyLoan {
+  id        String               @id @default(cuid())
+  tenantId  String
+  tenant    Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime             @default(now())
+  payments  CompanyLoanPayment[]
+
+  @@index([tenantId])
+  @@map("company_loans")
+}
+
+model CompanyLoanPayment {
+  id               String      @id @default(cuid())
+  companyLoanId    String
+  companyLoan      CompanyLoan @relation(fields: [companyLoanId], references: [id], onDelete: Cascade)
+  dueDate          DateTime
+  principalPortion Decimal     @db.Decimal(14, 2)
+  interestPortion  Decimal     @db.Decimal(14, 2)
+
+  @@index([companyLoanId, dueDate])
+  @@map("company_loan_payments")
 }
 
 // Capitale proprio (equity) e soci/co-investitori — non genera interessi,

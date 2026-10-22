@@ -94,6 +94,14 @@ export interface SaleScenarioInput {
 export interface DealFinancialsInput {
   purchasePrice: number;
   contingencyPct: number;
+  // Costo reale (capitale + interessi, la rata intera) dei finanziamenti
+  // aziendali sempre attivi (CompanyLoan — mutuo e prestito soci, non legati
+  // a un singolo deal), calcolato server-side dalla finestra [data acquisto,
+  // + durata cantiere] sul piano di ammortamento vero fornito dalla banca.
+  // Si somma ai costi di detenzione, separato dagli interessi dei Loan del
+  // deal (quelli restano solo-interessi, qui si conta l'intera rata perché
+  // è un costo fisso che l'azienda paga comunque ogni mese.
+  externalFinancingCost?: number;
   costLineItems: CostLineItemInput[];
   loans: LoanInput[];
   partners: PartnerInput[];
@@ -133,6 +141,9 @@ export interface HoldingCostsResult {
   nonLoanMonthlyTotal: number;
   nonLoanTotal: number;
   loanInterestTotal: number;
+  // Rata intera (capitale + interessi) dei finanziamenti aziendali sempre
+  // attivi nella finestra di questo deal — vedi externalFinancingCost.
+  externalFinancingCost: number;
   total: number;
   loanSchedules: LoanScheduleResult[];
 }

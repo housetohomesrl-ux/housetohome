@@ -15,3 +15,4 @@ export type CostTemplate = RouterOutputs["costTemplate"]["list"][number];
 export type QuoteSnapshot = RouterOutputs["quoteSnapshot"]["list"][number];
 export type FlipRevenue = RouterOutputs["revenue"]["flip"];
 export type RistrutturazioneRevenue = RouterOutputs["revenue"]["ristrutturazione"];
+export type CompanyLoan = RouterOutputs["companyLoan"]["list"][number];

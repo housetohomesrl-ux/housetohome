@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { trpc } from "../../lib/trpc";
 import type { DealDetail } from "../../lib/types";
+import { formatCurrency } from "../../lib/format";
 import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { Input, Label, Select } from "../../components/ui/Field";
 import { Button } from "../../components/ui/Button";
+
+const REGISTRATION_TAX_CATEGORY_NAME = "Imposta di registro / IVA acquisto";
+const REGISTRATION_TAX_DESCRIPTION = "Imposta di registro (9% prezzo di acquisto, acquisto con società)";
 
 const REGIME_LABEL: Record<string, string> = {
   PERSONA_FISICA: "Persona fisica (imposta sostitutiva su plusvalenza)",
@@ -21,6 +25,9 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
   });
   const [purchasePrice, setPurchasePrice] = useState(deal.acquisitionDetails?.purchasePrice.toString() ?? "0");
   const [depositAmount, setDepositAmount] = useState(deal.acquisitionDetails?.depositAmount?.toString() ?? "0");
+  const [purchaseDate, setPurchaseDate] = useState(
+    deal.acquisitionDetails?.purchaseDate ? deal.acquisitionDetails.purchaseDate.slice(0, 10) : "",
+  );
   const [notes, setNotes] = useState(deal.acquisitionDetails?.notes ?? "");
   const [client, setClient] = useState({
     clientName: deal.clientName ?? "",
@@ -56,6 +63,18 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
   const saveAcquisition = trpc.dealSettings.updateAcquisitionDetails.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
   });
+  const costCategories = trpc.costCategory.list.useQuery();
+  const addRegistrationTax = trpc.costLineItem.create.useMutation({
+    onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
+  });
+  const isCompanyPurchase = deal.fiscalSettings?.regimeType === "SOCIETA_CAPITALI";
+  const estimatedRegistrationTax = Number(purchasePrice || 0) * 0.09;
+  const registrationTaxCategory = costCategories.data?.find(
+    (c) => c.group === "ACQUISIZIONE" && c.name === REGISTRATION_TAX_CATEGORY_NAME,
+  );
+  const registrationTaxAlreadyAdded = deal.costLineItems.some(
+    (i) => i.category.group === "ACQUISIZIONE" && i.description === REGISTRATION_TAX_DESCRIPTION,
+  );
   const saveFiscal = trpc.dealSettings.updateFiscalSettings.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
   });
@@ -245,6 +264,14 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
               <Label htmlFor="purchasePrice">Prezzo di acquisto (€)</Label>
               <Input id="purchasePrice" type="number" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} />
             </div>
+            <div>
+              <Label htmlFor="purchaseDate">Data di acquisto</Label>
+              <Input id="purchaseDate" type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} />
+              <p className="mt-1 text-xs text-slate-400">
+                Usata per calcolare in automatico la rata dei finanziamenti aziendali (scheda Finanziamento) nella
+                finestra di durata di questo flip.
+              </p>
+            </div>
             <div className="sm:col-span-2">
               <Label htmlFor="acqNotes">Note</Label>
               <Input id="acqNotes" value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -253,6 +280,35 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
               Spese notarili, imposta di registro/IVA, commissioni agenzia e due diligence si inseriscono come righe
               di costo nella scheda Ristrutturazione (categoria "Acquisizione").
             </p>
+            {isCompanyPurchase && Number(purchasePrice) > 0 && (
+              <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 sm:col-span-2">
+                Acquisto con la società: imposta di registro stimata al 9% sul prezzo di acquisto ={" "}
+                {formatCurrency(estimatedRegistrationTax, true)}.{" "}
+                {registrationTaxAlreadyAdded ? (
+                  "Già presente come riga di costo in Acquisizione."
+                ) : (
+                  <Button
+                    variant="secondary"
+                    className="mt-2"
+                    disabled={!registrationTaxCategory || addRegistrationTax.isPending}
+                    onClick={() => {
+                      if (!registrationTaxCategory) return;
+                      addRegistrationTax.mutate({
+                        dealId: deal.id,
+                        categoryId: registrationTaxCategory.id,
+                        description: REGISTRATION_TAX_DESCRIPTION,
+                        taxableAmount: 0,
+                        vatRatePct: 0,
+                        nonTaxableAmount: estimatedRegistrationTax,
+                        order: deal.costLineItems.length,
+                      });
+                    }}
+                  >
+                    Aggiungi come riga di costo
+                  </Button>
+                )}
+              </div>
+            )}
             <div className="sm:col-span-2">
               <Button
                 onClick={() =>
@@ -260,6 +316,7 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
                     dealId: deal.id,
                     purchasePrice: Number(purchasePrice),
                     depositAmount: Number(depositAmount),
+                    purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
                     notes: notes || undefined,
                   })
                 }

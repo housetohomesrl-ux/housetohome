@@ -2,7 +2,7 @@ import { prisma } from "@flipplan/db";
 import { computeDealFinancials } from "@flipplan/shared";
 import { protectedProcedure, router } from "../trpc.js";
 import { dealInclude } from "../lib/dealInclude.js";
-import { mapDealToFinancialsInput } from "../lib/mapDealToFinancialsInput.js";
+import { buildFinancialsInput } from "../lib/buildFinancialsInput.js";
 import { computeClientJobSummary } from "../lib/clientJobSummary.js";
 
 // Fatturato/utili dei deal CONCLUSI (status CHIUSO): una riga per deal,
@@ -16,21 +16,23 @@ export const revenueRouter = router({
       orderBy: { updatedAt: "desc" },
     });
 
-    const rows = deals.map((deal) => {
-      const input = mapDealToFinancialsInput(deal, "REALISTICO");
-      const summary = input ? computeDealFinancials(input) : null;
-      const realistico = deal.saleScenarios.find((s) => s.scenario === "REALISTICO");
-      return {
-        id: deal.id,
-        name: deal.name,
-        address: deal.address,
-        updatedAt: deal.updatedAt,
-        fatturato: realistico ? realistico.estimatedSalePrice.toNumber() : 0,
-        utileLordo: summary ? summary.sale.grossProfitBeforeTax : 0,
-        utileNetto: summary ? summary.sale.netProfit : 0,
-        datiIncompleti: !summary,
-      };
-    });
+    const rows = await Promise.all(
+      deals.map(async (deal) => {
+        const input = await buildFinancialsInput(ctx.user.tenantId, deal, "REALISTICO");
+        const summary = input ? computeDealFinancials(input) : null;
+        const realistico = deal.saleScenarios.find((s) => s.scenario === "REALISTICO");
+        return {
+          id: deal.id,
+          name: deal.name,
+          address: deal.address,
+          updatedAt: deal.updatedAt,
+          fatturato: realistico ? realistico.estimatedSalePrice.toNumber() : 0,
+          utileLordo: summary ? summary.sale.grossProfitBeforeTax : 0,
+          utileNetto: summary ? summary.sale.netProfit : 0,
+          datiIncompleti: !summary,
+        };
+      }),
+    );
 
     const totals = rows.reduce(
       (acc, r) => ({

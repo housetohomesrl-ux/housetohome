@@ -43,6 +43,9 @@ export default function AppLayout() {
             <Link to="/revenue/ristrutturazione" className="text-sm text-slate-600 hover:text-slate-900">
               Fatturato Ristrutturazione
             </Link>
+            <Link to="/company-loans" className="text-sm text-slate-600 hover:text-slate-900">
+              Finanziamenti aziendali
+            </Link>
             <span className="text-sm text-slate-400">{me.data?.name}</span>
             <Button variant="secondary" onClick={() => logout.mutate()}>
               Esci

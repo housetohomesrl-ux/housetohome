@@ -10,6 +10,7 @@ import ClientsPage from "./pages/ClientsPage";
 import PriceListPage from "./pages/PriceListPage";
 import RevenueFlipPage from "./pages/RevenueFlipPage";
 import RevenueRistrutturazionePage from "./pages/RevenueRistrutturazionePage";
+import CompanyLoansPage from "./pages/CompanyLoansPage";
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/price-list/:scope" element={<PriceListPage />} />
           <Route path="/revenue/flip" element={<RevenueFlipPage />} />
           <Route path="/revenue/ristrutturazione" element={<RevenueRistrutturazionePage />} />
+          <Route path="/company-loans" element={<CompanyLoansPage />} />
         </Route>
       </Route>
     </Routes>

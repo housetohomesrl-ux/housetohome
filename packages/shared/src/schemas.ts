@@ -91,6 +91,7 @@ export const acquisitionDetailsSchema = z.object({
   dealId: z.string(),
   purchasePrice: z.number().nonnegative(),
   depositAmount: z.number().nonnegative().optional(),
+  purchaseDate: z.coerce.date().nullable().optional(),
   notes: z.string().optional(),
 });
 
@@ -353,6 +354,27 @@ export const sendVendorContractEmailSchema = z.object({
   dealId: z.string(),
   vendorId: z.string(),
   pdfBase64: z.string().min(1),
+});
+
+export const companyLoanCreateSchema = z.object({
+  name: z.string().min(1),
+});
+
+// Import in blocco del piano di ammortamento REALE di un finanziamento
+// aziendale (CompanyLoan), da un documento della banca: ogni riga è una
+// rata vera, non ricalcolata.
+export const companyLoanPaymentBulkImportSchema = z.object({
+  companyLoanId: z.string(),
+  payments: z
+    .array(
+      z.object({
+        dueDate: z.coerce.date(),
+        principalPortion: z.number().nonnegative(),
+        interestPortion: z.number().nonnegative(),
+      }),
+    )
+    .min(1)
+    .max(500),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

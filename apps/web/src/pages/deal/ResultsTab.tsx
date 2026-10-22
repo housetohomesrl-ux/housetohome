@@ -95,6 +95,18 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
         />
       </div>
 
+      {r.holding.externalFinancingCost > 0 && (
+        <p className="-mt-3 text-xs text-slate-400">
+          Il costo di detenzione include {formatCurrency(r.holding.externalFinancingCost, true)} di rata (capitale +
+          interessi) dei finanziamenti aziendali (scheda Finanziamento → Finanziamenti aziendali).{" "}
+          {deal.acquisitionDetails?.purchaseDate ? (
+            "Calcolata sulla finestra data di acquisto → durata cantiere."
+          ) : (
+            "Stimata a partire da oggi (nessuna data di acquisto impostata ancora): si aggiornerà in automatico sulla finestra reale non appena imposterai la data di acquisto in scheda Acquisizione."
+          )}
+        </p>
+      )}
+
       {(() => {
         const purchasePrice = deal.acquisitionDetails?.purchasePrice ?? 0;
         const depositAmount = deal.acquisitionDetails?.depositAmount ?? 0;

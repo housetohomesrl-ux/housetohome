@@ -5,7 +5,7 @@ import { z } from "zod";
 import { protectedProcedure, router } from "../trpc.js";
 import { assertDealAccess } from "../lib/tenantAccess.js";
 import { dealInclude } from "../lib/dealInclude.js";
-import { mapDealToFinancialsInput } from "../lib/mapDealToFinancialsInput.js";
+import { buildFinancialsInput } from "../lib/buildFinancialsInput.js";
 import { computeClientJobSummary, computeClientDueBalance, computeOverdueInstallments } from "../lib/clientJobSummary.js";
 import { serializeDecimals } from "../lib/serialize.js";
 
@@ -23,38 +23,40 @@ export const dealRouter = router({
       orderBy: { updatedAt: "desc" },
     });
 
-    return deals.map((deal) => {
-      const base = {
-        id: deal.id,
-        name: deal.name,
-        address: deal.address,
-        propertyType: deal.propertyType,
-        operationType: deal.operationType,
-        status: deal.status,
-        isDemo: deal.isDemo,
-        updatedAt: deal.updatedAt,
-        quoteStatus: deal.quoteStatus,
-        quoteValidUntil: deal.quoteValidUntil,
-        dueFromClient: deal.operationType === "RISTRUTTURAZIONE_CLIENTE" ? computeClientDueBalance(deal) : null,
-        overdueInstallments: deal.operationType === "RISTRUTTURAZIONE_CLIENTE" ? computeOverdueInstallments(deal) : [],
-      };
+    return Promise.all(
+      deals.map(async (deal) => {
+        const base = {
+          id: deal.id,
+          name: deal.name,
+          address: deal.address,
+          propertyType: deal.propertyType,
+          operationType: deal.operationType,
+          status: deal.status,
+          isDemo: deal.isDemo,
+          updatedAt: deal.updatedAt,
+          quoteStatus: deal.quoteStatus,
+          quoteValidUntil: deal.quoteValidUntil,
+          dueFromClient: deal.operationType === "RISTRUTTURAZIONE_CLIENTE" ? computeClientDueBalance(deal) : null,
+          overdueInstallments: deal.operationType === "RISTRUTTURAZIONE_CLIENTE" ? computeOverdueInstallments(deal) : [],
+        };
 
-      // Ristrutturazione per un cliente: niente acquisto/vendita immobile,
-      // quindi niente ROI/plusvalenza — solo il margine netto sulla
-      // ristrutturazione (stessa formula della tab Risultati del deal).
-      if (deal.operationType === "RISTRUTTURAZIONE_CLIENTE") {
-        return { ...base, summary: { netProfit: computeClientJobSummary(deal).netMargin, roi: null, totalProjectCost: null } };
-      }
+        // Ristrutturazione per un cliente: niente acquisto/vendita immobile,
+        // quindi niente ROI/plusvalenza — solo il margine netto sulla
+        // ristrutturazione (stessa formula della tab Risultati del deal).
+        if (deal.operationType === "RISTRUTTURAZIONE_CLIENTE") {
+          return { ...base, summary: { netProfit: computeClientJobSummary(deal).netMargin, roi: null, totalProjectCost: null } };
+        }
 
-      const input = mapDealToFinancialsInput(deal, "REALISTICO");
-      const summary = input ? computeDealFinancials(input) : null;
-      return {
-        ...base,
-        summary: summary
-          ? { netProfit: summary.sale.netProfit, roi: summary.kpis.roi, totalProjectCost: summary.totals.totalProjectCost }
-          : null,
-      };
-    });
+        const input = await buildFinancialsInput(ctx.user.tenantId, deal, "REALISTICO");
+        const summary = input ? computeDealFinancials(input) : null;
+        return {
+          ...base,
+          summary: summary
+            ? { netProfit: summary.sale.netProfit, roi: summary.kpis.roi, totalProjectCost: summary.totals.totalProjectCost }
+            : null,
+        };
+      }),
+    );
   }),
 
   get: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {

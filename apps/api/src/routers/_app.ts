@@ -15,6 +15,7 @@ import { costTemplateRouter } from "./costTemplate.js";
 import { quoteSnapshotRouter } from "./quoteSnapshot.js";
 import { revenueRouter } from "./revenue.js";
 import { emailRouter } from "./email.js";
+import { companyLoanRouter } from "./companyLoan.js";
 import { resultsRouter } from "./results.js";
 
 export const appRouter = router({
@@ -34,6 +35,7 @@ export const appRouter = router({
   quoteSnapshot: quoteSnapshotRouter,
   revenue: revenueRouter,
   email: emailRouter,
+  companyLoan: companyLoanRouter,
   results: resultsRouter,
 });
 

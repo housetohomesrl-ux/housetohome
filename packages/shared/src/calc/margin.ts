@@ -25,7 +25,7 @@ export function computeDealFinancials(input: DealFinancialsInput): DealFinancial
   const { fiscalSettings, saleScenario, holdingCosts: holdingConfig } = input;
 
   const costs = aggregateCostLineItems(input.costLineItems, input.contingencyPct);
-  const holding = computeHoldingCosts(holdingConfig, input.loans);
+  const holding = computeHoldingCosts(holdingConfig, input.loans, input.externalFinancingCost);
 
   const recoverable = fiscalSettings.costsVatRecoverable;
   const totalAcquisitionCost = money(input.purchasePrice).plus(

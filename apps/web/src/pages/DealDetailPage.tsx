@@ -41,7 +41,7 @@ export default function DealDetailPage() {
   ];
   const tabs = isClientJob
     ? [...baseTabs, { id: "preventivo", label: "Preventivo cliente" }, { id: "contratti-fornitori", label: "Contratti fornitori" }]
-    : baseTabs;
+    : [...baseTabs, { id: "contratti-fornitori", label: "Contratti fornitori" }];
 
   return (
     <div>
@@ -78,7 +78,7 @@ export default function DealDetailPage() {
         {activeTab === "vendita" && <SaleTab deal={deal.data} />}
         {activeTab === "risultati" && (isClientJob ? <ClientResultsTab deal={deal.data} /> : <ResultsTab deal={deal.data} />)}
         {activeTab === "preventivo" && isClientJob && <PreventivoTab deal={deal.data} />}
-        {activeTab === "contratti-fornitori" && isClientJob && <VendorContractsTab deal={deal.data} />}
+        {activeTab === "contratti-fornitori" && <VendorContractsTab deal={deal.data} />}
       </div>
     </div>
   );
