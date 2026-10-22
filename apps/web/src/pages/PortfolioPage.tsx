@@ -38,6 +38,9 @@ export default function PortfolioPage() {
   const markPurchased = trpc.deal.update.useMutation({
     onSuccess: () => utils.deal.list.invalidate(),
   });
+  const confirmClientQuote = trpc.deal.confirmClientQuote.useMutation({
+    onSuccess: () => utils.deal.list.invalidate(),
+  });
 
   function confirmDelete(deal: { id: string; name: string }) {
     const ok = window.confirm(
@@ -201,7 +204,11 @@ export default function PortfolioPage() {
           toStatus: "ACQUISIZIONE",
           label: "Preventivo confermato",
           mutation: markPurchased,
-          extraData: { quoteStatus: "ACCETTATO" },
+          // Oltre a confermare, imposta in automatico le scadenze dei 3
+          // pagamenti sui termini del preventivo (25%/50%/saldo), vedi
+          // deal.confirmClientQuote.
+          onConfirm: (dealId) => confirmClientQuote.mutate({ id: dealId }),
+          pendingId: confirmClientQuote.isPending ? confirmClientQuote.variables?.id : undefined,
         }}
         showSort={false}
         className="mt-8"
@@ -243,6 +250,12 @@ function DealSection({
     label: string;
     mutation: ReturnType<typeof trpc.deal.update.useMutation>;
     extraData?: Record<string, unknown>;
+    // Se presente, sostituisce la mutation generica sopra con una logica
+    // dedicata (es. confirmClientQuote, che oltre a confermare imposta le
+    // scadenze dei pagamenti). pendingId è l'id del deal in corso con
+    // quella mutation separata, per mostrare lo spinner sulla riga giusta.
+    onConfirm?: (dealId: string) => void;
+    pendingId?: string;
   };
   showSort?: boolean;
   className?: string;
@@ -318,16 +331,27 @@ function DealSection({
             deleting={deleteDeal.isPending && deleteDeal.variables?.id === deal.id}
             onStageAction={
               stageAction && deal.status === stageAction.fromStatus
-                ? () =>
+                ? () => {
+                    if (stageAction.onConfirm) {
+                      stageAction.onConfirm(deal.id);
+                      return;
+                    }
                     stageAction.mutation.mutate({
                       id: deal.id,
                       status: stageAction.toStatus as DealSummary["status"],
                       ...stageAction.extraData,
-                    })
+                    });
+                  }
                 : undefined
             }
             stageActionLabel={stageAction?.label}
-            stageActionPending={stageAction ? stageAction.mutation.isPending && stageAction.mutation.variables?.id === deal.id : false}
+            stageActionPending={
+              stageAction
+                ? stageAction.onConfirm
+                  ? stageAction.pendingId === deal.id
+                  : stageAction.mutation.isPending && stageAction.mutation.variables?.id === deal.id
+                : false
+            }
           />
         ))}
         {filtered.length === 0 && !loading && <p className="py-6 text-center text-sm text-slate-400">{emptyLabel}</p>}

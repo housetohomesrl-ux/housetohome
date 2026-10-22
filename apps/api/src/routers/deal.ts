@@ -110,4 +110,30 @@ export const dealRouter = router({
     await prisma.deal.delete({ where: { id: input.id } });
     return { success: true };
   }),
+
+  // Pulsante "Preventivo confermato" di un deal RISTRUTTURAZIONE_CLIENTE:
+  // oltre a segnare il deal avviato, imposta in automatico le scadenze dei
+  // 3 pagamenti sui termini stampati sul preventivo (25% alla conferma, 50%
+  // a metà lavori, saldo a fine lavori), usando la durata cantiere della
+  // scheda Detenzione come base per "metà"/"fine lavori" (≈30 giorni/mese).
+  confirmClientQuote: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    await assertDealAccess(ctx.user.tenantId, input.id);
+    const deal = await prisma.deal.findUniqueOrThrow({ where: { id: input.id }, include: { holdingCosts: true } });
+    const durationDays = (deal.holdingCosts?.durationMonths ?? 6) * 30;
+    const today = new Date();
+    const midWorks = new Date(today.getTime() + (durationDays / 2) * 24 * 60 * 60 * 1000);
+    const endWorks = new Date(today.getTime() + durationDays * 24 * 60 * 60 * 1000);
+
+    const updated = await prisma.deal.update({
+      where: { id: input.id },
+      data: {
+        status: "ACQUISIZIONE",
+        quoteStatus: "ACCETTATO",
+        clientAcconto1DueDate: today,
+        clientAcconto2DueDate: midWorks,
+        clientSaldoDueDate: endWorks,
+      },
+    });
+    return serializeDecimals(updated);
+  }),
 });
