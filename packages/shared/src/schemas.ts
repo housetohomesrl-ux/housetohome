@@ -169,6 +169,7 @@ export const quoteCreateSchema = z.object({
 export const vendorCreateSchema = z.object({
   name: z.string().min(1),
   contact: z.string().optional(),
+  email: z.string().optional(),
   specialty: z.string().optional(),
   notes: z.string().optional(),
 });

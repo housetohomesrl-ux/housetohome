@@ -342,6 +342,7 @@ model Vendor {
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name      String
   contact   String?
+  email     String?
   specialty String?
   notes     String?
   createdAt DateTime @default(now())
