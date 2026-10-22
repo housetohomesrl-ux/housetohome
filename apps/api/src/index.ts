@@ -7,6 +7,7 @@ import { appRouter } from "./routers/_app.js";
 import { createContext } from "./context.js";
 import { config } from "./config.js";
 
+// Avvio del server HTTP (Fastify) con tRPC montato su /trpc.
 const fastify = Fastify({ logger: true });
 
 // Idempotente: crea le eventuali nuove categorie di costo di sistema
