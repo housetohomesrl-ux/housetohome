@@ -9,12 +9,13 @@ import { Button } from "../../components/ui/Button";
 const REGISTRATION_TAX_CATEGORY_NAME = "Imposta di registro / IVA acquisto";
 const PURCHASE_CATEGORY_LABEL: Record<string, string> = {
   PRIMA_CASA: "Prima casa (2% sulla rendita catastale)",
-  SECONDA_CASA: "Seconda casa (9% sul prezzo di acquisto)",
+  SECONDA_CASA: "Seconda casa (9% sulla rendita catastale)",
 };
-function registrationTaxDescription(category: "PRIMA_CASA" | "SECONDA_CASA") {
+const COMPANY_REGISTRATION_TAX_DESCRIPTION = "Imposta di registro (9% prezzo di acquisto, acquisto con società)";
+function privatePurchaseRegistrationTaxDescription(category: "PRIMA_CASA" | "SECONDA_CASA") {
   return category === "PRIMA_CASA"
     ? "Imposta di registro (2% rendita catastale, prima casa)"
-    : "Imposta di registro (9% prezzo di acquisto, seconda casa)";
+    : "Imposta di registro (9% rendita catastale, seconda casa)";
 }
 
 const REGIME_LABEL: Record<string, string> = {
@@ -81,19 +82,33 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
   const addRegistrationTax = trpc.costLineItem.create.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
   });
-  const estimatedRegistrationTax =
-    purchaseCategory === "PRIMA_CASA"
+  // Il regime fiscale del deal (scheda sotto) decide da solo come si calcola
+  // l'imposta di registro: una società non ha il beneficio "prima casa", paga
+  // sempre il 9% sul prezzo pieno. Solo per un privato ha senso chiedere
+  // prima/seconda casa, ed è sempre calcolata sulla rendita catastale (non
+  // sul prezzo dichiarato).
+  const regimeType = deal.fiscalSettings?.regimeType;
+  const isCompanyPurchase = regimeType === "SOCIETA_CAPITALI";
+  const isPrivatePurchase = regimeType === "PERSONA_FISICA";
+  const estimatedRegistrationTax = isCompanyPurchase
+    ? Number(purchasePrice || 0) * 0.09
+    : purchaseCategory === "PRIMA_CASA"
       ? Number(renditaCatastale || 0) * 0.02
       : purchaseCategory === "SECONDA_CASA"
-        ? Number(purchasePrice || 0) * 0.09
+        ? Number(renditaCatastale || 0) * 0.09
         : 0;
+  const registrationTaxDescription = isCompanyPurchase
+    ? COMPANY_REGISTRATION_TAX_DESCRIPTION
+    : purchaseCategory
+      ? privatePurchaseRegistrationTaxDescription(purchaseCategory)
+      : null;
   const registrationTaxCategory = costCategories.data?.find(
     (c) => c.group === "ACQUISIZIONE" && c.name === REGISTRATION_TAX_CATEGORY_NAME,
   );
   const registrationTaxAlreadyAdded =
-    purchaseCategory !== "" &&
+    registrationTaxDescription !== null &&
     deal.costLineItems.some(
-      (i) => i.category.group === "ACQUISIZIONE" && i.description === registrationTaxDescription(purchaseCategory),
+      (i) => i.category.group === "ACQUISIZIONE" && i.description === registrationTaxDescription,
     );
   const saveFiscal = trpc.dealSettings.updateFiscalSettings.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
@@ -292,21 +307,26 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
                 finestra di durata di questo flip.
               </p>
             </div>
-            <div>
-              <Label htmlFor="purchaseCategory">Tipo di acquisto (ai fini imposta di registro)</Label>
-              <Select
-                id="purchaseCategory"
-                value={purchaseCategory}
-                onChange={(e) => setPurchaseCategory(e.target.value as typeof purchaseCategory)}
-              >
-                <option value="">— non impostato —</option>
-                {Object.entries(PURCHASE_CATEGORY_LABEL).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </Select>
-            </div>
+            {isPrivatePurchase && (
+              <div>
+                <Label htmlFor="purchaseCategory">Prima casa o seconda casa</Label>
+                <Select
+                  id="purchaseCategory"
+                  value={purchaseCategory}
+                  onChange={(e) => setPurchaseCategory(e.target.value as typeof purchaseCategory)}
+                >
+                  <option value="">— non impostato —</option>
+                  {Object.entries(PURCHASE_CATEGORY_LABEL).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+                <p className="mt-1 text-xs text-slate-400">
+                  Acquisto da privato: l'imposta di registro si calcola sulla rendita catastale, non sul prezzo.
+                </p>
+              </div>
+            )}
             <div>
               <Label htmlFor="renditaCatastale">Rendita catastale (€)</Label>
               <Input
@@ -317,7 +337,7 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
               />
               <p className="mt-1 text-xs text-slate-400">
                 Dalla visura catastale (RTI): se me la mandi in chat te la inserisco io. Serve per l'imposta di
-                registro "prima casa" (2%) e per il calcolo IMU.
+                registro (acquisto da privato) e per il calcolo IMU.
               </p>
             </div>
             <div className="sm:col-span-2">
@@ -326,13 +346,17 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
             </div>
             <p className="text-xs text-slate-500 sm:col-span-2">
               Spese notarili, agenzia e due diligence si inseriscono come righe di costo nella scheda Ristrutturazione
-              (categoria "Acquisizione").
+              (categoria "Acquisizione"). Il regime fiscale (scheda sotto) decide il calcolo dell'imposta di
+              registro: "Società di capitali" = acquisto con la società (9% sul prezzo, sempre seconda casa);
+              "Persona fisica" = acquisto da privato (prima/seconda casa sulla rendita catastale).
             </p>
-            {purchaseCategory && estimatedRegistrationTax > 0 && (
+            {registrationTaxDescription && estimatedRegistrationTax > 0 && (
               <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 sm:col-span-2">
-                {purchaseCategory === "PRIMA_CASA"
-                  ? "Prima casa: imposta di registro stimata al 2% sulla rendita catastale"
-                  : "Seconda casa: imposta di registro stimata al 9% sul prezzo di acquisto"}{" "}
+                {isCompanyPurchase
+                  ? "Acquisto con la società: imposta di registro stimata al 9% sul prezzo di acquisto"
+                  : purchaseCategory === "PRIMA_CASA"
+                    ? "Prima casa: imposta di registro stimata al 2% sulla rendita catastale"
+                    : "Seconda casa: imposta di registro stimata al 9% sulla rendita catastale"}{" "}
                 = {formatCurrency(estimatedRegistrationTax, true)}.{" "}
                 {registrationTaxAlreadyAdded ? (
                   "Già presente come riga di costo in Acquisizione."
@@ -342,11 +366,11 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
                     className="mt-2"
                     disabled={!registrationTaxCategory || addRegistrationTax.isPending}
                     onClick={() => {
-                      if (!registrationTaxCategory || !purchaseCategory) return;
+                      if (!registrationTaxCategory || !registrationTaxDescription) return;
                       addRegistrationTax.mutate({
                         dealId: deal.id,
                         categoryId: registrationTaxCategory.id,
-                        description: registrationTaxDescription(purchaseCategory),
+                        description: registrationTaxDescription,
                         taxableAmount: 0,
                         vatRatePct: 0,
                         nonTaxableAmount: estimatedRegistrationTax,
