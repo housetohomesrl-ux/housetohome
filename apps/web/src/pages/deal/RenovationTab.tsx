@@ -98,7 +98,7 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
   const categories = trpc.costCategory.list.useQuery();
   const priceList = trpc.priceListItem.list.useQuery();
   const vendors = trpc.vendor.list.useQuery();
-  const [contingencyPct, setContingencyPct] = useState(deal.renovationSettings?.contingencyPct.toString() ?? "12");
+  const [contingencyPct, setContingencyPct] = useState(deal.renovationSettings?.contingencyPct.toString() ?? "5");
   const [materialMarkupPct, setMaterialMarkupPct] = useState(deal.renovationSettings?.materialMarkupPct?.toString() ?? "0");
   const [laborMarkupPct, setLaborMarkupPct] = useState(deal.renovationSettings?.laborMarkupPct?.toString() ?? "0");
   const [editingItem, setEditingItem] = useState<CostLineItemDetail | null>(null);

@@ -231,7 +231,7 @@ model FiscalSettings {
 model RenovationSettings {
   dealId            String   @id
   deal              Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
-  contingencyPct    Decimal  @db.Decimal(5, 2) @default(12)
+  contingencyPct    Decimal  @db.Decimal(5, 2) @default(5)
   // Solo per deal RISTRUTTURAZIONE_CLIENTE: ricarico % applicato di default
   // al costo (taxableAmount) delle voci Materiali/Lavorazioni per calcolare
   // il "prezzo cliente" nel preventivo, quando la voce non ha un prezzo
