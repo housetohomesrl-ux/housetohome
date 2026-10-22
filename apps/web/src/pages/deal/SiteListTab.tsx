@@ -123,10 +123,7 @@ export default function SiteListTab({ deal }: { deal: DealDetail }) {
                 {vendorItems.map((item) => (
                   <li key={item.id} className="flex items-start gap-2">
                     <StatusBox status={item.status} onClick={() => cycleStatus(item)} />
-                    <span className={item.status === "COMPLETATO" ? "text-slate-400 line-through" : ""}>
-                      {item.description}
-                      {item.quantity ? ` — ${item.quantity}${item.unit ? ` ${item.unit}` : ""}` : ""}
-                    </span>
+                    <span className={item.status === "COMPLETATO" ? "text-slate-400 line-through" : ""}>{item.description}</span>
                   </li>
                 ))}
               </ul>
