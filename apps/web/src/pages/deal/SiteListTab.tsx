@@ -61,7 +61,16 @@ export default function SiteListTab({ deal }: { deal: DealDetail }) {
     g.items.push(item);
     byVendor.set(key, g);
   }
-  const vendorGroups = [...byVendor.values()].sort((a, b) => (a.vendor?.name ?? "zzz").localeCompare(b.vendor?.name ?? "zzz"));
+  // Stesso ordine usato altrove nell'app per le Lavorazioni: muratore,
+  // idraulico, elettricista, poi gli altri fornitori in ordine alfabetico.
+  const VENDOR_PRIORITY = ["Sergio", "Mattia Scarpuzza", "Gianni Montanari"];
+  const vendorGroups = [...byVendor.values()].sort((a, b) => {
+    const pa = VENDOR_PRIORITY.indexOf(a.vendor?.name ?? "");
+    const pb = VENDOR_PRIORITY.indexOf(b.vendor?.name ?? "");
+    const rankA = pa >= 0 ? pa : VENDOR_PRIORITY.length;
+    const rankB = pb >= 0 ? pb : VENDOR_PRIORITY.length;
+    return rankA - rankB || (a.vendor?.name ?? "zzz").localeCompare(b.vendor?.name ?? "zzz");
+  });
 
   return (
     <div className="grid gap-5">
