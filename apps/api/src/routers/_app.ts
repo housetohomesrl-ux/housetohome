@@ -14,6 +14,7 @@ import { costCategoryRouter } from "./costCategory.js";
 import { costTemplateRouter } from "./costTemplate.js";
 import { quoteSnapshotRouter } from "./quoteSnapshot.js";
 import { revenueRouter } from "./revenue.js";
+import { emailRouter } from "./email.js";
 import { resultsRouter } from "./results.js";
 
 export const appRouter = router({
@@ -32,6 +33,7 @@ export const appRouter = router({
   costTemplate: costTemplateRouter,
   quoteSnapshot: quoteSnapshotRouter,
   revenue: revenueRouter,
+  email: emailRouter,
   results: resultsRouter,
 });
 

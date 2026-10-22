@@ -340,6 +340,17 @@ export const noteCreateSchema = z.object({
   severity: noteSeveritySchema.default("INFO"),
 });
 
+export const sendQuoteEmailSchema = z.object({
+  dealId: z.string(),
+  pdfBase64: z.string().min(1),
+});
+
+export const sendVendorContractEmailSchema = z.object({
+  dealId: z.string(),
+  vendorId: z.string(),
+  pdfBase64: z.string().min(1),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type DealCreateInput = z.infer<typeof dealCreateSchema>;

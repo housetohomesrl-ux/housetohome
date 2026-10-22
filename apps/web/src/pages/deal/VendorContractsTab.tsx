@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { trpc } from "../../lib/trpc";
 import { formatCurrency } from "../../lib/format";
 import type { DealDetail, CostLineItemDetail } from "../../lib/types";
 import { Button } from "../../components/ui/Button";
-import { downloadElementAsPdf } from "../../lib/pdf";
+import { downloadElementAsPdf, generatePdfBase64 } from "../../lib/pdf";
 import logoUrl from "../../assets/housetohome-logo.jpg";
 import { formatDateIt } from "./PreventivoTab";
 
@@ -26,7 +27,10 @@ function rowTotal(item: CostLineItemDetail): number {
 export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
   const [printingVendorId, setPrintingVendorId] = useState<string | null>(null);
   const [downloadingVendorId, setDownloadingVendorId] = useState<string | null>(null);
+  const [sendingVendorId, setSendingVendorId] = useState<string | null>(null);
+  const [emailResults, setEmailResults] = useState<Record<string, "success" | string>>({});
   const printRefs = useRef(new Map<string, HTMLDivElement>());
+  const sendVendorContractEmail = trpc.email.sendVendorContract.useMutation();
 
   useEffect(() => {
     const reset = () => setPrintingVendorId(null);
@@ -90,7 +94,38 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
               >
                 {downloadingVendorId === vendor.id ? "Generazione PDF..." : "Scarica PDF"}
               </Button>
+              <Button
+                variant="secondary"
+                disabled={sendingVendorId === vendor.id || !vendor.email}
+                title={!vendor.email ? "Questo fornitore non ha un'email salvata (pagina Fornitori)" : undefined}
+                onClick={async () => {
+                  const el = printRefs.current.get(vendor.id);
+                  if (!el) return;
+                  setSendingVendorId(vendor.id);
+                  setEmailResults((prev) => ({ ...prev, [vendor.id]: "" }));
+                  try {
+                    const pdfBase64 = await generatePdfBase64(el);
+                    await sendVendorContractEmail.mutateAsync({ dealId: deal.id, vendorId: vendor.id, pdfBase64 });
+                    setEmailResults((prev) => ({ ...prev, [vendor.id]: "success" }));
+                  } catch (err) {
+                    setEmailResults((prev) => ({
+                      ...prev,
+                      [vendor.id]: err instanceof Error ? err.message : "errore sconosciuto",
+                    }));
+                  } finally {
+                    setSendingVendorId(null);
+                  }
+                }}
+              >
+                {sendingVendorId === vendor.id ? "Invio in corso..." : `Invia email a ${vendor.name}`}
+              </Button>
             </div>
+            {emailResults[vendor.id] === "success" && (
+              <p className="text-right text-sm text-emerald-600 print:hidden">Email inviata a {vendor.email}.</p>
+            )}
+            {emailResults[vendor.id] && emailResults[vendor.id] !== "success" && (
+              <p className="text-right text-sm text-red-600 print:hidden">Errore invio email: {emailResults[vendor.id]}</p>
+            )}
 
             <div
               ref={(el) => {

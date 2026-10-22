@@ -6,7 +6,7 @@ import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { Input, Label, Select } from "../../components/ui/Field";
 import { Button } from "../../components/ui/Button";
 import { clientBasePrice, quoteVatRatePct } from "./RenovationTab";
-import { downloadElementAsPdf } from "../../lib/pdf";
+import { downloadElementAsPdf, generatePdfBase64 } from "../../lib/pdf";
 import logoUrl from "../../assets/housetohome-logo.jpg";
 
 export function formatDateIt(value: string | Date): string {
@@ -40,6 +40,15 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
   const utils = trpc.useUtils();
   const printRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailResult, setEmailResult] = useState<"success" | string | null>(null);
+  const sendQuoteEmail = trpc.email.sendQuote.useMutation({
+    onSuccess: () => {
+      utils.deal.get.invalidate({ id: deal.id });
+      setEmailResult("success");
+    },
+    onError: (err) => setEmailResult(err.message),
+  });
   const [vatPct, setVatPct] = useState(quoteVatRatePct(deal).toString());
   const saveVat = trpc.dealSettings.updateRenovationSettings.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
@@ -155,8 +164,35 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
           >
             {downloading ? "Generazione PDF..." : "Scarica PDF"}
           </Button>
+          <Button
+            variant="secondary"
+            disabled={sendingEmail || !deal.clientEmail}
+            title={!deal.clientEmail ? "Il cliente non ha un'email salvata (scheda Cliente)" : undefined}
+            onClick={async () => {
+              if (!printRef.current) return;
+              saveSnapshot();
+              setSendingEmail(true);
+              setEmailResult(null);
+              try {
+                const pdfBase64 = await generatePdfBase64(printRef.current);
+                await sendQuoteEmail.mutateAsync({ dealId: deal.id, pdfBase64 });
+              } catch {
+                // errore già gestito da onError della mutation
+              } finally {
+                setSendingEmail(false);
+              }
+            }}
+          >
+            {sendingEmail ? "Invio in corso..." : "Invia email al cliente"}
+          </Button>
         </div>
       </div>
+      {emailResult === "success" && (
+        <p className="-mt-3 text-sm text-emerald-600 print:hidden">Email inviata a {deal.clientEmail}.</p>
+      )}
+      {emailResult && emailResult !== "success" && (
+        <p className="-mt-3 text-sm text-red-600 print:hidden">Errore invio email: {emailResult}</p>
+      )}
 
       {(isExpired || isExpiringSoon) && (
         <div
