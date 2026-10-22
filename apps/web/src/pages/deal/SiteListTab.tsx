@@ -37,6 +37,8 @@ function StatusBox({ status, onClick }: { status: string; onClick: () => void })
  * in corso → completato) e aggiorna lo stesso campo status già usato nella
  * scheda Ristrutturazione, quindi funziona anche come lista di controllo
  * live, non solo come foglio da stampare una volta.
+ *
+ * Disponibile sia per i deal Flip che per le ristrutturazioni cliente.
  */
 export default function SiteListTab({ deal }: { deal: DealDetail }) {
   const utils = trpc.useUtils();
