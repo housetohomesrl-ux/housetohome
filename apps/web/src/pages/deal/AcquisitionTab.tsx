@@ -6,17 +6,10 @@ import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { Input, Label, Select } from "../../components/ui/Field";
 import { Button } from "../../components/ui/Button";
 
-const REGISTRATION_TAX_CATEGORY_NAME = "Imposta di registro / IVA acquisto";
 const PURCHASE_CATEGORY_LABEL: Record<string, string> = {
   PRIMA_CASA: "Prima casa (2% sulla rendita catastale)",
   SECONDA_CASA: "Seconda casa (9% sulla rendita catastale)",
 };
-const COMPANY_REGISTRATION_TAX_DESCRIPTION = "Imposta di registro (9% prezzo di acquisto, acquisto con società)";
-function privatePurchaseRegistrationTaxDescription(category: "PRIMA_CASA" | "SECONDA_CASA") {
-  return category === "PRIMA_CASA"
-    ? "Imposta di registro (2% rendita catastale, prima casa)"
-    : "Imposta di registro (9% rendita catastale, seconda casa)";
-}
 
 const REGIME_LABEL: Record<string, string> = {
   PERSONA_FISICA: "Persona fisica (imposta sostitutiva su plusvalenza)",
@@ -78,15 +71,13 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
   const saveAcquisition = trpc.dealSettings.updateAcquisitionDetails.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
   });
-  const costCategories = trpc.costCategory.list.useQuery();
-  const addRegistrationTax = trpc.costLineItem.create.useMutation({
-    onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
-  });
   // Il regime fiscale del deal (scheda sotto) decide da solo come si calcola
   // l'imposta di registro: una società non ha il beneficio "prima casa", paga
   // sempre il 9% sul prezzo pieno. Solo per un privato ha senso chiedere
   // prima/seconda casa, ed è sempre calcolata sulla rendita catastale (non
-  // sul prezzo dichiarato).
+  // sul prezzo dichiarato). Il server la inserisce da solo (Importo non
+  // imponibile della riga "Notaio" in Acquisto e spese) ad ogni Salva qui o
+  // nelle Impostazioni fiscali: qui sotto è solo un'anteprima.
   const regimeType = deal.fiscalSettings?.regimeType;
   const isCompanyPurchase = regimeType === "SOCIETA_CAPITALI";
   const isPrivatePurchase = regimeType === "PERSONA_FISICA";
@@ -97,19 +88,6 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
       : purchaseCategory === "SECONDA_CASA"
         ? Number(renditaCatastale || 0) * 0.09
         : 0;
-  const registrationTaxDescription = isCompanyPurchase
-    ? COMPANY_REGISTRATION_TAX_DESCRIPTION
-    : purchaseCategory
-      ? privatePurchaseRegistrationTaxDescription(purchaseCategory)
-      : null;
-  const registrationTaxCategory = costCategories.data?.find(
-    (c) => c.group === "ACQUISIZIONE" && c.name === REGISTRATION_TAX_CATEGORY_NAME,
-  );
-  const registrationTaxAlreadyAdded =
-    registrationTaxDescription !== null &&
-    deal.costLineItems.some(
-      (i) => i.category.group === "ACQUISIZIONE" && i.description === registrationTaxDescription,
-    );
   const saveFiscal = trpc.dealSettings.updateFiscalSettings.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
   });
@@ -345,43 +323,22 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
               <Input id="acqNotes" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
             <p className="text-xs text-slate-500 sm:col-span-2">
-              Spese notarili, agenzia e due diligence si inseriscono come righe di costo nella scheda Ristrutturazione
-              (categoria "Acquisizione"). Il regime fiscale (scheda sotto) decide il calcolo dell'imposta di
-              registro: "Società di capitali" = acquisto con la società (9% sul prezzo, sempre seconda casa);
-              "Persona fisica" = acquisto da privato (prima/seconda casa sulla rendita catastale).
+              Spese notarili (onorario), agenzia e due diligence si inseriscono come righe di costo nella scheda
+              Ristrutturazione (categoria "Acquisizione"). Il regime fiscale (scheda sotto) decide il calcolo
+              dell'imposta di registro: "Società di capitali" = acquisto con la società (9% sul prezzo, sempre
+              seconda casa); "Persona fisica" = acquisto da privato (prima/seconda casa sulla rendita catastale).
             </p>
-            {registrationTaxDescription && estimatedRegistrationTax > 0 && (
-              <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 sm:col-span-2">
+            {estimatedRegistrationTax > 0 && (!isPrivatePurchase || purchaseCategory) && (
+              <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 sm:col-span-2">
                 {isCompanyPurchase
                   ? "Acquisto con la società: imposta di registro stimata al 9% sul prezzo di acquisto"
                   : purchaseCategory === "PRIMA_CASA"
                     ? "Prima casa: imposta di registro stimata al 2% sulla rendita catastale"
                     : "Seconda casa: imposta di registro stimata al 9% sulla rendita catastale"}{" "}
-                = {formatCurrency(estimatedRegistrationTax, true)}.{" "}
-                {registrationTaxAlreadyAdded ? (
-                  "Già presente come riga di costo in Acquisizione."
-                ) : (
-                  <Button
-                    variant="secondary"
-                    className="mt-2"
-                    disabled={!registrationTaxCategory || addRegistrationTax.isPending}
-                    onClick={() => {
-                      if (!registrationTaxCategory || !registrationTaxDescription) return;
-                      addRegistrationTax.mutate({
-                        dealId: deal.id,
-                        categoryId: registrationTaxCategory.id,
-                        description: registrationTaxDescription,
-                        taxableAmount: 0,
-                        vatRatePct: 0,
-                        nonTaxableAmount: estimatedRegistrationTax,
-                        order: deal.costLineItems.length,
-                      });
-                    }}
-                  >
-                    Aggiungi come riga di costo
-                  </Button>
-                )}
-              </div>
+                = {formatCurrency(estimatedRegistrationTax, true)}. Al Salva viene inserita in automatico
+                nell'"Importo non imponibile" della riga di costo "Notaio" (categoria Acquisizione), in aggiunta
+                all'imponibile che resta l'onorario del notaio.
+              </p>
             )}
             <div className="sm:col-span-2">
               <Button

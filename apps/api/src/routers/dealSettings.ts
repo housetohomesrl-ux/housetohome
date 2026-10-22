@@ -9,6 +9,7 @@ import {
 import { protectedProcedure, router } from "../trpc.js";
 import { assertDealAccess } from "../lib/tenantAccess.js";
 import { serializeDecimals } from "../lib/serialize.js";
+import { syncRegistrationTaxLineItem } from "../lib/syncRegistrationTaxLineItem.js";
 
 // Le quattro sezioni 1:1 del deal (acquisizione, fiscale, ristrutturazione,
 // detenzione) sono sempre create con dei default al momento della creazione
@@ -19,6 +20,7 @@ export const dealSettingsRouter = router({
     await assertDealAccess(ctx.user.tenantId, input.dealId);
     const { dealId, ...data } = input;
     const updated = await prisma.acquisitionDetails.update({ where: { dealId }, data });
+    await syncRegistrationTaxLineItem(dealId, ctx.user.tenantId);
     return serializeDecimals(updated);
   }),
 
@@ -26,6 +28,7 @@ export const dealSettingsRouter = router({
     await assertDealAccess(ctx.user.tenantId, input.dealId);
     const { dealId, ...data } = input;
     const updated = await prisma.fiscalSettings.update({ where: { dealId }, data });
+    await syncRegistrationTaxLineItem(dealId, ctx.user.tenantId);
     return serializeDecimals(updated);
   }),
 
