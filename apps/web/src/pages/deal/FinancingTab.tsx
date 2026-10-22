@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { trpc } from "../../lib/trpc";
 import { formatCurrency } from "../../lib/format";
 import type { DealDetail } from "../../lib/types";
@@ -21,6 +22,10 @@ const AMORTIZATION_LABEL: Record<string, string> = {
 export default function FinancingTab({ deal }: { deal: DealDetail }) {
   const utils = trpc.useUtils();
   const invalidate = () => utils.deal.get.invalidate({ id: deal.id });
+
+  const results = trpc.results.forDeal.useQuery({ dealId: deal.id, scenario: "REALISTICO" });
+  const externalFinancingCost = results.data?.result?.holding.externalFinancingCost ?? 0;
+  const hasPurchaseDate = Boolean(deal.acquisitionDetails?.purchaseDate);
 
   const [loanForm, setLoanForm] = useState({
     name: "",
@@ -49,6 +54,42 @@ export default function FinancingTab({ deal }: { deal: DealDetail }) {
 
   return (
     <div className="grid gap-5">
+      <Card>
+        <CardHeader
+          title="Finanziamenti aziendali (automatico)"
+          subtitle="Mutuo e prestiti soci sempre attivi dell'azienda, non legati a un singolo flip."
+        />
+        <CardBody>
+          {hasPurchaseDate ? (
+            externalFinancingCost > 0 ? (
+              <p className="text-sm text-slate-700">
+                In base alla "Data di acquisto" e alla durata cantiere di questo flip, il costo di detenzione include
+                già in automatico <span className="font-semibold">{formatCurrency(externalFinancingCost, true)}</span>{" "}
+                di rata (capitale + interessi) dei finanziamenti aziendali. Dettaglio in scheda Risultati.
+              </p>
+            ) : (
+              <p className="text-sm text-slate-500">
+                Nessuna rata dei finanziamenti aziendali cade nella finestra di questo flip (o non hai ancora
+                caricato un piano di ammortamento in{" "}
+                <Link to="/company-loans" className="text-brand-700 hover:underline">
+                  Finanziamenti aziendali
+                </Link>
+                ).
+              </p>
+            )
+          ) : (
+            <p className="text-sm text-slate-500">
+              Imposta la "Data di acquisto" in scheda Acquisizione per far calcolare in automatico, da qui a fine
+              cantiere, la rata dei finanziamenti aziendali gestiti in{" "}
+              <Link to="/company-loans" className="text-brand-700 hover:underline">
+                Finanziamenti aziendali
+              </Link>
+              .
+            </p>
+          )}
+        </CardBody>
+      </Card>
+
       <Card>
         <CardHeader title="Finanziamenti" subtitle="Mutui, prestiti ponte e prestiti soci con relativo piano di rimborso." />
         <CardBody>
