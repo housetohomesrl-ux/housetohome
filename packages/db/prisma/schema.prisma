@@ -133,11 +133,15 @@ model Deal {
   // (ciascuno con % sul totale preventivo + importo) più un saldo finale.
   clientAcconto1Pct    Decimal? @db.Decimal(5, 2)
   clientAcconto1Amount Decimal  @db.Decimal(14, 2) @default(0)
+  clientAcconto1DueDate DateTime? // scadenza prevista (opzionale): se passata e l'importo è ancora 0, segnalato come in ritardo
   clientAcconto2Pct    Decimal? @db.Decimal(5, 2)
   clientAcconto2Amount Decimal  @db.Decimal(14, 2) @default(0)
+  clientAcconto2DueDate DateTime?
   clientAcconto3Pct    Decimal? @db.Decimal(5, 2)
   clientAcconto3Amount Decimal  @db.Decimal(14, 2) @default(0)
+  clientAcconto3DueDate DateTime?
   clientSaldoAmount    Decimal  @db.Decimal(14, 2) @default(0)
+  clientSaldoDueDate   DateTime?
   status        DealStatus        @default(VALUTAZIONE)
   isDemo        Boolean           @default(false)
   createdAt     DateTime          @default(now())

@@ -8,6 +8,11 @@ import { Button } from "../../components/ui/Button";
 import { clientBasePrice, quoteVatRatePct } from "./RenovationTab";
 import { formatDateIt } from "./PreventivoTab";
 
+function toDateInputValue(d: string | Date | null | undefined): string {
+  if (!d) return "";
+  return new Date(d).toISOString().slice(0, 10);
+}
+
 function KpiCard({ label, value, tone }: { label: string; value: string; tone?: "success" | "danger" }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4">
@@ -27,16 +32,21 @@ function InstallmentBox({
   base,
   pct,
   amount,
+  dueDate,
   onCommit,
+  onDueDateChange,
 }: {
   title: string;
   base: number;
   pct: number | null;
   amount: number;
+  dueDate?: string | Date | null;
   onCommit: (data: { pct: number | null; amount: number }) => void;
+  onDueDateChange?: (date: string | null) => void;
 }) {
   const [pctValue, setPctValue] = useState(pct?.toString() ?? "");
   const [amountValue, setAmountValue] = useState(amount.toString());
+  const [dueDateValue, setDueDateValue] = useState(toDateInputValue(dueDate));
 
   function commitPct() {
     const pctNum = pctValue === "" ? null : Number(pctValue);
@@ -75,6 +85,16 @@ function InstallmentBox({
         />
         <span className="text-xs text-slate-400">€</span>
       </div>
+      {onDueDateChange && (
+        <input
+          type="date"
+          className="mt-1 w-full rounded-md border border-slate-200 px-1 py-0.5 text-xs text-slate-500"
+          value={dueDateValue}
+          onChange={(e) => setDueDateValue(e.target.value)}
+          onBlur={() => onDueDateChange(dueDateValue || null)}
+          title="Scadenza prevista (opzionale): se passa e l'importo è ancora 0, compare un avviso nel Portafoglio"
+        />
+      )}
     </div>
   );
 }
@@ -86,8 +106,21 @@ function InstallmentBox({
  * Una volta inserito un importo esplicito, quello conta come saldo pagato/
  * incassato; resta comunque sempre modificabile.
  */
-function SaldoBox({ remaining, amount, onCommit }: { remaining: number; amount: number; onCommit: (amount: number) => void }) {
+function SaldoBox({
+  remaining,
+  amount,
+  onCommit,
+  dueDate,
+  onDueDateChange,
+}: {
+  remaining: number;
+  amount: number;
+  onCommit: (amount: number) => void;
+  dueDate?: string | Date | null;
+  onDueDateChange?: (date: string | null) => void;
+}) {
   const [value, setValue] = useState(amount > 0 ? amount.toString() : "");
+  const [dueDateValue, setDueDateValue] = useState(toDateInputValue(dueDate));
   return (
     <div className="rounded-md border border-slate-200 p-2">
       <div className="text-xs font-medium text-slate-500">Saldo</div>
@@ -102,6 +135,16 @@ function SaldoBox({ remaining, amount, onCommit }: { remaining: number; amount: 
         />
         <span className="text-xs text-slate-400">€</span>
       </div>
+      {onDueDateChange && (
+        <input
+          type="date"
+          className="mt-1 w-full rounded-md border border-slate-200 px-1 py-0.5 text-xs text-slate-500"
+          value={dueDateValue}
+          onChange={(e) => setDueDateValue(e.target.value)}
+          onBlur={() => onDueDateChange(dueDateValue || null)}
+          title="Scadenza prevista (opzionale): se passa e l'importo è ancora 0, compare un avviso nel Portafoglio"
+        />
+      )}
     </div>
   );
 }
@@ -397,26 +440,34 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
               base={totalClientPrice}
               pct={deal.clientAcconto1Pct ?? null}
               amount={clientAcconto1Amount}
+              dueDate={deal.clientAcconto1DueDate}
               onCommit={(d) => saveClientInstallment.mutate({ id: deal.id, clientAcconto1Pct: d.pct, clientAcconto1Amount: d.amount })}
+              onDueDateChange={(date) => saveClientInstallment.mutate({ id: deal.id, clientAcconto1DueDate: date ? new Date(date) : null })}
             />
             <InstallmentBox
               title="Acconto 2"
               base={totalClientPrice}
               pct={deal.clientAcconto2Pct ?? null}
               amount={clientAcconto2Amount}
+              dueDate={deal.clientAcconto2DueDate}
               onCommit={(d) => saveClientInstallment.mutate({ id: deal.id, clientAcconto2Pct: d.pct, clientAcconto2Amount: d.amount })}
+              onDueDateChange={(date) => saveClientInstallment.mutate({ id: deal.id, clientAcconto2DueDate: date ? new Date(date) : null })}
             />
             <InstallmentBox
               title="Acconto 3"
               base={totalClientPrice}
               pct={deal.clientAcconto3Pct ?? null}
               amount={clientAcconto3Amount}
+              dueDate={deal.clientAcconto3DueDate}
               onCommit={(d) => saveClientInstallment.mutate({ id: deal.id, clientAcconto3Pct: d.pct, clientAcconto3Amount: d.amount })}
+              onDueDateChange={(date) => saveClientInstallment.mutate({ id: deal.id, clientAcconto3DueDate: date ? new Date(date) : null })}
             />
             <SaldoBox
               remaining={clientSaldoRemaining}
               amount={clientSaldoAmount}
+              dueDate={deal.clientSaldoDueDate}
               onCommit={(amount) => saveClientInstallment.mutate({ id: deal.id, clientSaldoAmount: amount })}
+              onDueDateChange={(date) => saveClientInstallment.mutate({ id: deal.id, clientSaldoDueDate: date ? new Date(date) : null })}
             />
           </div>
         </CardBody>

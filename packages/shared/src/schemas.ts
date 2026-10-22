@@ -71,11 +71,15 @@ export const dealCreateSchema = z.object({
   clientAmountReceived: z.number().nonnegative().optional(),
   clientAcconto1Pct: z.number().min(0).max(100).nullable().optional(),
   clientAcconto1Amount: z.number().nonnegative().optional(),
+  clientAcconto1DueDate: z.coerce.date().nullable().optional(),
   clientAcconto2Pct: z.number().min(0).max(100).nullable().optional(),
   clientAcconto2Amount: z.number().nonnegative().optional(),
+  clientAcconto2DueDate: z.coerce.date().nullable().optional(),
   clientAcconto3Pct: z.number().min(0).max(100).nullable().optional(),
   clientAcconto3Amount: z.number().nonnegative().optional(),
+  clientAcconto3DueDate: z.coerce.date().nullable().optional(),
   clientSaldoAmount: z.number().nonnegative().optional(),
+  clientSaldoDueDate: z.coerce.date().nullable().optional(),
   status: dealStatusSchema.default("VALUTAZIONE"),
 });
 

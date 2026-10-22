@@ -60,3 +60,22 @@ export function computeClientDueBalance(deal: FullDeal): number {
     deal.clientSaldoAmount.toNumber();
   return totalClientPrice - received;
 }
+
+/**
+ * Rate del cliente (acconto1/2/3/saldo) con una scadenza impostata, passata,
+ * e ancora a 0 (nessun importo registrato) — segnalate come in ritardo nel
+ * Portafoglio. La scadenza è facoltativa per ogni rata: se non impostata,
+ * quella rata non genera mai un avviso.
+ */
+export function computeOverdueInstallments(deal: FullDeal): Array<{ label: string; dueDate: Date }> {
+  const today = new Date();
+  const candidates = [
+    { label: "Acconto 1", dueDate: deal.clientAcconto1DueDate, amount: deal.clientAcconto1Amount.toNumber() },
+    { label: "Acconto 2", dueDate: deal.clientAcconto2DueDate, amount: deal.clientAcconto2Amount.toNumber() },
+    { label: "Acconto 3", dueDate: deal.clientAcconto3DueDate, amount: deal.clientAcconto3Amount.toNumber() },
+    { label: "Saldo", dueDate: deal.clientSaldoDueDate, amount: deal.clientSaldoAmount.toNumber() },
+  ];
+  return candidates
+    .filter((c) => c.dueDate && c.dueDate < today && c.amount === 0)
+    .map((c) => ({ label: c.label, dueDate: c.dueDate as Date }));
+}

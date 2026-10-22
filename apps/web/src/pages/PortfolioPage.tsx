@@ -78,6 +78,13 @@ export default function PortfolioPage() {
     [clientDeals],
   );
 
+  // Rate (acconti/saldo) con una scadenza impostata passata e ancora a 0:
+  // un acconto/saldo che non è arrivato entro la data prevista.
+  const overduePayments = useMemo(
+    () => clientDeals.flatMap((d) => (d.overdueInstallments ?? []).map((inst) => ({ deal: d, ...inst }))),
+    [clientDeals],
+  );
+
   return (
     <div>
       <div>
@@ -131,6 +138,30 @@ export default function PortfolioPage() {
                     {d.address ? ` — ${d.address}` : ""}
                   </span>
                   <span className="font-medium text-red-700">{formatCurrency(d.dueFromClient ?? 0, true)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {overduePayments.length > 0 && (
+        <Card className="mt-4 border-red-300 bg-red-50">
+          <div className="px-4 py-3">
+            <h2 className="text-sm font-semibold text-red-800">Pagamenti in ritardo</h2>
+            <p className="text-xs text-red-700">Acconti/saldo con una scadenza impostata ormai passata e nessun importo ancora registrato.</p>
+            <div className="mt-2 grid gap-1">
+              {overduePayments.map(({ deal, label, dueDate }) => (
+                <button
+                  key={`${deal.id}-${label}`}
+                  className="flex items-center justify-between text-left text-sm hover:underline"
+                  onClick={() => navigate(`/deals/${deal.id}`)}
+                >
+                  <span className="text-slate-800">
+                    {deal.name}
+                    {deal.address ? ` — ${deal.address}` : ""} — {label}
+                  </span>
+                  <span className="font-medium text-red-700">scaduto il {formatDateIt(dueDate)}</span>
                 </button>
               ))}
             </div>
