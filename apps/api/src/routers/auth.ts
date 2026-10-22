@@ -70,13 +70,15 @@ export const authRouter = router({
     return { success: true };
   }),
 
-  me: protectedProcedure.query(({ ctx }) => {
+  me: protectedProcedure.query(async ({ ctx }) => {
+    const tenant = await prisma.tenant.findUnique({ where: { id: ctx.user.tenantId } });
     return {
       id: ctx.user.id,
       email: ctx.user.email,
       name: ctx.user.name,
       role: ctx.user.role,
       tenantId: ctx.user.tenantId,
+      tenantName: tenant?.name ?? "",
     };
   }),
 });

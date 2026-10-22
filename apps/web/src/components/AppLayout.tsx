@@ -17,11 +17,22 @@ export default function AppLayout() {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white print:hidden">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <Link to="/" className="text-lg font-semibold text-slate-900">
-            FlipPlan
-          </Link>
-          <nav className="flex items-center gap-4">
+        <div className="mx-auto max-w-6xl px-4 py-3">
+          <div className="flex items-center justify-between">
+            <Link to="/" className="flex items-baseline gap-2">
+              <span className="text-lg font-semibold text-slate-900">FlipPlan</span>
+              {me.data?.tenantName && (
+                <span className="text-sm font-medium uppercase tracking-wide text-slate-400">{me.data.tenantName}</span>
+              )}
+            </Link>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-slate-400">{me.data?.name}</span>
+              <Button variant="secondary" onClick={() => logout.mutate()}>
+                Esci
+              </Button>
+            </div>
+          </div>
+          <nav className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-100 pt-2">
             <Link to="/" className="text-sm text-slate-600 hover:text-slate-900">
               Portafoglio
             </Link>
@@ -46,10 +57,6 @@ export default function AppLayout() {
             <Link to="/company-loans" className="text-sm text-slate-600 hover:text-slate-900">
               Finanziamenti aziendali
             </Link>
-            <span className="text-sm text-slate-400">{me.data?.name}</span>
-            <Button variant="secondary" onClick={() => logout.mutate()}>
-              Esci
-            </Button>
           </nav>
         </div>
       </header>
