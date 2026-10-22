@@ -42,3 +42,21 @@ export function computeClientJobSummary(deal: FullDeal): { grossMargin: number; 
   const companyTax = grossMargin > 0 ? (grossMargin * companyTaxRatePct) / 100 : 0;
   return { grossMargin, netMargin: grossMargin - companyTax };
 }
+
+/**
+ * Residuo da incassare dal cliente (preventivo con IVA - acconti+saldo già
+ * registrati), stessa formula di ClientResultsTab lato web. Usato per
+ * segnalare i deal CONCLUSI con un saldo ancora aperto.
+ */
+export function computeClientDueBalance(deal: FullDeal): number {
+  const items = deal.costLineItems.filter((i) => !i.isMemo);
+  const clientSubtotal = items.reduce((sum, item) => sum + clientBasePrice(item, deal), 0);
+  const quoteVatRatePct = deal.renovationSettings?.quoteVatRatePct.toNumber() ?? 10;
+  const totalClientPrice = clientSubtotal * (1 + quoteVatRatePct / 100);
+  const received =
+    deal.clientAcconto1Amount.toNumber() +
+    deal.clientAcconto2Amount.toNumber() +
+    deal.clientAcconto3Amount.toNumber() +
+    deal.clientSaldoAmount.toNumber();
+  return totalClientPrice - received;
+}

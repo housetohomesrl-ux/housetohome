@@ -6,7 +6,7 @@ import { protectedProcedure, router } from "../trpc.js";
 import { assertDealAccess } from "../lib/tenantAccess.js";
 import { dealInclude } from "../lib/dealInclude.js";
 import { mapDealToFinancialsInput } from "../lib/mapDealToFinancialsInput.js";
-import { computeClientJobSummary } from "../lib/clientJobSummary.js";
+import { computeClientJobSummary, computeClientDueBalance } from "../lib/clientJobSummary.js";
 import { serializeDecimals } from "../lib/serialize.js";
 
 const SALE_SCENARIO_DEFAULTS = [
@@ -35,6 +35,7 @@ export const dealRouter = router({
         updatedAt: deal.updatedAt,
         quoteStatus: deal.quoteStatus,
         quoteValidUntil: deal.quoteValidUntil,
+        dueFromClient: deal.operationType === "RISTRUTTURAZIONE_CLIENTE" ? computeClientDueBalance(deal) : null,
       };
 
       // Ristrutturazione per un cliente: niente acquisto/vendita immobile,

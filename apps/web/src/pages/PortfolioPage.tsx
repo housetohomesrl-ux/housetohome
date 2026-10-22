@@ -68,6 +68,16 @@ export default function PortfolioPage() {
       .sort((a, b) => a.daysToExpiry - b.daysToExpiry);
   }, [clientDeals]);
 
+  // Ristrutturazioni concluse con un saldo cliente ancora aperto: il lavoro
+  // è finito ma il cliente non ha ancora pagato tutto.
+  const openBalances = useMemo(
+    () =>
+      clientDeals
+        .filter((d) => d.status === "CHIUSO" && (d.dueFromClient ?? 0) > 0.5)
+        .sort((a, b) => (b.dueFromClient ?? 0) - (a.dueFromClient ?? 0)),
+    [clientDeals],
+  );
+
   return (
     <div>
       <div>
@@ -97,6 +107,30 @@ export default function PortfolioPage() {
                         ? "scade oggi"
                         : `scade tra ${d.daysToExpiry} giorn${d.daysToExpiry === 1 ? "o" : "i"}`}
                   </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {openBalances.length > 0 && (
+        <Card className="mt-4 border-red-300 bg-red-50">
+          <div className="px-4 py-3">
+            <h2 className="text-sm font-semibold text-red-800">Saldi da incassare</h2>
+            <p className="text-xs text-red-700">Ristrutturazioni concluse con un residuo ancora da incassare dal cliente.</p>
+            <div className="mt-2 grid gap-1">
+              {openBalances.map((d) => (
+                <button
+                  key={d.id}
+                  className="flex items-center justify-between text-left text-sm hover:underline"
+                  onClick={() => navigate(`/deals/${d.id}`)}
+                >
+                  <span className="text-slate-800">
+                    {d.name}
+                    {d.address ? ` — ${d.address}` : ""}
+                  </span>
+                  <span className="font-medium text-red-700">{formatCurrency(d.dueFromClient ?? 0, true)}</span>
                 </button>
               ))}
             </div>
