@@ -203,10 +203,22 @@ model AcquisitionDetails {
   // quali rate dei finanziamenti aziendali (CompanyLoan) ricadono nella
   // finestra di detenzione di questo flip.
   purchaseDate  DateTime?
+  // Base per calcolare in automatico l'imposta di registro: "prima casa"
+  // (2% sulla rendita catastale) o "seconda casa" (9% sul prezzo di
+  // acquisto). Null finché non impostata (scheda Acquisizione).
+  purchaseCategory PurchaseCategoryType?
+  // Rendita catastale dell'immobile, dalla visura catastale (RTI): base per
+  // l'imposta di registro "prima casa" (2%) e per il calcolo IMU.
+  renditaCatastale Decimal? @db.Decimal(14, 2)
   notes         String?
   updatedAt     DateTime  @updatedAt
 
   @@map("acquisition_details")
+}
+
+enum PurchaseCategoryType {
+  PRIMA_CASA
+  SECONDA_CASA
 }
 
 enum FiscalRegimeType {

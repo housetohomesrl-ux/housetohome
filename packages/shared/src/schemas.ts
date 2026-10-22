@@ -87,11 +87,15 @@ export const dealUpdateSchema = dealCreateSchema.partial().extend({
   id: z.string(),
 });
 
+export const purchaseCategorySchema = z.enum(["PRIMA_CASA", "SECONDA_CASA"]);
+
 export const acquisitionDetailsSchema = z.object({
   dealId: z.string(),
   purchasePrice: z.number().nonnegative(),
   depositAmount: z.number().nonnegative().optional(),
   purchaseDate: z.coerce.date().nullable().optional(),
+  purchaseCategory: purchaseCategorySchema.nullable().optional(),
+  renditaCatastale: z.number().nonnegative().nullable().optional(),
   notes: z.string().optional(),
 });
 
