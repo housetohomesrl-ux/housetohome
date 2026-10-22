@@ -15,6 +15,7 @@ import ResultsTab from "./deal/ResultsTab";
 import ClientResultsTab from "./deal/ClientResultsTab";
 import PreventivoTab from "./deal/PreventivoTab";
 import VendorContractsTab from "./deal/VendorContractsTab";
+import SiteListTab from "./deal/SiteListTab";
 
 export default function DealDetailPage() {
   const { dealId } = useParams<{ dealId: string }>();
@@ -33,6 +34,7 @@ export default function DealDetailPage() {
   const baseTabs = [
     { id: "acquisizione", label: isClientJob ? "Cliente" : "Acquisizione" },
     { id: "ristrutturazione", label: "Ristrutturazione" },
+    { id: "lista-cantiere", label: "Lista cantiere" },
     { id: "detenzione", label: "Detenzione" },
     ...(isClientJob ? [] : [{ id: "finanziamento", label: "Finanziamento" }, { id: "vendita", label: "Vendita" }]),
     { id: "risultati", label: "Risultati" },
@@ -70,6 +72,7 @@ export default function DealDetailPage() {
       <div className="mt-5">
         {activeTab === "acquisizione" && <AcquisitionTab deal={deal.data} />}
         {activeTab === "ristrutturazione" && <RenovationTab deal={deal.data} />}
+        {activeTab === "lista-cantiere" && <SiteListTab deal={deal.data} />}
         {activeTab === "detenzione" && <HoldingTab deal={deal.data} />}
         {activeTab === "finanziamento" && <FinancingTab deal={deal.data} />}
         {activeTab === "vendita" && <SaleTab deal={deal.data} />}
