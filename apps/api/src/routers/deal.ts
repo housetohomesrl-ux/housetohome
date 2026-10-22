@@ -85,7 +85,16 @@ export const dealRouter = router({
         },
       });
       await tx.renovationSettings.create({ data: { dealId: deal.id, contingencyPct: 5 } });
-      await tx.holdingCostsConfig.create({ data: { dealId: deal.id, durationMonths: 6 } });
+      await tx.holdingCostsConfig.create({
+        data: {
+          dealId: deal.id,
+          durationMonths: 6,
+          // Solo per ristrutturazioni cliente (cantiere subappaltato, non
+          // acquisto): assicurazione da 800€/anno. Per i flip gli artigiani
+          // hanno la propria assicurazione, quindi resta a 0 di default.
+          monthlyInsurance: input.operationType === "RISTRUTTURAZIONE_CLIENTE" ? 800 / 12 : 0,
+        },
+      });
       await tx.saleScenario.createMany({
         data: SALE_SCENARIO_DEFAULTS.map((s) => ({
           dealId: deal.id,

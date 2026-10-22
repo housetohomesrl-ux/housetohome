@@ -41,11 +41,17 @@ export default function HoldingTab({ deal }: { deal: DealDetail }) {
         <div>
           <Label htmlFor="insurance">Assicurazione (€/mese)</Label>
           <Input id="insurance" type="number" value={form.monthlyInsurance} onChange={(e) => setForm({ ...form, monthlyInsurance: e.target.value })} />
+          {!isClientJob && (
+            <p className="mt-1 text-xs text-slate-400">
+              Di solito non serve per i flip: ci pensa l'assicurazione dei singoli artigiani. Lasciala a 0 se non la paghi su questo deal.
+            </p>
+          )}
         </div>
         {!isClientJob && (
           <div>
             <Label htmlFor="utilities">Utenze (€/mese)</Label>
             <Input id="utilities" type="number" value={form.monthlyUtilities} onChange={(e) => setForm({ ...form, monthlyUtilities: e.target.value })} />
+            <p className="mt-1 text-xs text-slate-400">Stima approssimativa: se non riesci a prevederle, lasciala a 0 e registra le bollette come voci di costo (Altro) man mano che arrivano.</p>
           </div>
         )}
         {!isClientJob && (
