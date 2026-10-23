@@ -3,11 +3,11 @@ import { trpc } from "../../lib/trpc";
 import { formatCurrency, formatPercent } from "../../lib/format";
 import type { DealDetail, CostLineItemDetail } from "../../lib/types";
 import { Button } from "../../components/ui/Button";
-import { Select } from "../../components/ui/Field";
 import { downloadElementAsPdf } from "../../lib/pdf";
 import logoUrl from "../../assets/housetohome-logo.jpg";
 import { formatDateIt } from "./PreventivoTab";
 
+const SCENARIOS = ["PRUDENTE", "REALISTICO", "OTTIMISTICO"] as const;
 const SCENARIO_LABEL: Record<string, string> = { PRUDENTE: "Prudente", REALISTICO: "Realistico", OTTIMISTICO: "Ottimistico" };
 
 function rowTotal(item: CostLineItemDetail): number {
@@ -22,12 +22,15 @@ function rowTotal(item: CostLineItemDetail): number {
  * - Materiale: un unico totale (troppe voci per elencarle tutte).
  * - Lavorazioni: un totale per fornitore ("vedi contratto"), non ogni task.
  * - Enti esterni: voci singole (sono poche).
- * - Riepilogo finale: costo operazione, rivendita, guadagno (ripartito per
- *   socio se impostati in Finanziamento), credito IVA se recuperabile.
+ * - Riepilogo finale: i costi non cambiano tra scenari, quindi il totale
+ *   costi è unico; prezzo di vendita, imposte e guadagno sono invece
+ *   mostrati per i tre scenari (Prudente/Realistico/Ottimistico) affiancati.
  */
 export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
-  const [scenario, setScenario] = useState<"PRUDENTE" | "REALISTICO" | "OTTIMISTICO">("REALISTICO");
-  const results = trpc.results.forDeal.useQuery({ dealId: deal.id, scenario });
+  const prudente = trpc.results.forDeal.useQuery({ dealId: deal.id, scenario: "PRUDENTE" });
+  const realistico = trpc.results.forDeal.useQuery({ dealId: deal.id, scenario: "REALISTICO" });
+  const ottimistico = trpc.results.forDeal.useQuery({ dealId: deal.id, scenario: "OTTIMISTICO" });
+  const byScenario = { PRUDENTE: prudente, REALISTICO: realistico, OTTIMISTICO: ottimistico };
   const [downloading, setDownloading] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -35,15 +38,20 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
     // Nessuno stato di "printing" da resettare: è un documento unico, non per fornitore.
   }, []);
 
-  if (!results.data?.result) {
+  const results = SCENARIOS.map((s) => ({ scenario: s, result: byScenario[s].data?.result ?? null }));
+  const anyLoading = SCENARIOS.some((s) => byScenario[s].isLoading);
+  const costsRef = results.find((x) => x.result)?.result;
+
+  if (anyLoading) return <p className="text-sm text-slate-400">Caricamento...</p>;
+  if (!costsRef) {
     return (
       <p className="text-sm text-slate-500">
-        Dati incompleti per generare il business plan: completa acquisizione, fiscalità, detenzione e almeno lo
-        scenario di vendita selezionato.
+        Dati incompleti per generare il business plan: completa acquisizione, fiscalità, detenzione e almeno uno
+        scenario di vendita.
       </p>
     );
   }
-  const r = results.data.result;
+  const r = costsRef;
 
   const acquisizioneItems = deal.costLineItems.filter((i) => !i.isMemo && i.category.group === "ACQUISIZIONE");
   const entiEsterniItems = deal.costLineItems.filter((i) => !i.isMemo && i.category.group === "ENTI_ESTERNI");
@@ -62,19 +70,9 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
     .filter((i) => !i.isMemo && !i.vendor && i.category.group === "LAVORAZIONI")
     .reduce((sum, i) => sum + rowTotal(i), 0);
 
-  const saleScenarioRow = deal.saleScenarios.find((s) => s.scenario === scenario);
-
   return (
     <div className="grid gap-5">
       <div className="flex flex-wrap items-center justify-end gap-3 print:hidden">
-        <span className="mr-auto text-sm text-slate-500">Scenario:</span>
-        <Select className="max-w-xs" value={scenario} onChange={(e) => setScenario(e.target.value as typeof scenario)}>
-          {Object.entries(SCENARIO_LABEL).map(([v, l]) => (
-            <option key={v} value={v}>
-              {l}
-            </option>
-          ))}
-        </Select>
         <Button variant="secondary" onClick={() => window.print()}>
           Stampa business plan
         </Button>
@@ -98,8 +96,8 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
 
       <div
         ref={printRef}
-        className="bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm print:p-10 print:shadow-none"
-        style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+        className="bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm print:p-[20mm] print:shadow-none"
+        style={{ fontFamily: "'Times New Roman', Times, Georgia, serif" }}
       >
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -117,7 +115,7 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
           <div className="w-56 shrink-0 text-right">
             <div className="inline-block bg-cyan-400 px-3 py-0.5 font-semibold text-white">Business plan</div>
             <div className="mt-1 font-medium">{deal.address || deal.name}</div>
-            <div className="mt-1 text-slate-500">Scenario {SCENARIO_LABEL[scenario]}</div>
+            <div className="mt-1 text-slate-500">Scenari: Prudente / Realistico / Ottimistico</div>
             <div className="mt-4">Data: {formatDateIt(new Date())}</div>
           </div>
         </div>
@@ -303,43 +301,70 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
           </table>
         )}
 
-        {/* Riepilogo finale */}
+        {/* Totale costi operazione: non cambia tra scenari */}
         <table className="mt-3 w-full border-collapse">
-          <thead>
-            <tr className="bg-cyan-400 text-left text-white">
-              <th className="border border-slate-300 px-2 py-1" colSpan={2}>
-                RIEPILOGO
-              </th>
-            </tr>
-          </thead>
           <tbody>
-            <tr className="font-bold">
+            <tr className="bg-cyan-400 font-bold text-white">
               <td className="border border-slate-300 px-2 py-1">TOTALE COSTI OPERAZIONE</td>
               <td className="border border-slate-300 px-2 py-1 text-right">{formatCurrency(r.totals.totalProjectCost, true)}</td>
             </tr>
+          </tbody>
+        </table>
+
+        {/* Riepilogo per scenario: prezzo di vendita e guadagno cambiano, i costi sopra no */}
+        <table className="mt-3 w-full border-collapse">
+          <thead>
+            <tr className="bg-cyan-400 text-left text-white">
+              <th className="border border-slate-300 px-2 py-1">RIEPILOGO PER SCENARIO</th>
+              {SCENARIOS.map((s) => (
+                <th key={s} className="border border-slate-300 px-2 py-1 text-right">
+                  {SCENARIO_LABEL[s]}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
             <tr>
               <td className="border border-slate-300 px-2 py-1">Prezzo di rivendita (imponibile)</td>
-              <td className="border border-slate-300 px-2 py-1 text-right">
-                {formatCurrency(r.sourcesAndUses.saleProceeds, true)}
-              </td>
+              {results.map(({ scenario: s, result }) => (
+                <td key={s} className="border border-slate-300 px-2 py-1 text-right">
+                  {result ? formatCurrency(result.sourcesAndUses.saleProceeds, true) : "-"}
+                </td>
+              ))}
             </tr>
-            {r.sale.saleVatAmount > 0 && (
+            {results.some(({ result }) => (result?.sale.saleVatAmount ?? 0) > 0) && (
               <tr>
-                <td className="border border-slate-300 px-2 py-1">IVA su vendita ({saleScenarioRow?.vatRatePct ?? 0}%)</td>
-                <td className="border border-slate-300 px-2 py-1 text-right">{formatCurrency(r.sale.saleVatAmount, true)}</td>
+                <td className="border border-slate-300 px-2 py-1">IVA su vendita</td>
+                {results.map(({ scenario: s, result }) => (
+                  <td key={s} className="border border-slate-300 px-2 py-1 text-right">
+                    {result ? formatCurrency(result.sale.saleVatAmount, true) : "-"}
+                  </td>
+                ))}
               </tr>
             )}
             <tr>
               <td className="border border-slate-300 px-2 py-1">Costi di vendita (agenzia, marketing, chiusura)</td>
-              <td className="border border-slate-300 px-2 py-1 text-right">{formatCurrency(r.sale.saleCosts, true)}</td>
+              {results.map(({ scenario: s, result }) => (
+                <td key={s} className="border border-slate-300 px-2 py-1 text-right">
+                  {result ? formatCurrency(result.sale.saleCosts, true) : "-"}
+                </td>
+              ))}
             </tr>
             <tr>
               <td className="border border-slate-300 px-2 py-1">Imposte sull'operazione</td>
-              <td className="border border-slate-300 px-2 py-1 text-right">{formatCurrency(r.taxes.totalTax, true)}</td>
+              {results.map(({ scenario: s, result }) => (
+                <td key={s} className="border border-slate-300 px-2 py-1 text-right">
+                  {result ? formatCurrency(result.taxes.totalTax, true) : "-"}
+                </td>
+              ))}
             </tr>
             <tr className="bg-cyan-400 font-bold italic text-white">
               <td className="border border-slate-300 px-2 py-1">GUADAGNO (UTILE NETTO)</td>
-              <td className="border border-slate-300 px-2 py-1 text-right">{formatCurrency(r.sale.netProfit, true)}</td>
+              {results.map(({ scenario: s, result }) => (
+                <td key={s} className="border border-slate-300 px-2 py-1 text-right">
+                  {result ? formatCurrency(result.sale.netProfit, true) : "-"}
+                </td>
+              ))}
             </tr>
             {deal.partners.length > 0 &&
               deal.partners.map((p) => (
@@ -347,9 +372,11 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
                   <td className="border border-slate-300 px-2 py-1">
                     Guadagno {p.name}: {formatPercent(p.profitSharePct / 100)}
                   </td>
-                  <td className="border border-slate-300 px-2 py-1 text-right">
-                    {formatCurrency((r.sale.netProfit * p.profitSharePct) / 100, true)}
-                  </td>
+                  {results.map(({ scenario: s, result }) => (
+                    <td key={s} className="border border-slate-300 px-2 py-1 text-right">
+                      {result ? formatCurrency((result.sale.netProfit * p.profitSharePct) / 100, true) : "-"}
+                    </td>
+                  ))}
                 </tr>
               ))}
             {deal.acquisitionDetails && deal.acquisitionDetails.ownStakePct < 100 && (
@@ -357,20 +384,32 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
                 <td className="border border-slate-300 px-2 py-1">
                   Guadagno a carico nostro: {formatPercent(deal.acquisitionDetails.ownStakePct / 100)}
                 </td>
-                <td className="border border-slate-300 px-2 py-1 text-right">
-                  {formatCurrency((r.sale.netProfit * deal.acquisitionDetails.ownStakePct) / 100, true)}
-                </td>
+                {results.map(({ scenario: s, result }) => (
+                  <td key={s} className="border border-slate-300 px-2 py-1 text-right">
+                    {result
+                      ? formatCurrency((result.sale.netProfit * deal.acquisitionDetails!.ownStakePct) / 100, true)
+                      : "-"}
+                  </td>
+                ))}
               </tr>
             )}
-            {r.sale.vatCredit > 0 && (
+            {results.some(({ result }) => (result?.sale.vatCredit ?? 0) > 0) && (
               <tr>
                 <td className="border border-slate-300 px-2 py-1">Credito IVA generato dall'operazione</td>
-                <td className="border border-slate-300 px-2 py-1 text-right">{formatCurrency(r.sale.vatCredit, true)}</td>
+                {results.map(({ scenario: s, result }) => (
+                  <td key={s} className="border border-slate-300 px-2 py-1 text-right">
+                    {result ? formatCurrency(result.sale.vatCredit, true) : "-"}
+                  </td>
+                ))}
               </tr>
             )}
             <tr>
               <td className="border border-slate-300 px-2 py-1">ROI (utile netto / costo totale)</td>
-              <td className="border border-slate-300 px-2 py-1 text-right">{formatPercent(r.kpis.roi)}</td>
+              {results.map(({ scenario: s, result }) => (
+                <td key={s} className="border border-slate-300 px-2 py-1 text-right">
+                  {result ? formatPercent(result.kpis.roi) : "-"}
+                </td>
+              ))}
             </tr>
           </tbody>
         </table>
