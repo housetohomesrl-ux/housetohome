@@ -625,7 +625,7 @@ function BulkAddFromLibrary({
   }
 
   const available = (priceListData ?? [])
-    .filter((p) => p.libraryScope === deal.operationType && p.includeInPreventivo)
+    .filter((p) => p.libraryScope === deal.operationType)
     .sort((a, b) => priority(a) - priority(b) || a.name.localeCompare(b.name));
   const filtered = search.trim()
     ? available.filter((p) => p.name.toLowerCase().includes(search.trim().toLowerCase()))
@@ -876,9 +876,7 @@ function AddCostItemForm({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const selectedPriceListItem = priceListData?.find((p) => p.id === newItem.priceListItemId) ?? null;
   const categoryPriceList = newItem.categoryId
-    ? (priceListData ?? []).filter(
-        (p) => p.categoryId === newItem.categoryId && p.includeInPreventivo && p.libraryScope === deal.operationType,
-      )
+    ? (priceListData ?? []).filter((p) => p.categoryId === newItem.categoryId && p.libraryScope === deal.operationType)
     : [];
 
   const createItem = trpc.costLineItem.create.useMutation({

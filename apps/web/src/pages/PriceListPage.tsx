@@ -41,15 +41,11 @@ function PriceListGroupCard({
   items,
   startEdit,
   remove,
-  update,
-  showUsagePlan,
 }: {
   label: string;
   items: PriceListItem[];
   startEdit: (item: PriceListItem) => void;
   remove: ReturnType<typeof trpc.priceListItem.delete.useMutation>;
-  update: ReturnType<typeof trpc.priceListItem.update.useMutation>;
-  showUsagePlan: boolean;
 }) {
   const [search, setSearch] = useState("");
   const query = search.trim().toLowerCase();
@@ -75,7 +71,6 @@ function PriceListGroupCard({
                 <th className="py-2 pr-2">Fornitore</th>
                 <th className="py-2 pr-2">Unità / rif.</th>
                 <th className="py-2 pr-2 text-right">Prezzo</th>
-                {showUsagePlan && <th className="py-2 pr-2">Usa per</th>}
                 <th className="py-2 pr-2">Aggiornato</th>
                 <th className="py-2 pr-2" />
               </tr>
@@ -94,26 +89,6 @@ function PriceListGroupCard({
                     {item.referenceQuantity && <div className="mt-0.5 text-xs text-slate-400">{item.referenceQuantity}</div>}
                   </td>
                   <td className="py-2 pr-2 text-right font-medium">{formatCurrency(item.unitPrice, true)}</td>
-                  {showUsagePlan && (
-                    <td className="py-2 pr-2">
-                      <div className="flex flex-wrap gap-1">
-                        <button
-                          className="cursor-pointer"
-                          title="Clic per attivare/disattivare"
-                          onClick={() => update.mutate({ id: item.id, includeInPreventivo: !item.includeInPreventivo })}
-                        >
-                          <Badge tone={item.includeInPreventivo ? "success" : "neutral"}>Preventivo</Badge>
-                        </button>
-                        <button
-                          className="cursor-pointer"
-                          title="Clic per attivare/disattivare"
-                          onClick={() => update.mutate({ id: item.id, includeInBusinessPlan: !item.includeInBusinessPlan })}
-                        >
-                          <Badge tone={item.includeInBusinessPlan ? "info" : "neutral"}>Business plan</Badge>
-                        </button>
-                      </div>
-                    </td>
-                  )}
                   <td className="py-2 pr-2 text-xs text-slate-400">{formatDate(item.updatedAt)}</td>
                   <td className="py-2 pr-2 text-right whitespace-nowrap">
                     <button className="text-xs text-brand-700 hover:underline" onClick={() => startEdit(item)}>
@@ -127,7 +102,7 @@ function PriceListGroupCard({
               ))}
               {filteredItems.length === 0 && (
                 <tr>
-                  <td colSpan={showUsagePlan ? 8 : 7} className="py-4 text-center text-sm text-slate-400">
+                  <td colSpan={7} className="py-4 text-center text-sm text-slate-400">
                     Nessuna voce trovata per "{search}".
                   </td>
                 </tr>
@@ -149,8 +124,6 @@ const EMPTY_FORM = {
   specification: "",
   referenceQuantity: "",
   notes: "",
-  includeInPreventivo: true,
-  includeInBusinessPlan: false,
 };
 
 export default function PriceListPage() {
@@ -202,8 +175,6 @@ export default function PriceListPage() {
       specification: item.specification ?? "",
       referenceQuantity: item.referenceQuantity ?? "",
       notes: item.notes ?? "",
-      includeInPreventivo: item.includeInPreventivo,
-      includeInBusinessPlan: item.includeInBusinessPlan,
     });
     window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   }
@@ -426,8 +397,6 @@ export default function PriceListPage() {
             items={groupItems}
             startEdit={startEdit}
             remove={remove}
-            update={update}
-            showUsagePlan={libraryScope === "FLIP"}
           />
         );
       })}
@@ -482,22 +451,6 @@ export default function PriceListPage() {
               <Label>Descrizione estesa / capitolato</Label>
               <Textarea value={form.specification} onChange={(e) => setForm({ ...form, specification: e.target.value })} />
             </div>
-            <label className="mt-6 flex items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={form.includeInPreventivo}
-                onChange={(e) => setForm({ ...form, includeInPreventivo: e.target.checked })}
-              />
-              Aggiungi a preventivo
-            </label>
-            <label className="mt-6 flex items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={form.includeInBusinessPlan}
-                onChange={(e) => setForm({ ...form, includeInBusinessPlan: e.target.checked })}
-              />
-              Aggiungi a business plan
-            </label>
             <div className="sm:col-span-2 lg:col-span-4 flex items-center gap-3">
               <Button
                 variant="secondary"
@@ -511,8 +464,6 @@ export default function PriceListPage() {
                     vendorId: form.vendorId || null,
                     specification: form.specification || undefined,
                     referenceQuantity: form.referenceQuantity || undefined,
-                    includeInPreventivo: form.includeInPreventivo,
-                    includeInBusinessPlan: form.includeInBusinessPlan,
                   };
                   if (editingId) {
                     update.mutate({ id: editingId, ...data });
