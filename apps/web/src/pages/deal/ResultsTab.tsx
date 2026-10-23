@@ -335,7 +335,7 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
                   <span>
                     {s.label}{" "}
                     <span className="text-xs text-slate-400">
-                      ({formatCurrency(s.delta * r.sourcesAndUses.saleProceeds, true)})
+                      ({formatCurrency(r.sourcesAndUses.saleProceeds * (1 + s.delta), true)})
                     </span>
                   </span>
                   <span className={s.netProfit >= 0 ? "text-emerald-600" : "text-red-600"}>{formatCurrency(s.netProfit)}</span>
