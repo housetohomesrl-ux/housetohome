@@ -214,6 +214,9 @@ export interface DealFinancialsResult {
   };
   sale: {
     saleVatAmount: number;
+    // Credito IVA generato da questa operazione (solo se costsVatRecoverable
+    // è attivo): IVA sui costi non ancora compensata dall'IVA sulla vendita.
+    vatCredit: number;
     saleCosts: number;
     grossProfitBeforeTax: number;
     netProfit: number;

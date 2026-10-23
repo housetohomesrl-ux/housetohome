@@ -117,6 +117,7 @@ export function computeDealFinancials(input: DealFinancialsInput): DealFinancial
     },
     sale: {
       saleVatAmount: toMoneyNumber(saleVatAmount),
+      vatCredit: toMoneyNumber(vatCredit),
       saleCosts: toMoneyNumber(saleCosts),
       grossProfitBeforeTax: toMoneyNumber(grossProfitBeforeTax),
       netProfit: toMoneyNumber(netProfit),
