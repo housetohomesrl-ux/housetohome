@@ -284,11 +284,7 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
       </Card>
 
       {/* Documento stampabile: stessa intestazione/colori/logo del modulo House to Home Srl. */}
-      <div
-        ref={printRef}
-        className="bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm print:p-10 print:shadow-none"
-        style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
-      >
+      <div ref={printRef} className="bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm print:p-10 print:shadow-none">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-base font-bold tracking-wide">HOUSETOHOME SRL</h1>

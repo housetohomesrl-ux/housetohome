@@ -133,7 +133,6 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
                 else printRefs.current.delete(vendor.id);
               }}
               className="mt-2 bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm print:p-10 print:shadow-none"
-              style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
