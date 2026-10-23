@@ -76,6 +76,28 @@ function defaultCostVatRatePct(group: string): string {
   return group === "MATERIALI" ? "22" : "0";
 }
 
+const NOTARY_CATEGORY_NAME = "Notaio";
+
+/**
+ * Stessa regola di apps/api/src/lib/registrationTax.ts: la ricalcoliamo qui
+ * lato client per auto-compilare "Importo non imponibile" nel momento
+ * stesso in cui si sceglie la categoria "Notaio", senza dover prima
+ * salvare la scheda Acquisizione. Il server la riscrive comunque ad ogni
+ * Salva di Acquisizione/Impostazioni fiscali, quindi resta sempre
+ * coerente anche se questo valore viene poi modificato a mano.
+ */
+function computeRegistrationTaxEstimate(deal: DealDetail): number {
+  const regimeType = deal.fiscalSettings?.regimeType;
+  const purchasePrice = deal.acquisitionDetails?.purchasePrice ?? 0;
+  const purchaseCategory = deal.acquisitionDetails?.purchaseCategory;
+  const renditaCatastale = deal.acquisitionDetails?.renditaCatastale ?? 0;
+  if (regimeType === "SOCIETA_CAPITALI") return purchasePrice * 0.09;
+  if (regimeType === "PERSONA_FISICA" && purchaseCategory) {
+    return purchaseCategory === "PRIMA_CASA" ? renditaCatastale * 0.02 : renditaCatastale * 0.09;
+  }
+  return 0;
+}
+
 function emptyNewItem(group: string) {
   return {
     categoryId: "",
@@ -901,19 +923,22 @@ function AddCostItemForm({
           <Label>Categoria</Label>
           <Select
             value={newItem.categoryId}
-            onChange={(e) =>
+            onChange={(e) => {
+              const category = groupCategories.find((c) => c.id === e.target.value);
+              const isNotary = category?.name === NOTARY_CATEGORY_NAME;
+              const registrationTax = isNotary ? computeRegistrationTaxEstimate(deal) : 0;
               setNewItem({
                 ...newItem,
                 categoryId: e.target.value,
                 priceListItemId: null,
-                description: "",
+                description: isNotary ? NOTARY_CATEGORY_NAME : "",
                 quantity: "",
                 unit: "",
                 taxableAmount: "0",
-                nonTaxableAmount: "0",
+                nonTaxableAmount: registrationTax > 0 ? registrationTax.toFixed(2) : "0",
                 clientPrice: "",
-              })
-            }
+              });
+            }}
           >
             <option value="">Seleziona...</option>
             {groupCategories.map((c) => (
@@ -1043,7 +1068,11 @@ function AddCostItemForm({
             value={newItem.nonTaxableAmount}
             onChange={(e) => setNewItem({ ...newItem, nonTaxableAmount: e.target.value })}
           />
-          <p className="mt-1 text-xs text-slate-400">Per costi pagati in parte con fattura/IVA e in parte senza (es. contanti).</p>
+          <p className="mt-1 text-xs text-slate-400">
+            {groupCategories.find((c) => c.id === newItem.categoryId)?.name === NOTARY_CATEGORY_NAME
+              ? "Precompilato con l'imposta di registro calcolata in automatico (regime fiscale in scheda Acquisizione): modificabile."
+              : "Per costi pagati in parte con fattura/IVA e in parte senza (es. contanti)."}
+          </p>
         </div>
         <label className="mt-6 flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" checked={newItem.isMemo} onChange={(e) => setNewItem({ ...newItem, isMemo: e.target.checked })} />
