@@ -332,7 +332,12 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
               <p className="mb-1 text-xs font-medium uppercase text-slate-400">Prezzo di vendita</p>
               {sensitivity.data.result.salePriceScenarios.map((s) => (
                 <div key={s.label} className="flex justify-between border-b border-slate-100 py-1 text-sm">
-                  <span>{s.label}</span>
+                  <span>
+                    {s.label}{" "}
+                    <span className="text-xs text-slate-400">
+                      ({formatCurrency(s.delta * r.sourcesAndUses.saleProceeds, true)})
+                    </span>
+                  </span>
                   <span className={s.netProfit >= 0 ? "text-emerald-600" : "text-red-600"}>{formatCurrency(s.netProfit)}</span>
                 </div>
               ))}
@@ -341,7 +346,12 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
               <p className="mb-1 text-xs font-medium uppercase text-slate-400">Sforamento lavorazioni</p>
               {sensitivity.data.result.lavorazioniOverrunScenarios.map((s) => (
                 <div key={s.label} className="flex justify-between border-b border-slate-100 py-1 text-sm">
-                  <span>{s.label}</span>
+                  <span>
+                    {s.label}{" "}
+                    <span className="text-xs text-slate-400">
+                      (+{formatCurrency(s.delta * r.costs.byGroup.LAVORAZIONI.totalWithVat, true)})
+                    </span>
+                  </span>
                   <span className={s.netProfit >= 0 ? "text-emerald-600" : "text-red-600"}>{formatCurrency(s.netProfit)}</span>
                 </div>
               ))}

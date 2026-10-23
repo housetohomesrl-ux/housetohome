@@ -39,6 +39,9 @@ function withDurationDelta(input: DealFinancialsInput, deltaMonths: number): Dea
 
 export interface SensitivityVariableResult {
   label: string;
+  // Valore grezzo della variazione (es. -0.05 per "-5%", 2 per "+2 mesi"):
+  // usato lato UI per calcolare l'equivalente in euro accanto alla label.
+  delta: number;
   netProfit: number;
   roi: number;
 }
@@ -71,15 +74,15 @@ export function computeSingleVariableSensitivity(
     base: { netProfit: base.sale.netProfit, roi: base.kpis.roi },
     salePriceScenarios: salePriceDeltas.map((delta) => {
       const result = computeDealFinancials(withSalePriceDelta(input, delta));
-      return { label: `${delta * 100}%`, netProfit: result.sale.netProfit, roi: result.kpis.roi };
+      return { label: `${delta * 100}%`, delta, netProfit: result.sale.netProfit, roi: result.kpis.roi };
     }),
     lavorazioniOverrunScenarios: overruns.map((overrun) => {
       const result = computeDealFinancials(withLavorazioniOverrun(input, overrun));
-      return { label: `+${overrun * 100}%`, netProfit: result.sale.netProfit, roi: result.kpis.roi };
+      return { label: `+${overrun * 100}%`, delta: overrun, netProfit: result.sale.netProfit, roi: result.kpis.roi };
     }),
     durationDelayScenarios: durationDeltas.map((delta) => {
       const result = computeDealFinancials(withDurationDelta(input, delta));
-      return { label: `+${delta} mesi`, netProfit: result.sale.netProfit, roi: result.kpis.roi };
+      return { label: `+${delta} mesi`, delta, netProfit: result.sale.netProfit, roi: result.kpis.roi };
     }),
   };
 }
