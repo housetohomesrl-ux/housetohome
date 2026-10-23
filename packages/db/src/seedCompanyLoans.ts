@@ -2,8 +2,10 @@ import { prisma } from "./index.js";
 import { MUTUO_FABRIZIO_CSV, PRESTITO_SRL_CSV } from "./companyLoanSeedData.js";
 
 const SEED_LOANS = [
-  { name: "Mutuo Fabrizio", csv: MUTUO_FABRIZIO_CSV },
-  { name: "Prestito SRL", csv: PRESTITO_SRL_CSV },
+  { name: "Mutuo Fabrizio", csv: MUTUO_FABRIZIO_CSV, companyOnly: false },
+  // Erogato direttamente alla SRL: utilizzabile solo per flip fatti con la
+  // società, non per flip fatti da privato.
+  { name: "Prestito SRL", csv: PRESTITO_SRL_CSV, companyOnly: true },
 ];
 
 function parsePayments(csv: string) {
@@ -34,7 +36,9 @@ export async function ensureSeedCompanyLoans() {
         where: { tenantId: tenant.id, name: seed.name },
       });
       if (existing) continue;
-      const loan = await prisma.companyLoan.create({ data: { tenantId: tenant.id, name: seed.name } });
+      const loan = await prisma.companyLoan.create({
+        data: { tenantId: tenant.id, name: seed.name, companyOnly: seed.companyOnly },
+      });
       await prisma.companyLoanPayment.createMany({
         data: parsePayments(seed.csv).map((p) => ({ ...p, companyLoanId: loan.id })),
       });

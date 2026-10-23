@@ -71,6 +71,8 @@ export function mapDealToFinancialsInput(
       estimatedSalePrice: saleScenario.estimatedSalePrice.toNumber(),
       vatRatePct: saleScenario.vatRatePct.toNumber(),
       agencyFeesSellPct: saleScenario.agencyFeesSellPct.toNumber(),
+      agencyFeesSellFixed: saleScenario.agencyFeesSellFixed.toNumber(),
+      agencyFeesSellVatRatePct: saleScenario.agencyFeesSellVatRatePct.toNumber(),
       marketingStagingCosts: saleScenario.marketingStagingCosts.toNumber(),
       closingCosts: saleScenario.closingCosts.toNumber(),
     },

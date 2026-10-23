@@ -549,6 +549,13 @@ model CompanyLoan {
   tenantId  String
   tenant    Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name      String
+  // Se true, il capitale di questo finanziamento è utilizzabile solo per
+  // flip fatti con la società (regime SOCIETA_CAPITALI) — es. un prestito
+  // erogato direttamente alla SRL. Se false, è utilizzabile anche per flip
+  // fatti da privato (es. un mutuo personale i cui fondi restano comunque
+  // in uso libero). Decide l'idoneità nel calcolo del capitale disponibile
+  // per flip (scheda Risultati → Finanziamenti aziendali — dettaglio).
+  companyOnly Boolean            @default(false)
   createdAt DateTime             @default(now())
   payments  CompanyLoanPayment[]
 
@@ -618,6 +625,15 @@ model SaleScenario {
   estimatedSalePrice  Decimal          @db.Decimal(14, 2) // imponibile — IVA calcolata a parte se saleSubjectToVat
   vatRatePct          Decimal          @db.Decimal(5, 2)  @default(0)
   agencyFeesSellPct   Decimal          @db.Decimal(5, 2)  @default(3)
+  // Provvigione agenzia vendita in euro fissi, in aggiunta (non alternativa)
+  // alla percentuale sopra: utile quando l'agenzia fattura un importo fisso
+  // invece di una percentuale sul prezzo di vendita.
+  agencyFeesSellFixed Decimal          @db.Decimal(14, 2) @default(0)
+  // IVA sulla provvigione agenzia (percentuale+fissa), se fatturata: si
+  // somma ai costi di vendita solo se l'IVA sui costi non è recuperabile
+  // (stessa logica di FiscalSettings.costsVatRecoverable usata per gli
+  // altri costi del deal).
+  agencyFeesSellVatRatePct Decimal     @db.Decimal(5, 2)  @default(0)
   marketingStagingCosts Decimal        @db.Decimal(14, 2) @default(0)
   closingCosts        Decimal          @db.Decimal(14, 2) @default(0)
   updatedAt           DateTime         @updatedAt

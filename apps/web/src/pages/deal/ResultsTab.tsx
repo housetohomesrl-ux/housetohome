@@ -61,6 +61,7 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
   }
 
   const r = results.data.result;
+  const companyLoanBreakdown = results.data.companyLoanBreakdown ?? [];
   const ownStakePct = deal.acquisitionDetails?.ownStakePct ?? 100;
   const isJointVenture = ownStakePct < 100;
   const costBreakdown = [
@@ -111,16 +112,45 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
         </div>
       )}
 
-      {r.holding.externalFinancingCost > 0 && (
-        <p className="-mt-3 text-xs text-slate-400">
-          Il costo di detenzione include {formatCurrency(r.holding.externalFinancingCost, true)} di rata (capitale +
-          interessi) dei finanziamenti aziendali (scheda Finanziamento → Finanziamenti aziendali).{" "}
-          {deal.acquisitionDetails?.purchaseDate ? (
-            "Calcolata sulla finestra data di acquisto → durata cantiere."
-          ) : (
-            "Stimata a partire da oggi (nessuna data di acquisto impostata ancora): si aggiornerà in automatico sulla finestra reale non appena imposterai la data di acquisto in scheda Acquisizione."
-          )}
-        </p>
+      {companyLoanBreakdown.length > 0 && (
+        <Card>
+          <CardHeader
+            title="Finanziamenti aziendali — dettaglio"
+            subtitle={
+              deal.acquisitionDetails?.purchaseDate
+                ? "Rata e capitale calcolati sulla finestra data di acquisto → durata cantiere di questo flip."
+                : "Nessuna data di acquisto impostata ancora: rata e capitale sono stimati a partire da oggi, e si aggiorneranno in automatico sulla finestra reale appena la imposti in scheda Acquisizione."
+            }
+          />
+          <CardBody className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
+                  <th className="py-2 pr-4">Finanziamento</th>
+                  <th className="py-2 pr-4 text-right">Rata (questo flip)</th>
+                  <th className="py-2 pr-4 text-right">Capitale disponibile (pool)</th>
+                  <th className="py-2 pr-4 text-right">Capitale residuo (oggi)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {companyLoanBreakdown.map((loan) => (
+                  <tr key={loan.id} className="border-b border-slate-100">
+                    <td className="py-2 pr-4 text-slate-700">{loan.name}</td>
+                    <td className="py-2 pr-4 text-right">{formatCurrency(loan.rataCost, true)}</td>
+                    <td className="py-2 pr-4 text-right">{formatCurrency(loan.poolAvailable, true)}</td>
+                    <td className="py-2 pr-4 text-right">{formatCurrency(loan.residualToday, true)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-2 text-xs text-slate-400">
+              "Capitale disponibile" = quota di questo finanziamento nel pool ancora libero (capitale totale meno
+              quanto già impegnato sugli altri flip attivi). "Capitale residuo" = quanto manca ancora da restituire
+              alla banca su questo finanziamento, calcolato sulla data di oggi: si aggiorna da solo ogni giorno, senza
+              bisogno di impostare nessuna data a mano.
+            </p>
+          </CardBody>
+        </Card>
       )}
 
       {(() => {
@@ -205,7 +235,7 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
             {r.holding.externalFinancingCost > 0 && (
               <p className="-mt-0.5 border-b border-slate-100 pb-1.5 text-xs text-slate-400">
                 di cui {formatCurrency(r.holding.externalFinancingCost, true)} di rata finanziamenti aziendali
-                (automatico, dentro il costo di detenzione)
+                (automatico, dentro il costo di detenzione — dettaglio per mutuo/prestito nella card "Finanziamenti aziendali — dettaglio")
               </p>
             )}
             <div className="flex justify-between border-b border-slate-100 py-1.5">
@@ -218,9 +248,8 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
             </div>
             {r.sourcesAndUses.externalFinancingSources > 0 && (
               <p className="-mt-0.5 border-b border-slate-100 pb-1.5 text-xs text-slate-400">
-                di cui {formatCurrency(r.sourcesAndUses.externalFinancingSources, true)} capitale residuo dei
-                finanziamenti aziendali (automatico: capitale totale erogato dalla banca meno quanto già impegnato
-                sugli altri flip attivi)
+                di cui {formatCurrency(r.sourcesAndUses.externalFinancingSources, true)} capitale ancora libero dei
+                finanziamenti aziendali (automatico — dettaglio per mutuo/prestito nella card "Finanziamenti aziendali — dettaglio")
               </p>
             )}
             <div className="flex justify-between py-1.5 font-semibold">

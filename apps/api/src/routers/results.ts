@@ -10,6 +10,7 @@ import { protectedProcedure, router } from "../trpc.js";
 import { assertDealAccess } from "../lib/tenantAccess.js";
 import { dealInclude } from "../lib/dealInclude.js";
 import { buildFinancialsInput } from "../lib/buildFinancialsInput.js";
+import { computeCompanyLoanBreakdown } from "../lib/companyLoanBreakdown.js";
 
 const scenarioInput = z.object({ dealId: z.string(), scenario: saleScenarioTypeSchema.default("REALISTICO") });
 
@@ -22,8 +23,18 @@ export const resultsRouter = router({
   forDeal: protectedProcedure.input(scenarioInput).query(async ({ ctx, input }) => {
     const deal = await loadFullDeal(ctx.user.tenantId, input.dealId);
     const financialsInput = await buildFinancialsInput(ctx.user.tenantId, deal, input.scenario);
-    if (!financialsInput) return { isComplete: false as const, result: null };
-    return { isComplete: true as const, result: computeDealFinancials(financialsInput) };
+    if (!financialsInput) return { isComplete: false as const, result: null, companyLoanBreakdown: [] };
+    const companyLoanBreakdown =
+      deal.operationType === "FLIP"
+        ? await computeCompanyLoanBreakdown(
+            ctx.user.tenantId,
+            deal.id,
+            deal.fiscalSettings?.regimeType,
+            deal.acquisitionDetails?.purchaseDate ?? new Date(),
+            financialsInput.holdingCosts.durationMonths,
+          )
+        : [];
+    return { isComplete: true as const, result: computeDealFinancials(financialsInput), companyLoanBreakdown };
   }),
 
   allScenarios: protectedProcedure.input(z.object({ dealId: z.string() })).query(async ({ ctx, input }) => {

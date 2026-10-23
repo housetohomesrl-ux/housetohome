@@ -5,6 +5,18 @@
 
 export type CostCategoryGroup = "ACQUISIZIONE" | "MATERIALI" | "LAVORAZIONI" | "ENTI_ESTERNI" | "ALTRO";
 
+// Forma pura (nessun calcolo qui) del dettaglio per singolo finanziamento
+// aziendale mostrato in scheda Risultati — calcolato server-side (vedi
+// apps/api/src/lib/companyLoanBreakdown.ts), ma il tipo vive qui perché deve
+// essere "nominabile" anche dal frontend attraverso il router tRPC.
+export interface CompanyLoanBreakdown {
+  id: string;
+  name: string;
+  rataCost: number;
+  poolAvailable: number;
+  residualToday: number;
+}
+
 export type CostLineItemStatus = "DA_FARE" | "IN_CORSO" | "COMPLETATO";
 
 export interface CostLineItemInput {
@@ -87,6 +99,12 @@ export interface SaleScenarioInput {
   estimatedSalePrice: number;
   vatRatePct: number;
   agencyFeesSellPct: number;
+  // Provvigione agenzia vendita in euro fissi, in aggiunta (non alternativa)
+  // alla percentuale sopra.
+  agencyFeesSellFixed?: number;
+  // IVA sulla provvigione agenzia (percentuale+fissa), se fatturata: si
+  // somma ai costi di vendita solo se l'IVA sui costi non è recuperabile.
+  agencyFeesSellVatRatePct?: number;
   marketingStagingCosts: number;
   closingCosts: number;
 }

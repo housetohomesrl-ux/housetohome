@@ -11,15 +11,28 @@ const SCENARIO_LABEL: Record<string, string> = {
   OTTIMISTICO: "Ottimistico",
 };
 
-function ScenarioForm({ dealId, scenario }: { dealId: string; scenario: DealDetail["saleScenarios"][number] }) {
+interface SharedSaleFields {
+  vatRatePct: string;
+  agencyFeesSellPct: string;
+  agencyFeesSellFixed: string;
+  agencyFeesSellVatRatePct: string;
+  marketingStagingCosts: string;
+  closingCosts: string;
+}
+
+function ScenarioForm({
+  dealId,
+  scenario,
+  shared,
+  setShared,
+}: {
+  dealId: string;
+  scenario: DealDetail["saleScenarios"][number];
+  shared: SharedSaleFields;
+  setShared: (next: SharedSaleFields) => void;
+}) {
   const utils = trpc.useUtils();
-  const [form, setForm] = useState({
-    estimatedSalePrice: scenario.estimatedSalePrice.toString(),
-    vatRatePct: scenario.vatRatePct.toString(),
-    agencyFeesSellPct: scenario.agencyFeesSellPct.toString(),
-    marketingStagingCosts: scenario.marketingStagingCosts.toString(),
-    closingCosts: scenario.closingCosts.toString(),
-  });
+  const [estimatedSalePrice, setEstimatedSalePrice] = useState(scenario.estimatedSalePrice.toString());
   const upsert = trpc.saleScenario.upsert.useMutation({ onSuccess: () => utils.deal.get.invalidate({ id: dealId }) });
 
   return (
@@ -28,23 +41,49 @@ function ScenarioForm({ dealId, scenario }: { dealId: string; scenario: DealDeta
       <CardBody className="grid gap-3">
         <div>
           <Label>Prezzo di vendita stimato (€, imponibile)</Label>
-          <Input type="number" value={form.estimatedSalePrice} onChange={(e) => setForm({ ...form, estimatedSalePrice: e.target.value })} />
+          <Input type="number" value={estimatedSalePrice} onChange={(e) => setEstimatedSalePrice(e.target.value)} />
+          <p className="mt-1 text-xs text-slate-400">Unico campo diverso per scenario: tutti gli altri qui sotto si aggiornano insieme nei tre scenari.</p>
         </div>
         <div>
           <Label>IVA su vendita (%)</Label>
-          <Input type="number" value={form.vatRatePct} onChange={(e) => setForm({ ...form, vatRatePct: e.target.value })} />
+          <Input type="number" value={shared.vatRatePct} onChange={(e) => setShared({ ...shared, vatRatePct: e.target.value })} />
         </div>
         <div>
           <Label>Commissioni agenzia vendita (%)</Label>
-          <Input type="number" value={form.agencyFeesSellPct} onChange={(e) => setForm({ ...form, agencyFeesSellPct: e.target.value })} />
+          <Input
+            type="number"
+            value={shared.agencyFeesSellPct}
+            onChange={(e) => setShared({ ...shared, agencyFeesSellPct: e.target.value })}
+          />
+        </div>
+        <div>
+          <Label>Commissioni agenzia vendita (€, importo fisso)</Label>
+          <Input
+            type="number"
+            value={shared.agencyFeesSellFixed}
+            onChange={(e) => setShared({ ...shared, agencyFeesSellFixed: e.target.value })}
+          />
+          <p className="mt-1 text-xs text-slate-400">Si somma alla percentuale sopra: usalo se l'agenzia fattura un importo fisso invece di una %.</p>
+        </div>
+        <div>
+          <Label>IVA su commissioni agenzia (%, se fatturata)</Label>
+          <Input
+            type="number"
+            value={shared.agencyFeesSellVatRatePct}
+            onChange={(e) => setShared({ ...shared, agencyFeesSellVatRatePct: e.target.value })}
+          />
         </div>
         <div>
           <Label>Marketing / home staging (€)</Label>
-          <Input type="number" value={form.marketingStagingCosts} onChange={(e) => setForm({ ...form, marketingStagingCosts: e.target.value })} />
+          <Input
+            type="number"
+            value={shared.marketingStagingCosts}
+            onChange={(e) => setShared({ ...shared, marketingStagingCosts: e.target.value })}
+          />
         </div>
         <div>
           <Label>Costi di chiusura (€)</Label>
-          <Input type="number" value={form.closingCosts} onChange={(e) => setForm({ ...form, closingCosts: e.target.value })} />
+          <Input type="number" value={shared.closingCosts} onChange={(e) => setShared({ ...shared, closingCosts: e.target.value })} />
         </div>
         <Button
           variant="secondary"
@@ -53,11 +92,13 @@ function ScenarioForm({ dealId, scenario }: { dealId: string; scenario: DealDeta
             upsert.mutate({
               dealId,
               scenario: scenario.scenario,
-              estimatedSalePrice: Number(form.estimatedSalePrice),
-              vatRatePct: Number(form.vatRatePct),
-              agencyFeesSellPct: Number(form.agencyFeesSellPct),
-              marketingStagingCosts: Number(form.marketingStagingCosts),
-              closingCosts: Number(form.closingCosts),
+              estimatedSalePrice: Number(estimatedSalePrice),
+              vatRatePct: Number(shared.vatRatePct),
+              agencyFeesSellPct: Number(shared.agencyFeesSellPct),
+              agencyFeesSellFixed: Number(shared.agencyFeesSellFixed),
+              agencyFeesSellVatRatePct: Number(shared.agencyFeesSellVatRatePct),
+              marketingStagingCosts: Number(shared.marketingStagingCosts),
+              closingCosts: Number(shared.closingCosts),
             })
           }
         >
@@ -69,10 +110,20 @@ function ScenarioForm({ dealId, scenario }: { dealId: string; scenario: DealDeta
 }
 
 export default function SaleTab({ deal }: { deal: DealDetail }) {
+  const realistico = deal.saleScenarios.find((s) => s.scenario === "REALISTICO") ?? deal.saleScenarios[0];
+  const [shared, setShared] = useState<SharedSaleFields>({
+    vatRatePct: realistico?.vatRatePct.toString() ?? "0",
+    agencyFeesSellPct: realistico?.agencyFeesSellPct.toString() ?? "3",
+    agencyFeesSellFixed: realistico?.agencyFeesSellFixed.toString() ?? "0",
+    agencyFeesSellVatRatePct: realistico?.agencyFeesSellVatRatePct.toString() ?? "0",
+    marketingStagingCosts: realistico?.marketingStagingCosts.toString() ?? "0",
+    closingCosts: realistico?.closingCosts.toString() ?? "0",
+  });
+
   return (
     <div className="grid gap-5 lg:grid-cols-3">
       {deal.saleScenarios.map((s) => (
-        <ScenarioForm key={s.id} dealId={deal.id} scenario={s} />
+        <ScenarioForm key={s.id} dealId={deal.id} scenario={s} shared={shared} setShared={setShared} />
       ))}
     </div>
   );

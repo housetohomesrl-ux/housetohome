@@ -301,6 +301,8 @@ export const saleScenarioUpsertSchema = z.object({
   estimatedSalePrice: z.number().nonnegative(),
   vatRatePct: z.number().min(0).max(100),
   agencyFeesSellPct: z.number().min(0).max(100),
+  agencyFeesSellFixed: z.number().nonnegative().optional(),
+  agencyFeesSellVatRatePct: z.number().min(0).max(100).optional(),
   marketingStagingCosts: z.number().nonnegative(),
   closingCosts: z.number().nonnegative(),
 });
@@ -363,6 +365,12 @@ export const sendVendorContractEmailSchema = z.object({
 
 export const companyLoanCreateSchema = z.object({
   name: z.string().min(1),
+  companyOnly: z.boolean().optional(),
+});
+
+export const companyLoanUpdateSchema = z.object({
+  id: z.string(),
+  companyOnly: z.boolean(),
 });
 
 // Import in blocco del piano di ammortamento REALE di un finanziamento

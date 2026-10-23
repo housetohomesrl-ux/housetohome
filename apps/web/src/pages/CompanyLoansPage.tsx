@@ -30,6 +30,7 @@ export default function CompanyLoansPage() {
     },
   });
   const remove = trpc.companyLoan.delete.useMutation({ onSuccess: () => utils.companyLoan.list.invalidate() });
+  const update = trpc.companyLoan.update.useMutation({ onSuccess: () => utils.companyLoan.list.invalidate() });
   const bulkImport = trpc.companyLoan.bulkImportPayments.useMutation({
     onSuccess: () => {
       utils.companyLoan.list.invalidate();
@@ -126,6 +127,14 @@ export default function CompanyLoansPage() {
                     Capitale: {formatCurrency(totalPrincipal, true)} · Interessi: {formatCurrency(totalInterest, true)}
                   </span>
                 )}
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={loan.companyOnly}
+                    onChange={(e) => update.mutate({ id: loan.id, companyOnly: e.target.checked })}
+                  />
+                  Solo per flip con la società
+                </label>
                 <button className="ml-auto text-xs text-red-500 hover:underline" onClick={() => remove.mutate({ id: loan.id })}>
                   Elimina finanziamento
                 </button>

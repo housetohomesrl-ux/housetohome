@@ -44,7 +44,16 @@ export function computeDealFinancials(input: DealFinancialsInput): DealFinancial
 
   const salePrice = money(saleScenario.estimatedSalePrice);
   const saleVatAmount = fiscalSettings.saleSubjectToVat ? pctOf(salePrice, saleScenario.vatRatePct) : ZERO;
-  const saleCosts = pctOf(salePrice, saleScenario.agencyFeesSellPct)
+  // Provvigione agenzia: percentuale sul prezzo + eventuale importo fisso
+  // (si sommano, non si escludono a vicenda). Se fatturata con IVA e l'IVA
+  // sui costi non è recuperabile, l'IVA sulla provvigione è un costo reale
+  // in più; se recuperabile, non incide (stessa logica degli altri costi).
+  const agencyFeesBase = pctOf(salePrice, saleScenario.agencyFeesSellPct).plus(saleScenario.agencyFeesSellFixed ?? 0);
+  const agencyFeesVat = fiscalSettings.costsVatRecoverable
+    ? ZERO
+    : pctOf(agencyFeesBase, saleScenario.agencyFeesSellVatRatePct ?? 0);
+  const saleCosts = agencyFeesBase
+    .plus(agencyFeesVat)
     .plus(saleScenario.marketingStagingCosts)
     .plus(saleScenario.closingCosts);
 

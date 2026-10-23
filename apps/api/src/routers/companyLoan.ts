@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@flipplan/db";
-import { companyLoanCreateSchema, companyLoanPaymentBulkImportSchema } from "@flipplan/shared";
+import { companyLoanCreateSchema, companyLoanPaymentBulkImportSchema, companyLoanUpdateSchema } from "@flipplan/shared";
 import { protectedProcedure, router } from "../trpc.js";
 import { serializeDecimals } from "../lib/serialize.js";
 
@@ -18,6 +18,12 @@ export const companyLoanRouter = router({
   create: protectedProcedure.input(companyLoanCreateSchema).mutation(({ ctx, input }) =>
     prisma.companyLoan.create({ data: { ...input, tenantId: ctx.user.tenantId } }),
   ),
+
+  update: protectedProcedure.input(companyLoanUpdateSchema).mutation(async ({ ctx, input }) => {
+    const loan = await prisma.companyLoan.findUniqueOrThrow({ where: { id: input.id } });
+    if (loan.tenantId !== ctx.user.tenantId) throw new TRPCError({ code: "NOT_FOUND" });
+    return prisma.companyLoan.update({ where: { id: input.id }, data: { companyOnly: input.companyOnly } });
+  }),
 
   delete: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
     const loan = await prisma.companyLoan.findUniqueOrThrow({ where: { id: input.id } });
