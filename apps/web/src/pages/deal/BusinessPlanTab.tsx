@@ -129,6 +129,13 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
           </div>
         </div>
 
+        {!deal.acquisitionDetails?.renditaCatastale && (
+          <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            Nota: rendita catastale non ancora disponibile (visura/RTI in corso). Imposta di registro e stima IMU non
+            sono ancora incluse nei costi sotto: aggiorna il business plan quando arriva la visura.
+          </p>
+        )}
+
         {/* Spese di acquisizione */}
         <table className="mt-5 w-full border-collapse">
           <thead>

@@ -22,6 +22,7 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
   const utils = trpc.useUtils();
   const [property, setProperty] = useState({
     address: deal.address ?? "",
+    comune: deal.comune ?? "",
     propertyType: deal.propertyType ?? "",
     surfaceSqm: deal.surfaceSqm?.toString() ?? "",
     operationType: deal.operationType,
@@ -155,6 +156,18 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
             />
           </div>
           <div>
+            <Label htmlFor="comune">Comune</Label>
+            <Input
+              id="comune"
+              value={property.comune}
+              onChange={(e) => setProperty({ ...property, comune: e.target.value })}
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Comunicamelo in chat: ti cerco l'aliquota IMU di quel comune da mettere sotto in "Aliquota IMU del
+              comune".
+            </p>
+          </div>
+          <div>
             <Label htmlFor="surfaceSqm">Superficie (mq)</Label>
             <Input
               id="surfaceSqm"
@@ -178,6 +191,7 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
                 saveProperty.mutate({
                   id: deal.id,
                   address: property.address || undefined,
+                  comune: property.comune || undefined,
                   propertyType: property.propertyType || undefined,
                   surfaceSqm: property.surfaceSqm ? Number(property.surfaceSqm) : undefined,
                   operationType: property.operationType,
@@ -326,8 +340,9 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
                 onChange={(e) => setRenditaCatastale(e.target.value)}
               />
               <p className="mt-1 text-xs text-slate-400">
-                Dalla visura catastale (RTI): se me la mandi in chat te la inserisco io. Serve per l'imposta di
-                registro (acquisto da privato) e per il calcolo IMU.
+                Dalla visura catastale (RTI): se me la mandi in chat te la inserisco io. Se in fase di business plan
+                non hai ancora la visura, lasciala vuota (o metti una stima): imposta di registro e IMU restano
+                esclusi dal business plan finché non la compili, poi si aggiornano da soli.
               </p>
             </div>
             <div>
@@ -361,7 +376,7 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
               <p className="mt-1 text-xs text-slate-400">
                 Varia per comune (di solito 0,86%–1,06% per un immobile non prima casa). Serve solo a calcolarti una
                 stima dell'IMU mensile in scheda Detenzione: non viene mai inserita da sola, tu scegli se usarla.
-                (Comunica in chat a Claude il comune: te la cerca lui.)
+                (Hai messo il Comune in "Dati immobile"? Comunicamelo in chat e te la cerco io.)
               </p>
             </div>
             <div>

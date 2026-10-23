@@ -56,6 +56,7 @@ export const loginSchema = z.object({
 export const dealCreateSchema = z.object({
   name: z.string().min(1, "Il nome del deal è obbligatorio"),
   address: z.string().optional(),
+  comune: z.string().optional(),
   propertyType: z.string().optional(),
   surfaceSqm: z.number().nonnegative().optional(),
   operationType: dealOperationTypeSchema.default("FLIP"),

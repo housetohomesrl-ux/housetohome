@@ -117,6 +117,7 @@ model Deal {
   createdBy     User              @relation("DealCreatedBy", fields: [createdById], references: [id])
   name          String
   address       String?
+  comune        String? // comune dell'immobile: usato per chiedere in chat l'aliquota IMU corretta
   propertyType  String?
   surfaceSqm    Decimal?          @db.Decimal(8, 2)
   operationType DealOperationType @default(FLIP)
