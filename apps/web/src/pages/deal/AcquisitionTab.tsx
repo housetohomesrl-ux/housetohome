@@ -71,16 +71,16 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
   const saveAcquisition = trpc.dealSettings.updateAcquisitionDetails.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
   });
-  // Il regime fiscale del deal (scheda sotto) decide da solo come si calcola
-  // l'imposta di registro: una società non ha il beneficio "prima casa", paga
-  // sempre il 9% sul prezzo pieno. Solo per un privato ha senso chiedere
-  // prima/seconda casa, ed è sempre calcolata sulla rendita catastale (non
-  // sul prezzo dichiarato). Il server la inserisce da solo (Importo non
-  // imponibile della riga "Notaio" in Acquisto e spese) ad ogni Salva qui o
-  // nelle Impostazioni fiscali: qui sotto è solo un'anteprima.
-  const regimeType = deal.fiscalSettings?.regimeType;
-  const isCompanyPurchase = regimeType === "SOCIETA_CAPITALI";
-  const isPrivatePurchase = regimeType === "PERSONA_FISICA";
+  // Il regime fiscale (scelto qui sotto, in Impostazioni fiscali) decide da
+  // solo come si calcola l'imposta di registro: una società non ha il
+  // beneficio "prima casa", paga sempre il 9% sul prezzo pieno. Solo per un
+  // privato ha senso chiedere prima/seconda casa, ed è sempre calcolata
+  // sulla rendita catastale (non sul prezzo dichiarato). Usiamo il regime
+  // appena selezionato (non ancora salvato) così l'anteprima e il salvataggio
+  // di acquisizione+imposta di registro avvengono insieme, in un click solo,
+  // dal pulsante "Salva impostazioni fiscali".
+  const isCompanyPurchase = fiscal.regimeType === "SOCIETA_CAPITALI";
+  const isPrivatePurchase = fiscal.regimeType === "PERSONA_FISICA";
   const estimatedRegistrationTax = isCompanyPurchase
     ? Number(purchasePrice || 0) * 0.09
     : purchaseCategory === "PRIMA_CASA"
@@ -91,6 +91,30 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
   const saveFiscal = trpc.dealSettings.updateFiscalSettings.useMutation({
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
   });
+  function saveFiscalAndAcquisitionTax() {
+    saveFiscal.mutate({
+      dealId: deal.id,
+      regimeType: fiscal.regimeType as "PERSONA_FISICA" | "SOCIETA_CAPITALI" | "ALTRO",
+      saleSubjectToVat: fiscal.saleSubjectToVat,
+      costsVatRecoverable: fiscal.costsVatRecoverable,
+      iresRatePct: Number(fiscal.iresRatePct),
+      irapRatePct: Number(fiscal.irapRatePct),
+      capitalGainsTaxRatePct: Number(fiscal.capitalGainsTaxRatePct),
+    });
+    // Salva anche acquisizione (prezzo/rendita/tipo acquisto restano quelli già
+    // impostati in Dati di acquisizione): serve perché il server ricalcola e
+    // scrive l'imposta di registro nella riga "Notaio" leggendo sia il regime
+    // fiscale sia questi campi — un solo click qui aggiorna entrambi.
+    saveAcquisition.mutate({
+      dealId: deal.id,
+      purchasePrice: Number(purchasePrice),
+      depositAmount: Number(depositAmount),
+      purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
+      purchaseCategory: purchaseCategory || null,
+      renditaCatastale: renditaCatastale ? Number(renditaCatastale) : null,
+      notes: notes || undefined,
+    });
+  }
 
   return (
     <div className="grid gap-5">
@@ -285,26 +309,6 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
                 finestra di durata di questo flip.
               </p>
             </div>
-            {isPrivatePurchase && (
-              <div>
-                <Label htmlFor="purchaseCategory">Prima casa o seconda casa</Label>
-                <Select
-                  id="purchaseCategory"
-                  value={purchaseCategory}
-                  onChange={(e) => setPurchaseCategory(e.target.value as typeof purchaseCategory)}
-                >
-                  <option value="">— non impostato —</option>
-                  {Object.entries(PURCHASE_CATEGORY_LABEL).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </Select>
-                <p className="mt-1 text-xs text-slate-400">
-                  Acquisto da privato: l'imposta di registro si calcola sulla rendita catastale, non sul prezzo.
-                </p>
-              </div>
-            )}
             <div>
               <Label htmlFor="renditaCatastale">Rendita catastale (€)</Label>
               <Input
@@ -324,22 +328,9 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
             </div>
             <p className="text-xs text-slate-500 sm:col-span-2">
               Spese notarili (onorario), agenzia e due diligence si inseriscono come righe di costo nella scheda
-              Ristrutturazione (categoria "Acquisizione"). Il regime fiscale (scheda sotto) decide il calcolo
-              dell'imposta di registro: "Società di capitali" = acquisto con la società (9% sul prezzo, sempre
-              seconda casa); "Persona fisica" = acquisto da privato (prima/seconda casa sulla rendita catastale).
+              Ristrutturazione (categoria "Acquisizione"). Con cosa fai l'acquisto (società o privato, prima/seconda
+              casa) e il calcolo dell'imposta di registro si impostano qui sotto, in "Impostazioni fiscali del deal".
             </p>
-            {estimatedRegistrationTax > 0 && (!isPrivatePurchase || purchaseCategory) && (
-              <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 sm:col-span-2">
-                {isCompanyPurchase
-                  ? "Acquisto con la società: imposta di registro stimata al 9% sul prezzo di acquisto"
-                  : purchaseCategory === "PRIMA_CASA"
-                    ? "Prima casa: imposta di registro stimata al 2% sulla rendita catastale"
-                    : "Seconda casa: imposta di registro stimata al 9% sulla rendita catastale"}{" "}
-                = {formatCurrency(estimatedRegistrationTax, true)}. Al Salva viene inserita in automatico
-                nell'"Importo non imponibile" della riga di costo "Notaio" (categoria Acquisizione), in aggiunta
-                all'imponibile che resta l'onorario del notaio.
-              </p>
-            )}
             <div className="sm:col-span-2">
               <Button
                 onClick={() =>
@@ -414,15 +405,49 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
             </>
           )}
           {fiscal.regimeType === "PERSONA_FISICA" && (
-            <div>
-              <Label htmlFor="cgt">Aliquota imposta sostitutiva plusvalenza (%)</Label>
-              <Input
-                id="cgt"
-                type="number"
-                value={fiscal.capitalGainsTaxRatePct}
-                onChange={(e) => setFiscal({ ...fiscal, capitalGainsTaxRatePct: e.target.value })}
-              />
-            </div>
+            <>
+              <div>
+                <Label htmlFor="cgt">Aliquota imposta sostitutiva plusvalenza (%)</Label>
+                <Input
+                  id="cgt"
+                  type="number"
+                  value={fiscal.capitalGainsTaxRatePct}
+                  onChange={(e) => setFiscal({ ...fiscal, capitalGainsTaxRatePct: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="purchaseCategory">Prima casa o seconda casa</Label>
+                <Select
+                  id="purchaseCategory"
+                  value={purchaseCategory}
+                  onChange={(e) => setPurchaseCategory(e.target.value as typeof purchaseCategory)}
+                >
+                  <option value="">— non impostato —</option>
+                  {Object.entries(PURCHASE_CATEGORY_LABEL).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+                <p className="mt-1 text-xs text-slate-400">
+                  Acquisto da privato: l'imposta di registro si calcola sulla rendita catastale (scheda
+                  Acquisizione), non sul prezzo.
+                </p>
+              </div>
+            </>
+          )}
+
+          {estimatedRegistrationTax > 0 && (!isPrivatePurchase || purchaseCategory) && (
+            <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 sm:col-span-2">
+              {isCompanyPurchase
+                ? "Acquisto con la società: imposta di registro stimata al 9% sul prezzo di acquisto"
+                : purchaseCategory === "PRIMA_CASA"
+                  ? "Prima casa: imposta di registro stimata al 2% sulla rendita catastale"
+                  : "Seconda casa: imposta di registro stimata al 9% sulla rendita catastale"}{" "}
+              = {formatCurrency(estimatedRegistrationTax, true)}. Al Salva viene inserita in automatico
+              nell'"Importo non imponibile" della riga di costo "Notaio" (categoria Acquisizione), in aggiunta
+              all'imponibile che resta l'onorario del notaio.
+            </p>
           )}
 
           {fiscal.regimeType !== "ALTRO" && (
@@ -434,20 +459,7 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
           )}
 
           <div className="sm:col-span-2">
-            <Button
-              onClick={() =>
-                saveFiscal.mutate({
-                  dealId: deal.id,
-                  regimeType: fiscal.regimeType as "PERSONA_FISICA" | "SOCIETA_CAPITALI" | "ALTRO",
-                  saleSubjectToVat: fiscal.saleSubjectToVat,
-                  costsVatRecoverable: fiscal.costsVatRecoverable,
-                  iresRatePct: Number(fiscal.iresRatePct),
-                  irapRatePct: Number(fiscal.irapRatePct),
-                  capitalGainsTaxRatePct: Number(fiscal.capitalGainsTaxRatePct),
-                })
-              }
-              disabled={saveFiscal.isPending}
-            >
+            <Button onClick={saveFiscalAndAcquisitionTax} disabled={saveFiscal.isPending || saveAcquisition.isPending}>
               Salva impostazioni fiscali
             </Button>
           </div>
