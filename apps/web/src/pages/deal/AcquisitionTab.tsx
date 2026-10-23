@@ -36,6 +36,7 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
   const [renditaCatastale, setRenditaCatastale] = useState(
     deal.acquisitionDetails?.renditaCatastale?.toString() ?? "",
   );
+  const [ownStakePct, setOwnStakePct] = useState(deal.acquisitionDetails?.ownStakePct?.toString() ?? "100");
   const [notes, setNotes] = useState(deal.acquisitionDetails?.notes ?? "");
   const [client, setClient] = useState({
     clientName: deal.clientName ?? "",
@@ -112,6 +113,7 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
       purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
       purchaseCategory: purchaseCategory || null,
       renditaCatastale: renditaCatastale ? Number(renditaCatastale) : null,
+      ownStakePct: Number(ownStakePct || 100),
       notes: notes || undefined,
     });
   }
@@ -322,6 +324,20 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
                 registro (acquisto da privato) e per il calcolo IMU.
               </p>
             </div>
+            <div>
+              <Label htmlFor="ownStakePct">Quota di partecipazione (%)</Label>
+              <Input
+                id="ownStakePct"
+                type="number"
+                value={ownStakePct}
+                onChange={(e) => setOwnStakePct(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                100% se fai il flip da solo. Se lo fai insieme a un'altra società, imposta qui la tua quota (es. 50%
+                in due, 33,3% se siete in tre): in scheda Risultati vedrai sia il costo/utile totale del progetto sia
+                quello a tuo carico.
+              </p>
+            </div>
             <div className="sm:col-span-2">
               <Label htmlFor="acqNotes">Note</Label>
               <Input id="acqNotes" value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -341,6 +357,7 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
                     purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
                     purchaseCategory: purchaseCategory || null,
                     renditaCatastale: renditaCatastale ? Number(renditaCatastale) : null,
+                    ownStakePct: Number(ownStakePct || 100),
                     notes: notes || undefined,
                   })
                 }

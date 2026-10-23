@@ -61,6 +61,8 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
   }
 
   const r = results.data.result;
+  const ownStakePct = deal.acquisitionDetails?.ownStakePct ?? 100;
+  const isJointVenture = ownStakePct < 100;
   const costBreakdown = [
     { name: "Acquisizione", value: r.totals.totalAcquisitionCost },
     { name: "Ristrutturazione", value: r.totals.totalRenovationCost },
@@ -94,6 +96,20 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
           tone={r.sourcesAndUses.finalNetCashToEquity >= 0 ? "success" : "danger"}
         />
       </div>
+
+      {isJointVenture && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <KpiCard
+            label={`Costo a tuo carico (${formatPercent(ownStakePct / 100)})`}
+            value={formatCurrency((r.totals.totalProjectCost * ownStakePct) / 100)}
+          />
+          <KpiCard
+            label={`Utile netto a tuo carico (${formatPercent(ownStakePct / 100)})`}
+            value={formatCurrency((r.sale.netProfit * ownStakePct) / 100)}
+            tone={r.sale.netProfit >= 0 ? "success" : "danger"}
+          />
+        </div>
+      )}
 
       {r.holding.externalFinancingCost > 0 && (
         <p className="-mt-3 text-xs text-slate-400">
@@ -202,8 +218,9 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
             </div>
             {r.sourcesAndUses.externalFinancingSources > 0 && (
               <p className="-mt-0.5 border-b border-slate-100 pb-1.5 text-xs text-slate-400">
-                di cui {formatCurrency(r.sourcesAndUses.externalFinancingSources, true)} capitale dei finanziamenti
-                aziendali (automatico, dal piano di ammortamento, nella finestra di questo flip)
+                di cui {formatCurrency(r.sourcesAndUses.externalFinancingSources, true)} capitale residuo dei
+                finanziamenti aziendali (automatico: capitale totale erogato dalla banca meno quanto già impegnato
+                sugli altri flip attivi)
               </p>
             )}
             <div className="flex justify-between py-1.5 font-semibold">

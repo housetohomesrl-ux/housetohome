@@ -102,11 +102,13 @@ export interface DealFinancialsInput {
   // deal (quelli restano solo-interessi, qui si conta l'intera rata perché
   // è un costo fisso che l'azienda paga comunque ogni mese.
   externalFinancingCost?: number;
-  // Quota capitale (sola, non la rata intera) degli stessi pagamenti dei
-  // finanziamenti aziendali sopra, nella stessa finestra: usata in Fonti e
-  // impieghi come "Fonti: finanziamenti" automatica, perché quel capitale è
-  // già stato erogato dalla banca (mutuo/prestito reali, sempre attivi) e
-  // non va inserito a mano come un nuovo prestito per il deal.
+  // Capitale residuo disponibile dal pool dei finanziamenti aziendali: il
+  // totale erogato dalla banca (somma di tutte le quote capitale di tutto il
+  // piano di ammortamento di Mutuo Fabrizio + Prestito SRL) meno il costo
+  // totale progetto di tutti gli ALTRI flip attivi (non chiusi/archiviati)
+  // del tenant — calcolato server-side. Usato in Fonti e impieghi come
+  // "Fonti: finanziamenti" automatica, così valutando un nuovo flip si vede
+  // subito quanto capitale resta dopo aver già impegnato quello sugli altri.
   externalFinancingPrincipal?: number;
   costLineItems: CostLineItemInput[];
   loans: LoanInput[];

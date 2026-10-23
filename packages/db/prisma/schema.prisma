@@ -210,6 +210,12 @@ model AcquisitionDetails {
   // Rendita catastale dell'immobile, dalla visura catastale (RTI): base per
   // l'imposta di registro "prima casa" (2%) e per il calcolo IMU.
   renditaCatastale Decimal? @db.Decimal(14, 2)
+  // Quota di partecipazione dell'azienda in questo flip, se fatto insieme ad
+  // altre società (es. 50% in due, 33,3% in tre). 100 = flip fatto da soli
+  // (default). Usata solo per mostrare "a mio carico" su costi/utile in
+  // scheda Risultati — non entra nei calcoli di costo/margine/imposte, che
+  // restano sul 100% del progetto.
+  ownStakePct   Decimal   @default(100) @db.Decimal(5, 2)
   notes         String?
   updatedAt     DateTime  @updatedAt
 

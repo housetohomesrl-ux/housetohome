@@ -96,6 +96,7 @@ export const acquisitionDetailsSchema = z.object({
   purchaseDate: z.coerce.date().nullable().optional(),
   purchaseCategory: purchaseCategorySchema.nullable().optional(),
   renditaCatastale: z.number().nonnegative().nullable().optional(),
+  ownStakePct: z.number().min(0).max(100).optional(),
   notes: z.string().optional(),
 });
 
