@@ -12,6 +12,24 @@ const PURCHASE_CATEGORY_LABEL: Record<string, string> = {
   SECONDA_CASA: "Seconda casa (9% sulla rendita catastale)",
 };
 
+// Suggerimento automatico (non il dato reale del Catasto) basato su parole
+// chiave scritte in "Tipologia immobile", cosi la categoria catastale non
+// resta vuota in attesa della visura: resta sempre modificabile a mano.
+function guessCategoriaCatastale(propertyType: string): string {
+  const t = propertyType.toLowerCase();
+  if (t.includes("ufficio") || t.includes("studio")) return "A/10";
+  if (t.includes("garage") || t.includes("box") || t.includes("autorimessa")) return "C/6";
+  if (t.includes("magazzino") || t.includes("deposito") || t.includes("cantina")) return "C/2";
+  if (t.includes("negozio") || t.includes("bottega")) return "C/1";
+  if (t.includes("laboratorio")) return "C/3";
+  if (t.includes("castello") || t.includes("palazzo")) return "A/9";
+  if (t.includes("villa")) return "A/8";
+  if (t.includes("villino")) return "A/7";
+  if (t.includes("rurale") || t.includes("casale")) return "A/6";
+  if (t.includes("appartamento") || t.includes("abitazione") || t.includes("casa")) return "A/2";
+  return "";
+}
+
 const REGIME_LABEL: Record<string, string> = {
   PERSONA_FISICA: "Persona fisica (imposta sostitutiva su plusvalenza)",
   SOCIETA_CAPITALI: "Società di capitali (IRES + IRAP)",
@@ -182,8 +200,19 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
               id="propertyType"
               placeholder='es. "Appartamento 3 locali"'
               value={property.propertyType}
-              onChange={(e) => setProperty({ ...property, propertyType: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+                setProperty({ ...property, propertyType: value });
+                if (!categoriaCatastale) {
+                  const guess = guessCategoriaCatastale(value);
+                  if (guess) setCategoriaCatastale(guess);
+                }
+              }}
             />
+            <p className="mt-1 text-xs text-slate-400">
+              Suggerisce in automatico una categoria catastale di partenza (scheda Acquisizione, sotto), da
+              correggere quando arriva la visura reale.
+            </p>
           </div>
           <div className="sm:col-span-2">
             <Button
