@@ -4,6 +4,7 @@ import { prisma } from "@flipplan/db";
 import { priceListBulkImportSchema, priceListItemCreateSchema } from "@flipplan/shared";
 import { protectedProcedure, router } from "../trpc.js";
 import { serializeDecimals } from "../lib/serialize.js";
+import { syncFlipPriceListFromRistrutturazione } from "../lib/syncFlipPriceList.js";
 
 export const priceListItemRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -115,5 +116,9 @@ export const priceListItemRouter = router({
     }
 
     return { created, skipped, categoriesCreated, vendorsCreated, failed };
+  }),
+
+  syncFlipFromRistrutturazione: protectedProcedure.mutation(async ({ ctx }) => {
+    return syncFlipPriceListFromRistrutturazione(ctx.user.tenantId);
   }),
 });

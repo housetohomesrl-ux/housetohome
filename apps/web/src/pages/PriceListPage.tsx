@@ -234,6 +234,10 @@ export default function PriceListPage() {
     },
   });
 
+  const syncFromRistrutturazione = trpc.priceListItem.syncFlipFromRistrutturazione.useMutation({
+    onSuccess: () => utils.priceListItem.list.invalidate(),
+  });
+
   function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -347,6 +351,70 @@ export default function PriceListPage() {
           )}
         </CardBody>
       </Card>
+
+      {libraryScope === "FLIP" && (
+        <Card className="mt-4">
+          <CardHeader
+            title="Sincronizza da Libreria Ristrutturazioni"
+            subtitle="Rende la Libreria Flip identica alla Libreria Ristrutturazioni (incluso Materiali): crea le voci mancanti, aggiorna quelle già presenti con prezzo e dati di quella libreria (considerata quella corretta/aggiornata) ed elimina dalla Flip le voci che in Ristrutturazioni non esistono più. Non tocca le maggiorazioni cliente: quelle sono un'impostazione del deal, non della voce di listino."
+          />
+          <CardBody>
+            <Button
+              variant="secondary"
+              disabled={syncFromRistrutturazione.isPending}
+              onClick={() => syncFromRistrutturazione.mutate()}
+            >
+              {syncFromRistrutturazione.isPending ? "Sincronizzazione..." : "Sincronizza ora"}
+            </Button>
+            {syncFromRistrutturazione.data && (
+              <div className="mt-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone="success">{syncFromRistrutturazione.data.created} nuove</Badge>
+                  <Badge tone="info">{syncFromRistrutturazione.data.updated} aggiornate per prezzo/dati diversi</Badge>
+                  <Badge tone="danger">{syncFromRistrutturazione.data.deleted} eliminate (non più in Ristrutturazioni)</Badge>
+                  <Badge tone="neutral">{syncFromRistrutturazione.data.unchanged} già uguali</Badge>
+                </div>
+                {syncFromRistrutturazione.data.updatedDetails.some((u) => u.suspicious) && (
+                  <div className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    ⚠️ Differenza di prezzo grande (oltre il 50%, o da/a 0€) su queste voci: verificale.
+                    <ul className="mt-1">
+                      {syncFromRistrutturazione.data.updatedDetails
+                        .filter((u) => u.suspicious)
+                        .map((u) => (
+                          <li key={u.name}>
+                            {u.name}: {formatCurrency(u.oldPrice, true)} → {formatCurrency(u.newPrice, true)}
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
+                {syncFromRistrutturazione.data.updatedDetails.length > 0 && (
+                  <details className="mt-2 text-xs text-slate-500">
+                    <summary className="cursor-pointer">Tutte le voci aggiornate</summary>
+                    <ul className="mt-1">
+                      {syncFromRistrutturazione.data.updatedDetails.map((u) => (
+                        <li key={u.name}>
+                          {u.name}: {formatCurrency(u.oldPrice, true)} → {formatCurrency(u.newPrice, true)}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+                {syncFromRistrutturazione.data.deletedNames.length > 0 && (
+                  <details className="mt-2 text-xs text-slate-500">
+                    <summary className="cursor-pointer">Voci eliminate</summary>
+                    <ul className="mt-1">
+                      {syncFromRistrutturazione.data.deletedNames.map((name) => (
+                        <li key={name}>{name}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      )}
 
       {Object.entries(GROUP_LABEL).map(([group, label]) => {
         const groupItems = itemsByGroup.get(group);
