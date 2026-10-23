@@ -361,6 +361,7 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
               <p className="mt-1 text-xs text-slate-400">
                 Varia per comune (di solito 0,86%–1,06% per un immobile non prima casa). Serve solo a calcolarti una
                 stima dell'IMU mensile in scheda Detenzione: non viene mai inserita da sola, tu scegli se usarla.
+                (Comunica in chat a Claude il comune: te la cerca lui.)
               </p>
             </div>
             <div>
