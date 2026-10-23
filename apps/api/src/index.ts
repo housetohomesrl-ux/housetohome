@@ -37,7 +37,7 @@ await fastify.register(fastifyTRPCPlugin, {
   },
 });
 
-fastify.get("/health", async () => ({ status: "ok" }));
+fastify.get("/health", async () => ({ status: "ok", uptimeSeconds: process.uptime() }));
 
 fastify
   .listen({ port: config.port, host: "0.0.0.0" })
