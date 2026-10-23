@@ -266,10 +266,12 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
               <span className="text-slate-500">Incasso vendita</span>
               <span className="font-medium">{formatCurrency(r.sourcesAndUses.saleProceeds)}</span>
             </div>
-            <div className="flex justify-between border-b border-slate-100 py-1.5">
-              <span className="text-slate-500">− Capitale mutuo residuo</span>
-              <span className="font-medium">{formatCurrency(r.sourcesAndUses.loanPrincipalRepaidAtSale)}</span>
-            </div>
+            {r.sourcesAndUses.loanPrincipalRepaidAtSale > 0 && (
+              <div className="flex justify-between border-b border-slate-100 py-1.5">
+                <span className="text-slate-500">− Capitale mutuo residuo</span>
+                <span className="font-medium">{formatCurrency(r.sourcesAndUses.loanPrincipalRepaidAtSale)}</span>
+              </div>
+            )}
             <div className="flex justify-between border-b border-slate-100 py-1.5">
               <span className="text-slate-500">− Imposte</span>
               <span className="font-medium">{formatCurrency(r.taxes.totalTax)}</span>
