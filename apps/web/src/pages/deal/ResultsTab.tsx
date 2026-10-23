@@ -34,7 +34,6 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
   const results = trpc.results.forDeal.useQuery({ dealId: deal.id, scenario });
   const allScenarios = trpc.results.allScenarios.useQuery({ dealId: deal.id });
   const sensitivity = trpc.results.sensitivity.useQuery({ dealId: deal.id, scenario });
-  const matrix = trpc.results.sensitivityMatrix.useQuery({ dealId: deal.id, scenario });
 
   const utils = trpc.useUtils();
   const [noteText, setNoteText] = useState("");
@@ -356,40 +355,6 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
                 </div>
               ))}
             </div>
-          </CardBody>
-        </Card>
-      )}
-
-      {matrix.data?.result && (
-        <Card>
-          <CardHeader title="Sensitività a doppia entrata" subtitle="Righe: prezzo di vendita · Colonne: sforamento sulle lavorazioni. Celle: utile netto." />
-          <CardBody className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-xs uppercase text-slate-400">
-                  <th className="py-2 pr-4 text-left">Prezzo \ Sforamento</th>
-                  {matrix.data.result.lavorazioniOverrunPct.map((o) => (
-                    <th key={o} className="py-2 pr-4 text-right">
-                      +{(o * 100).toFixed(0)}%
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {matrix.data.result.salePriceDeltasPct.map((priceDelta, i) => (
-                  <tr key={priceDelta} className="border-b border-slate-100">
-                    <td className="py-2 pr-4 font-medium">
-                      {priceDelta === 0 ? "Base" : `${priceDelta > 0 ? "+" : ""}${(priceDelta * 100).toFixed(0)}%`}
-                    </td>
-                    {matrix.data!.result!.netProfitMatrix[i]!.map((value, j) => (
-                      <td key={j} className={`py-2 pr-4 text-right ${value >= 0 ? "text-emerald-700" : "text-red-700"}`}>
-                        {formatCurrency(value)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </CardBody>
         </Card>
       )}
