@@ -96,6 +96,8 @@ export const acquisitionDetailsSchema = z.object({
   purchaseDate: z.coerce.date().nullable().optional(),
   purchaseCategory: purchaseCategorySchema.nullable().optional(),
   renditaCatastale: z.number().nonnegative().nullable().optional(),
+  imuRatePct: z.number().nonnegative().nullable().optional(),
+  categoriaCatastale: z.string().nullable().optional(),
   ownStakePct: z.number().min(0).max(100).optional(),
   notes: z.string().optional(),
 });
@@ -137,6 +139,7 @@ export const costLineItemCreateSchema = z.object({
   vendorId: z.string().nullable().optional(),
   priceListItemId: z.string().nullable().optional(),
   notes: z.string().optional(),
+  targetCategoriaCatastale: z.string().nullable().optional(),
   order: z.number().int().default(0),
 });
 

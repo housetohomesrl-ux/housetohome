@@ -22,6 +22,15 @@ export default function HoldingTab({ deal }: { deal: DealDetail }) {
     onSuccess: () => utils.deal.get.invalidate({ id: deal.id }),
   });
 
+  // Stima IMU mensile: rendita catastale rivalutata del 5% x 160
+  // (moltiplicatore immobili abitativi) x aliquota comunale / 12 mesi.
+  // Richiede sia rendita catastale che aliquota (scheda Acquisizione):
+  // se mancano non mostriamo nessuna stima, resta solo il campo manuale.
+  const renditaCatastale = deal.acquisitionDetails?.renditaCatastale ?? null;
+  const imuRatePct = deal.acquisitionDetails?.imuRatePct ?? null;
+  const estimatedMonthlyImu =
+    renditaCatastale && imuRatePct ? (renditaCatastale * 1.05 * 160 * (imuRatePct / 100)) / 12 : null;
+
   return (
     <Card>
       <CardHeader
@@ -58,6 +67,19 @@ export default function HoldingTab({ deal }: { deal: DealDetail }) {
           <div>
             <Label htmlFor="propertyTax">IMU (€/mese)</Label>
             <Input id="propertyTax" type="number" value={form.monthlyPropertyTax} onChange={(e) => setForm({ ...form, monthlyPropertyTax: e.target.value })} />
+            {estimatedMonthlyImu !== null && (
+              <p className="mt-1 text-xs text-slate-400">
+                Stima da rendita catastale: {estimatedMonthlyImu.toFixed(2)} €/mese.{" "}
+                <button
+                  type="button"
+                  className="text-brand-600 underline"
+                  onClick={() => setForm({ ...form, monthlyPropertyTax: estimatedMonthlyImu.toFixed(2) })}
+                >
+                  Usa questo valore
+                </button>
+                . Non si aggiorna mai da sola: resta quella che hai inserito finché non clicchi.
+              </p>
+            )}
           </div>
         )}
         {!isClientJob && (

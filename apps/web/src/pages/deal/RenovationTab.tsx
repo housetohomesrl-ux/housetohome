@@ -2,7 +2,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { formatCurrency } from "../../lib/format";
 import { parseCsvWithHeader } from "../../lib/csv";
-import { costCategoryGroupSchema } from "@flipplan/shared";
+import { costCategoryGroupSchema, isLuxuryCategory, CATASTALE_CATEGORIES } from "@flipplan/shared";
 import type { DealDetail, CostLineItemDetail, CostCategory, PriceListItem, Vendor } from "../../lib/types";
 import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { Input, Label, Select } from "../../components/ui/Field";
@@ -77,6 +77,7 @@ function defaultCostVatRatePct(group: string): string {
 }
 
 const NOTARY_CATEGORY_NAME = "Notaio";
+const CAMBIO_DESTINAZIONE_CATEGORY_NAME = "Cambio destinazione d'uso";
 
 /**
  * Stessa regola di apps/api/src/lib/registrationTax.ts: la ricalcoliamo qui
@@ -93,7 +94,8 @@ function computeRegistrationTaxEstimate(deal: DealDetail): number {
   const renditaCatastale = deal.acquisitionDetails?.renditaCatastale ?? 0;
   if (regimeType === "SOCIETA_CAPITALI") return purchasePrice * 0.09;
   if (regimeType === "PERSONA_FISICA" && purchaseCategory) {
-    return purchaseCategory === "PRIMA_CASA" ? renditaCatastale * 0.02 : renditaCatastale * 0.09;
+    const isPrimaCasaAgevolata = purchaseCategory === "PRIMA_CASA" && !isLuxuryCategory(deal.acquisitionDetails?.categoriaCatastale);
+    return isPrimaCasaAgevolata ? renditaCatastale * 0.02 : renditaCatastale * 0.09;
   }
   return 0;
 }
@@ -112,6 +114,7 @@ function emptyNewItem(group: string) {
     isUnbilled: false,
     priceListItemId: null as string | null,
     vendorId: null as string | null,
+    targetCategoriaCatastale: null as string | null,
   };
 }
 
@@ -900,6 +903,7 @@ function AddCostItemForm({
       isUnbilled: editingItem.isUnbilled,
       priceListItemId: editingItem.priceListItemId ?? null,
       vendorId: editingItem.vendorId ?? null,
+      targetCategoriaCatastale: editingItem.targetCategoriaCatastale ?? null,
     });
     setDetailsOpen(true);
   }, [editingItem]);
@@ -926,17 +930,19 @@ function AddCostItemForm({
             onChange={(e) => {
               const category = groupCategories.find((c) => c.id === e.target.value);
               const isNotary = category?.name === NOTARY_CATEGORY_NAME;
+              const isCambioDestinazione = category?.name === CAMBIO_DESTINAZIONE_CATEGORY_NAME;
               const registrationTax = isNotary ? computeRegistrationTaxEstimate(deal) : 0;
               setNewItem({
                 ...newItem,
                 categoryId: e.target.value,
                 priceListItemId: null,
-                description: isNotary ? NOTARY_CATEGORY_NAME : "",
+                description: isNotary ? NOTARY_CATEGORY_NAME : isCambioDestinazione ? CAMBIO_DESTINAZIONE_CATEGORY_NAME : "",
                 quantity: "",
                 unit: "",
                 taxableAmount: "0",
                 nonTaxableAmount: registrationTax > 0 ? registrationTax.toFixed(2) : "0",
                 clientPrice: "",
+                targetCategoriaCatastale: null,
               });
             }}
           >
@@ -1074,6 +1080,25 @@ function AddCostItemForm({
               : "Per costi pagati in parte con fattura/IVA e in parte senza (es. contanti)."}
           </p>
         </div>
+        {groupCategories.find((c) => c.id === newItem.categoryId)?.name === CAMBIO_DESTINAZIONE_CATEGORY_NAME && (
+          <div>
+            <Label>Nuova categoria catastale</Label>
+            <Select
+              value={newItem.targetCategoriaCatastale ?? ""}
+              onChange={(e) => setNewItem({ ...newItem, targetCategoriaCatastale: e.target.value || null })}
+            >
+              <option value="">— non impostata —</option>
+              {Object.entries(CATASTALE_CATEGORIES).map(([code, info]) => (
+                <option key={code} value={code}>
+                  {info.label}
+                </option>
+              ))}
+            </Select>
+            <p className="mt-1 text-xs text-slate-400">
+              In quale categoria diventa l'immobile dopo il cambio (es. da C/2 magazzino ad A/2 abitazione).
+            </p>
+          </div>
+        )}
         <label className="mt-6 flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" checked={newItem.isMemo} onChange={(e) => setNewItem({ ...newItem, isMemo: e.target.checked })} />
           Voce memo (esclusa dai totali)
@@ -1104,6 +1129,7 @@ function AddCostItemForm({
                 isUnbilled: newItem.isUnbilled,
                 priceListItemId: newItem.priceListItemId || undefined,
                 vendorId: newItem.vendorId,
+                targetCategoriaCatastale: newItem.targetCategoriaCatastale,
               };
               if (editingItem) {
                 updateItem.mutate({ id: editingItem.id, ...data }, { onSuccess: cancelEdit });

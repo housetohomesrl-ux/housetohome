@@ -2,6 +2,7 @@ import { useState } from "react";
 import { trpc } from "../../lib/trpc";
 import type { DealDetail } from "../../lib/types";
 import { formatCurrency } from "../../lib/format";
+import { CATASTALE_CATEGORIES, isLuxuryCategory } from "@flipplan/shared";
 import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { Input, Label, Select } from "../../components/ui/Field";
 import { Button } from "../../components/ui/Button";
@@ -36,6 +37,8 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
   const [renditaCatastale, setRenditaCatastale] = useState(
     deal.acquisitionDetails?.renditaCatastale?.toString() ?? "",
   );
+  const [imuRatePct, setImuRatePct] = useState(deal.acquisitionDetails?.imuRatePct?.toString() ?? "");
+  const [categoriaCatastale, setCategoriaCatastale] = useState(deal.acquisitionDetails?.categoriaCatastale ?? "");
   const [ownStakePct, setOwnStakePct] = useState(deal.acquisitionDetails?.ownStakePct?.toString() ?? "100");
   const [notes, setNotes] = useState(deal.acquisitionDetails?.notes ?? "");
   const [client, setClient] = useState({
@@ -82,11 +85,12 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
   // dal pulsante "Salva impostazioni fiscali".
   const isCompanyPurchase = fiscal.regimeType === "SOCIETA_CAPITALI";
   const isPrivatePurchase = fiscal.regimeType === "PERSONA_FISICA";
+  const isPrimaCasaAgevolata = purchaseCategory === "PRIMA_CASA" && !isLuxuryCategory(categoriaCatastale);
   const estimatedRegistrationTax = isCompanyPurchase
     ? Number(purchasePrice || 0) * 0.09
-    : purchaseCategory === "PRIMA_CASA"
+    : isPrimaCasaAgevolata
       ? Number(renditaCatastale || 0) * 0.02
-      : purchaseCategory === "SECONDA_CASA"
+      : purchaseCategory === "SECONDA_CASA" || (purchaseCategory === "PRIMA_CASA" && isLuxuryCategory(categoriaCatastale))
         ? Number(renditaCatastale || 0) * 0.09
         : 0;
   const saveFiscal = trpc.dealSettings.updateFiscalSettings.useMutation({
@@ -113,6 +117,8 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
       purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
       purchaseCategory: purchaseCategory || null,
       renditaCatastale: renditaCatastale ? Number(renditaCatastale) : null,
+      imuRatePct: imuRatePct ? Number(imuRatePct) : null,
+      categoriaCatastale: categoriaCatastale || null,
       ownStakePct: Number(ownStakePct || 100),
       notes: notes || undefined,
     });
@@ -325,6 +331,39 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
               </p>
             </div>
             <div>
+              <Label htmlFor="categoriaCatastale">Categoria catastale (all'acquisto)</Label>
+              <Select
+                id="categoriaCatastale"
+                value={categoriaCatastale}
+                onChange={(e) => setCategoriaCatastale(e.target.value)}
+              >
+                <option value="">— non impostata —</option>
+                {Object.entries(CATASTALE_CATEGORIES).map(([code, info]) => (
+                  <option key={code} value={code}>
+                    {info.label}
+                  </option>
+                ))}
+              </Select>
+              <p className="mt-1 text-xs text-slate-400">
+                Quella sulla visura al rogito, anche se poi ristrutturi e cambi destinazione d'uso (es. da magazzino
+                ad abitazione). Da qui si calcolano in automatico l'eventuale esclusione dall'agevolazione prima casa
+                (A/1, A/8, A/9) e il moltiplicatore corretto per la stima IMU in scheda Detenzione.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="imuRatePct">Aliquota IMU del comune (%)</Label>
+              <Input
+                id="imuRatePct"
+                type="number"
+                value={imuRatePct}
+                onChange={(e) => setImuRatePct(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                Varia per comune (di solito 0,86%–1,06% per un immobile non prima casa). Serve solo a calcolarti una
+                stima dell'IMU mensile in scheda Detenzione: non viene mai inserita da sola, tu scegli se usarla.
+              </p>
+            </div>
+            <div>
               <Label htmlFor="ownStakePct">Quota di partecipazione (%)</Label>
               <Input
                 id="ownStakePct"
@@ -357,6 +396,8 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
                     purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
                     purchaseCategory: purchaseCategory || null,
                     renditaCatastale: renditaCatastale ? Number(renditaCatastale) : null,
+                    imuRatePct: imuRatePct ? Number(imuRatePct) : null,
+                    categoriaCatastale: categoriaCatastale || null,
                     ownStakePct: Number(ownStakePct || 100),
                     notes: notes || undefined,
                   })
@@ -451,6 +492,13 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
                   Acquisizione), non sul prezzo.
                 </p>
               </div>
+              {isLuxuryCategory(categoriaCatastale) && (
+                <p className="text-xs text-slate-400 sm:col-span-2">
+                  Categoria catastale di lusso ({categoriaCatastale}, scheda Acquisizione): non ha mai diritto
+                  all'agevolazione prima casa, anche con "Prima casa" selezionato sopra l'imposta di registro viene
+                  calcolata sempre al 9% sulla rendita catastale.
+                </p>
+              )}
             </>
           )}
 
@@ -458,9 +506,11 @@ export default function AcquisitionTab({ deal }: { deal: DealDetail }) {
             <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 sm:col-span-2">
               {isCompanyPurchase
                 ? "Acquisto con la società: imposta di registro stimata al 9% sul prezzo di acquisto"
-                : purchaseCategory === "PRIMA_CASA"
+                : isPrimaCasaAgevolata
                   ? "Prima casa: imposta di registro stimata al 2% sulla rendita catastale"
-                  : "Seconda casa: imposta di registro stimata al 9% sulla rendita catastale"}{" "}
+                  : purchaseCategory === "PRIMA_CASA"
+                    ? "Immobile di lusso: niente agevolazione prima casa, imposta di registro stimata al 9% sulla rendita catastale"
+                    : "Seconda casa: imposta di registro stimata al 9% sulla rendita catastale"}{" "}
               = {formatCurrency(estimatedRegistrationTax, true)}. Al Salva viene inserita in automatico
               nell'"Importo non imponibile" della riga di costo "Notaio" (categoria Acquisizione), in aggiunta
               all'imponibile che resta l'onorario del notaio.

@@ -210,6 +210,18 @@ model AcquisitionDetails {
   // Rendita catastale dell'immobile, dalla visura catastale (RTI): base per
   // l'imposta di registro "prima casa" (2%) e per il calcolo IMU.
   renditaCatastale Decimal? @db.Decimal(14, 2)
+  // Aliquota IMU del comune (%), es. 1,06. Usata solo per mostrare una stima
+  // dell'IMU mensile in scheda Detenzione (rendita catastale rivalutata del
+  // 5% x 160 x aliquota / 12 mesi): la stima va applicata a mano col
+  // pulsante dedicato, non sovrascrive mai un valore già inserito manualmente.
+  imuRatePct       Decimal? @db.Decimal(5, 2)
+  // Categoria catastale all'acquisto (dalla visura, es. "A/2", "C/2"): da
+  // qui si derivano in automatico se l'immobile è di lusso (A/1/A/8/A/9,
+  // mai agevolazione prima casa sull'imposta di registro) e il
+  // moltiplicatore IMU corretto (vedi packages/shared/src/catastale.ts).
+  // Resta quella al rogito anche se l'immobile viene poi ristrutturato e
+  // cambia destinazione d'uso (es. da magazzino ad abitazione).
+  categoriaCatastale String?
   // Quota di partecipazione dell'azienda in questo flip, se fatto insieme ad
   // altre società (es. 50% in due, 33,3% in tre). 100 = flip fatto da soli
   // (default). Usata solo per mostrare "a mio carico" su costi/utile in
@@ -335,6 +347,10 @@ model CostLineItem {
   priceListItemId  String?
   priceListItem    PriceListItem?     @relation(fields: [priceListItemId], references: [id])
   notes            String?
+  // Solo per la voce "Cambio destinazione d'uso" (categoria ENTI_ESTERNI):
+  // in quale categoria catastale (es. "A/2") diventa l'immobile dopo il
+  // cambio, distinta dalla categoria all'acquisto (AcquisitionDetails).
+  targetCategoriaCatastale String?
   order            Int                @default(0)
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt

@@ -32,6 +32,7 @@ export const DEFAULT_CATEGORIES: Array<{ group: CostCategoryGroup; name: string;
   // frazionamento di un immobile in più unità.
   { group: "ENTI_ESTERNI", name: "Hera (gas)", order: 36 },
   { group: "ENTI_ESTERNI", name: "Enel (contatore luce)", order: 37 },
+  { group: "ENTI_ESTERNI", name: "Cambio destinazione d'uso", order: 38 },
   { group: "ALTRO", name: "Varie ed eventuali", order: 90 },
 ];
 

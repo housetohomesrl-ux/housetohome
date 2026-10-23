@@ -53,6 +53,9 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
   }
   const r = costsRef;
 
+  const roiValues = results.map((x) => x.result?.kpis.roi).filter((v): v is number => v !== undefined && v !== null);
+  const roiRange = roiValues.length > 0 ? { min: Math.min(...roiValues), max: Math.max(...roiValues) } : null;
+
   const acquisizioneItems = deal.costLineItems.filter((i) => !i.isMemo && i.category.group === "ACQUISIZIONE");
   const entiEsterniItems = deal.costLineItems.filter((i) => !i.isMemo && i.category.group === "ENTI_ESTERNI");
   const altroItems = deal.costLineItems.filter((i) => !i.isMemo && i.category.group === "ALTRO");
@@ -115,7 +118,13 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
           <div className="w-56 shrink-0 text-right">
             <div className="inline-block bg-cyan-400 px-3 py-0.5 font-semibold text-white">Business plan</div>
             <div className="mt-1 font-medium">{deal.address || deal.name}</div>
-            <div className="mt-1 text-slate-500">Scenari: Prudente / Realistico / Ottimistico</div>
+            <div className="mt-1 text-slate-500">Durata prevista: {deal.holdingCosts?.durationMonths ?? 0} mesi</div>
+            <div className="text-slate-500">Investimento totale: {formatCurrency(r.totals.totalProjectCost, true)}</div>
+            {roiRange && (
+              <div className="text-slate-500">
+                ROI stimato: {formatPercent(roiRange.min)} – {formatPercent(roiRange.max)}
+              </div>
+            )}
             <div className="mt-4">Data: {formatDateIt(new Date())}</div>
           </div>
         </div>

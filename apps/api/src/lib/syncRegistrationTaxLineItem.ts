@@ -29,6 +29,7 @@ export async function syncRegistrationTaxLineItem(dealId: string, tenantId: stri
     purchaseCategory: deal.acquisitionDetails.purchaseCategory,
     purchasePrice: deal.acquisitionDetails.purchasePrice.toNumber(),
     renditaCatastale: deal.acquisitionDetails.renditaCatastale?.toNumber() ?? null,
+    categoriaCatastale: deal.acquisitionDetails.categoriaCatastale,
   });
   if (amount === null) return;
 
