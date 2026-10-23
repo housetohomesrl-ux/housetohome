@@ -186,6 +186,12 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
               <span className="text-slate-500">Impieghi (costo totale)</span>
               <span className="font-medium">{formatCurrency(r.sourcesAndUses.usesTotal)}</span>
             </div>
+            {r.holding.externalFinancingCost > 0 && (
+              <p className="-mt-0.5 border-b border-slate-100 pb-1.5 text-xs text-slate-400">
+                di cui {formatCurrency(r.holding.externalFinancingCost, true)} di rata finanziamenti aziendali
+                (automatico, dentro il costo di detenzione)
+              </p>
+            )}
             <div className="flex justify-between border-b border-slate-100 py-1.5">
               <span className="text-slate-500">Fonti: capitale proprio</span>
               <span className="font-medium">{formatCurrency(r.sourcesAndUses.equitySources)}</span>
