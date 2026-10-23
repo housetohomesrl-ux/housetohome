@@ -92,6 +92,7 @@ export function computeDealFinancials(input: DealFinancialsInput): DealFinancial
     remainingUnpaidCosts: costs.nonMemoDueTotal,
     saleVatAmount: toMoneyNumber(saleVatAmount),
     vatCredit: toMoneyNumber(vatCredit),
+    externalFinancingPrincipal: input.externalFinancingPrincipal,
   });
 
   return {

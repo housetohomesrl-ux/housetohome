@@ -200,6 +200,12 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
               <span className="text-slate-500">Fonti: finanziamenti</span>
               <span className="font-medium">{formatCurrency(r.sourcesAndUses.loanSources)}</span>
             </div>
+            {r.sourcesAndUses.externalFinancingSources > 0 && (
+              <p className="-mt-0.5 border-b border-slate-100 pb-1.5 text-xs text-slate-400">
+                di cui {formatCurrency(r.sourcesAndUses.externalFinancingSources, true)} capitale dei finanziamenti
+                aziendali (automatico, dal piano di ammortamento, nella finestra di questo flip)
+              </p>
+            )}
             <div className="flex justify-between py-1.5 font-semibold">
               <span>Copertura</span>
               <span className={r.sourcesAndUses.isUndercovered ? "text-red-600" : "text-emerald-600"}>

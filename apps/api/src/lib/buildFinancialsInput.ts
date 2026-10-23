@@ -5,19 +5,32 @@ import type { FullDeal } from "./dealInclude.js";
 
 /**
  * Somma la rata intera (capitale + interessi — un costo fisso che l'azienda
- * paga comunque ogni mese, non solo gli interessi) di tutti i CompanyLoan
- * del tenant (finanziamenti aziendali sempre attivi, importati dal piano di
- * ammortamento vero della banca) le cui rate cadono nella finestra
- * [purchaseDate, purchaseDate + durationMonths].
+ * paga comunque ogni mese, non solo gli interessi) E la sola quota capitale
+ * di tutti i CompanyLoan del tenant (finanziamenti aziendali sempre attivi,
+ * importati dal piano di ammortamento vero della banca) le cui rate cadono
+ * nella finestra [purchaseDate, purchaseDate + durationMonths]. La rata
+ * intera va nei costi di detenzione; la sola quota capitale va in Fonti e
+ * impieghi come fonte di finanziamento automatica (quei soldi arrivano già
+ * dalla banca, non vanno inseriti a mano come un nuovo prestito per il deal).
  */
-async function computeRealFinancingCost(tenantId: string, purchaseDate: Date, durationMonths: number): Promise<number> {
+async function computeRealFinancing(
+  tenantId: string,
+  purchaseDate: Date,
+  durationMonths: number,
+): Promise<{ fullCost: number; principal: number }> {
   const endDate = new Date(purchaseDate);
   endDate.setMonth(endDate.getMonth() + durationMonths);
   const payments = await prisma.companyLoanPayment.findMany({
     where: { companyLoan: { tenantId }, dueDate: { gte: purchaseDate, lte: endDate } },
     select: { principalPortion: true, interestPortion: true },
   });
-  return payments.reduce((sum, p) => sum + p.principalPortion.toNumber() + p.interestPortion.toNumber(), 0);
+  return payments.reduce(
+    (acc, p) => ({
+      fullCost: acc.fullCost + p.principalPortion.toNumber() + p.interestPortion.toNumber(),
+      principal: acc.principal + p.principalPortion.toNumber(),
+    }),
+    { fullCost: 0, principal: 0 },
+  );
 }
 
 /**
@@ -35,6 +48,8 @@ export async function buildFinancialsInput(tenantId: string, deal: FullDeal, sce
   const input = mapDealToFinancialsInput(deal, scenarioType);
   if (!input) return null;
   const anchorDate = deal.acquisitionDetails?.purchaseDate ?? new Date();
-  input.externalFinancingCost = await computeRealFinancingCost(tenantId, anchorDate, input.holdingCosts.durationMonths);
+  const { fullCost, principal } = await computeRealFinancing(tenantId, anchorDate, input.holdingCosts.durationMonths);
+  input.externalFinancingCost = fullCost;
+  input.externalFinancingPrincipal = principal;
   return input;
 }

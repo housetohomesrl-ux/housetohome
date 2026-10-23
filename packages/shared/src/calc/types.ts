@@ -102,6 +102,12 @@ export interface DealFinancialsInput {
   // deal (quelli restano solo-interessi, qui si conta l'intera rata perché
   // è un costo fisso che l'azienda paga comunque ogni mese.
   externalFinancingCost?: number;
+  // Quota capitale (sola, non la rata intera) degli stessi pagamenti dei
+  // finanziamenti aziendali sopra, nella stessa finestra: usata in Fonti e
+  // impieghi come "Fonti: finanziamenti" automatica, perché quel capitale è
+  // già stato erogato dalla banca (mutuo/prestito reali, sempre attivi) e
+  // non va inserito a mano come un nuovo prestito per il deal.
+  externalFinancingPrincipal?: number;
   costLineItems: CostLineItemInput[];
   loans: LoanInput[];
   partners: PartnerInput[];
@@ -161,6 +167,10 @@ export interface SourcesAndUsesResult {
   usesTotal: number;
   equitySources: number;
   loanSources: number;
+  // Quota di loanSources che arriva in automatico dal capitale dei
+  // finanziamenti aziendali (vedi externalFinancingPrincipal), già inclusa
+  // in loanSources — esposta a parte solo per mostrarla in UI.
+  externalFinancingSources: number;
   sourcesTotal: number;
   coverage: number;
   isUndercovered: boolean;

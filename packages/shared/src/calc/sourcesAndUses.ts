@@ -38,8 +38,10 @@ export function computeSourcesAndUses(input: {
   remainingUnpaidCosts: number;
   saleVatAmount: number;
   vatCredit: number;
+  externalFinancingPrincipal?: number;
 }): SourcesAndUsesResult {
-  const loanSources = sumMoney(input.loans.map((l) => l.principalAmount));
+  const externalFinancingSources = money(input.externalFinancingPrincipal ?? 0);
+  const loanSources = sumMoney(input.loans.map((l) => l.principalAmount)).plus(externalFinancingSources);
   const sourcesTotal = money(input.equityInvested).plus(loanSources);
   const coverage = sourcesTotal.minus(input.usesTotal);
 
@@ -60,6 +62,7 @@ export function computeSourcesAndUses(input: {
     usesTotal: toMoneyNumber(money(input.usesTotal)),
     equitySources: toMoneyNumber(money(input.equityInvested)),
     loanSources: toMoneyNumber(loanSources),
+    externalFinancingSources: toMoneyNumber(externalFinancingSources),
     sourcesTotal: toMoneyNumber(sourcesTotal),
     coverage: toMoneyNumber(coverage),
     isUndercovered: coverage.lessThan(0),
