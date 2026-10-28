@@ -75,6 +75,7 @@ export const dealRouter = router({
           address: input.address,
           propertyType: input.propertyType,
           status: input.status,
+          operationType: input.operationType,
         },
       });
       await tx.acquisitionDetails.create({ data: { dealId: deal.id, purchasePrice: 0 } });
