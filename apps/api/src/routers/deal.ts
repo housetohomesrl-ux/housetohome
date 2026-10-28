@@ -74,6 +74,7 @@ export const dealRouter = router({
           name: input.name,
           address: input.address,
           propertyType: input.propertyType,
+          operationType: input.operationType,
           status: input.status,
         },
       });
