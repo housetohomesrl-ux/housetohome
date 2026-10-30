@@ -102,9 +102,11 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
     -1,
   );
 
-  const acconto1 = grandTotal * 0.25;
-  const acconto2 = grandTotal * 0.5;
-  const saldo = grandTotal - acconto1 - acconto2;
+  // Acconti e saldo sul solo imponibile: sul preventivo cliente non mostriamo
+  // mai un importo calcolato con l'IVA già dentro.
+  const acconto1 = subtotal * 0.25;
+  const acconto2 = subtotal * 0.5;
+  const saldo = subtotal - acconto1 - acconto2;
 
   // Il deal ha anche uno stato "pipeline" più vecchio (VALUTAZIONE/ACQUISIZIONE,
   // mostrato nel Portafoglio come "Preventivo per cliente"/"Preventivo
@@ -378,12 +380,6 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
                 <td className="border border-slate-300 px-2 py-1">{formatCurrency(subtotal, true)}</td>
                 <td className="border border-slate-300 px-2 py-1" colSpan={3}>
                   + {currentVatPct}% di IVA
-                </td>
-              </tr>
-              <tr className="bg-cyan-400 font-semibold italic text-white">
-                <td className="border border-slate-300 px-2 py-1">TOTALE CON IVA</td>
-                <td className="border border-slate-300 px-2 py-1" colSpan={4}>
-                  {formatCurrency(grandTotal, true)}
                 </td>
               </tr>
               <tr className="bg-cyan-400 font-semibold italic text-white">

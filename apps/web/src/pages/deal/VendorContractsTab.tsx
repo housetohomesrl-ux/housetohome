@@ -62,6 +62,14 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
 
       {vendorGroups.map(({ vendor, items: vendorItems }) => {
         const total = vendorItems.reduce((sum, item) => sum + rowTotal(item), 0);
+        // Imponibile e IVA separati: nel contratto fornitore deve comparire
+        // sia il prezzo senza IVA sia quello con IVA (es. Cambielli al 22%),
+        // perché è l'IVA che paghiamo noi al fornitore, non quella che
+        // incassiamo dal cliente nel preventivo.
+        const imponibile = vendorItems.reduce((sum, item) => sum + item.taxableAmount + item.nonTaxableAmount, 0);
+        const vatAmount = vendorItems.reduce((sum, item) => sum + (item.taxableAmount * item.vatRatePct) / 100, 0);
+        const vatRates = [...new Set(vendorItems.map((item) => item.vatRatePct))];
+        const uniformVatPct = vatRates.length === 1 ? vatRates[0] : null;
         const hidden = printingVendorId !== null && printingVendorId !== vendor.id;
         return (
           <div key={vendor.id} className={hidden ? "print:hidden" : undefined}>
@@ -181,8 +189,22 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
 
               <table className="w-full border-collapse">
                 <tbody>
+                  <tr className="font-semibold">
+                    <td className="border border-slate-300 px-2 py-1">TOTALE SENZA IVA</td>
+                    <td className="border border-slate-300 px-2 py-1" colSpan={2}>
+                      {formatCurrency(imponibile, true)}
+                    </td>
+                  </tr>
+                  <tr className="font-semibold">
+                    <td className="border border-slate-300 px-2 py-1">
+                      IVA{uniformVatPct !== null ? ` (${uniformVatPct}%)` : ""}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1" colSpan={2}>
+                      {formatCurrency(vatAmount, true)}
+                    </td>
+                  </tr>
                   <tr className="bg-cyan-400 font-bold italic text-white">
-                    <td className="border border-slate-300 px-2 py-1">TOTALE</td>
+                    <td className="border border-slate-300 px-2 py-1">TOTALE CON IVA</td>
                     <td className="border border-slate-300 px-2 py-1" colSpan={2}>
                       {formatCurrency(total, true)}
                     </td>
