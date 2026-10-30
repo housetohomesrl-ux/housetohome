@@ -146,4 +146,19 @@ export const costLineItemRouter = router({
       });
       return { updated: result.count };
     }),
+
+  // Assegna un fornitore a tutte le voci di costo del deal che ne sono
+  // ancora prive (es. un import CSV senza colonna vendor, o con un nome
+  // fornitore che non ha trovato corrispondenza): non tocca le voci che
+  // hanno gia un fornitore assegnato.
+  bulkAssignVendorToUnassigned: protectedProcedure
+    .input(z.object({ dealId: z.string(), vendorId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertDealAccess(ctx.user.tenantId, input.dealId);
+      const result = await prisma.costLineItem.updateMany({
+        where: { dealId: input.dealId, vendorId: null },
+        data: { vendorId: input.vendorId },
+      });
+      return { updated: result.count };
+    }),
 });

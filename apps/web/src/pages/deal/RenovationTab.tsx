@@ -572,36 +572,65 @@ function FixVatByVendorCard({ dealId, vendors }: { dealId: string; vendors: Vend
     onSuccess: () => utils.deal.get.invalidate({ id: dealId }),
   });
 
+  const [assignVendorId, setAssignVendorId] = useState("");
+  const bulkAssignVendor = trpc.costLineItem.bulkAssignVendorToUnassigned.useMutation({
+    onSuccess: () => utils.deal.get.invalidate({ id: dealId }),
+  });
+
   return (
     <Card>
       <CardHeader
-        title="Correggi IVA per fornitore"
-        subtitle="Cambia in blocco l'IVA% di tutte le voci di costo già inserite per un fornitore in questo deal (es. dopo un import CSV con l'aliquota sbagliata)."
+        title="Correggi fornitore / IVA in blocco"
+        subtitle="Due aggiustamenti rapidi su tutte le voci di costo già inserite in questo deal: assegnare un fornitore a chi ne è privo, o cambiare l'IVA% di tutte le voci di un fornitore (es. dopo un import CSV senza/con fornitore o IVA sbagliati)."
       />
-      <CardBody className="flex flex-wrap items-end gap-3">
-        <div className="min-w-[200px]">
-          <Label>Fornitore</Label>
-          <Select value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
-            <option value="">Seleziona...</option>
-            {(vendors ?? []).map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name}
-              </option>
-            ))}
-          </Select>
+      <CardBody className="grid gap-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[200px]">
+            <Label>Fornitore da assegnare</Label>
+            <Select value={assignVendorId} onChange={(e) => setAssignVendorId(e.target.value)}>
+              <option value="">Seleziona...</option>
+              {(vendors ?? []).map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <Button
+            variant="secondary"
+            disabled={!assignVendorId || bulkAssignVendor.isPending}
+            onClick={() => bulkAssignVendor.mutate({ dealId, vendorId: assignVendorId })}
+          >
+            {bulkAssignVendor.isPending ? "Applicazione..." : "Assegna a tutte le voci senza fornitore"}
+          </Button>
+          {bulkAssignVendor.data && <Badge tone="success">{bulkAssignVendor.data.updated} voci aggiornate</Badge>}
         </div>
-        <div className="w-32">
-          <Label>Nuova IVA (%)</Label>
-          <Input type="number" value={vatRatePct} onChange={(e) => setVatRatePct(e.target.value)} />
+
+        <div className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4">
+          <div className="min-w-[200px]">
+            <Label>Fornitore</Label>
+            <Select value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
+              <option value="">Seleziona...</option>
+              {(vendors ?? []).map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="w-32">
+            <Label>Nuova IVA (%)</Label>
+            <Input type="number" value={vatRatePct} onChange={(e) => setVatRatePct(e.target.value)} />
+          </div>
+          <Button
+            variant="secondary"
+            disabled={!vendorId || bulkUpdateVat.isPending}
+            onClick={() => bulkUpdateVat.mutate({ dealId, vendorId, vatRatePct: Number(vatRatePct) })}
+          >
+            {bulkUpdateVat.isPending ? "Applicazione..." : "Applica IVA a tutte le voci di questo fornitore"}
+          </Button>
+          {bulkUpdateVat.data && <Badge tone="success">{bulkUpdateVat.data.updated} voci aggiornate</Badge>}
         </div>
-        <Button
-          variant="secondary"
-          disabled={!vendorId || bulkUpdateVat.isPending}
-          onClick={() => bulkUpdateVat.mutate({ dealId, vendorId, vatRatePct: Number(vatRatePct) })}
-        >
-          {bulkUpdateVat.isPending ? "Applicazione..." : "Applica a tutte le voci di questo fornitore"}
-        </Button>
-        {bulkUpdateVat.data && <Badge tone="success">{bulkUpdateVat.data.updated} voci aggiornate</Badge>}
       </CardBody>
     </Card>
   );
