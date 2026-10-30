@@ -274,6 +274,15 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
   }
   const totalClientPrice = clientSubtotal * (1 + quoteVatRatePct(deal) / 100);
 
+  // Saldo IVA (liquidazione): l'IVA incassata dal cliente sul preventivo è
+  // IVA a debito verso l'Erario, l'IVA pagata ai fornitori (es. Cambielli al
+  // 22%, i fornitori in regime forfettario/reverse charge non la addebitano)
+  // è IVA a credito che si scala da quella a debito. Tenuta separata dai
+  // totali sopra, che restano IVA inclusa perché sono i flussi di cassa reali.
+  const outputVat = totalClientPrice - clientSubtotal;
+  const inputVat = items.reduce((sum, item) => sum + (item.taxableAmount * item.vatRatePct) / 100, 0);
+  const netVatDue = outputVat - inputVat;
+
   // Costi di detenzione: per una ristrutturazione cliente non è il costo di
   // possesso dell'immobile (non è nostro), ma i costi ricorrenti
   // dell'azienda legati alla durata del cantiere (assicurazione di
@@ -341,7 +350,13 @@ export default function ClientResultsTab({ deal }: { deal: DealDetail }) {
   return (
     <div className="grid gap-5">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Totale preventivo cliente" value={formatCurrency(totalClientPrice)} />
+        <KpiCard label="Totale preventivo cliente (senza IVA)" value={formatCurrency(clientSubtotal)} />
+        <KpiCard label={`Totale con IVA (${quoteVatRatePct(deal)}%)`} value={formatCurrency(totalClientPrice)} />
+        <KpiCard
+          label={netVatDue >= 0 ? "IVA a debito (da versare)" : "IVA a credito"}
+          value={formatCurrency(Math.abs(netVatDue))}
+          tone={netVatDue >= 0 ? "danger" : "success"}
+        />
         <KpiCard label="Totale costi" value={formatCurrency(totalCost)} />
         <KpiCard label="Margine sulla ristrutturazione (al netto di IVA)" value={formatCurrency(margin)} tone={margin >= 0 ? "success" : "danger"} />
         <KpiCard

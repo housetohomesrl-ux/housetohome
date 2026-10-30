@@ -95,6 +95,21 @@ export default function ResultsTab({ deal }: { deal: DealDetail }) {
           value={formatCurrency(r.sourcesAndUses.finalNetCashToEquity)}
           tone={r.sourcesAndUses.finalNetCashToEquity >= 0 ? "success" : "danger"}
         />
+        {(r.sale.saleVatAmount > 0 || r.sale.vatCredit > 0) &&
+          (() => {
+            // Saldo IVA (liquidazione): IVA incassata sulla vendita (a debito
+            // verso l'Erario) meno IVA pagata sui costi se recuperabile (a
+            // credito). Tenuto separato dagli altri totali, che restano IVA
+            // inclusa perché sono flussi di cassa reali.
+            const netVatDue = r.sale.saleVatAmount - r.sale.vatCredit;
+            return (
+              <KpiCard
+                label={netVatDue >= 0 ? "IVA a debito (da versare)" : "IVA a credito"}
+                value={formatCurrency(Math.abs(netVatDue))}
+                tone={netVatDue >= 0 ? "danger" : "success"}
+              />
+            );
+          })()}
       </div>
 
       {isJointVenture && (

@@ -375,9 +375,15 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
             <tbody>
               <tr className="bg-cyan-400 font-bold italic text-white">
                 <td className="border border-slate-300 px-2 py-1">TOTALE</td>
-                <td className="border border-slate-300 px-2 py-1">{formatCurrency(grandTotal, true)}</td>
+                <td className="border border-slate-300 px-2 py-1">{formatCurrency(subtotal, true)}</td>
                 <td className="border border-slate-300 px-2 py-1" colSpan={3}>
                   + {currentVatPct}% di IVA
+                </td>
+              </tr>
+              <tr className="bg-cyan-400 font-semibold italic text-white">
+                <td className="border border-slate-300 px-2 py-1">TOTALE CON IVA</td>
+                <td className="border border-slate-300 px-2 py-1" colSpan={4}>
+                  {formatCurrency(grandTotal, true)}
                 </td>
               </tr>
               <tr className="bg-cyan-400 font-semibold italic text-white">
