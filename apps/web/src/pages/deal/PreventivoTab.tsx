@@ -91,7 +91,7 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
   // di un muratore/idraulico, poche voci, prezzo già completo) mostrano
   // sempre il loro prezzo, qualunque sia lo stato di questo interruttore.
   const isUnifiableMaterial = (group: string, vendorName: string | undefined) =>
-    group === "MATERIALI" && vendorName === "Cambielli";
+    group === "MATERIALI" && (vendorName ?? "").toLowerCase().includes("cambielli");
   const materialsTotal = rows
     .filter((r) => isUnifiableMaterial(r.item.category.group, r.item.vendor?.name))
     .reduce((sum, r) => sum + r.price, 0);
