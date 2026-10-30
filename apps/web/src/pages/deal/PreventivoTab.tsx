@@ -85,13 +85,20 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
   const currentVatPct = quoteVatRatePct(deal);
   const vatAmount = (subtotal * currentVatPct) / 100;
   const grandTotal = subtotal + vatAmount;
+  // L'unificazione prezzi vale solo per il materiale del fornitore Cambielli
+  // (tante voci di catalogo, prezzo unitario poco significativo per il
+  // cliente): le voci Materiali di altri fornitori (es. "fornitura e posa"
+  // di un muratore/idraulico, poche voci, prezzo già completo) mostrano
+  // sempre il loro prezzo, qualunque sia lo stato di questo interruttore.
+  const isUnifiableMaterial = (group: string, vendorName: string | undefined) =>
+    group === "MATERIALI" && vendorName === "Cambielli";
   const materialsTotal = rows
-    .filter((r) => r.item.category.group === "MATERIALI")
+    .filter((r) => isUnifiableMaterial(r.item.category.group, r.item.vendor?.name))
     .reduce((sum, r) => sum + r.price, 0);
-  // Indice dell'ultima voce Materiali nell'ordine stampato: la riga
+  // Indice dell'ultima voce Materiali Cambielli nell'ordine stampato: la riga
   // "Totale materiale" va subito dopo, non in fondo a tutto il documento.
   const lastMaterialIndex = printRows.reduce(
-    (last, r, i) => (r.item.category.group === "MATERIALI" ? i : last),
+    (last, r, i) => (isUnifiableMaterial(r.item.category.group, r.item.vendor?.name) ? i : last),
     -1,
   );
 
@@ -260,8 +267,8 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
 
       <Card className="print:hidden">
         <CardHeader
-          title="Prezzi materiali nel preventivo"
-          subtitle="Con il prezzo unificato, ogni voce materiale resta elencata (così il cliente vede cosa è incluso) ma senza un prezzo per singolo articolo: solo un totale unico a fine gruppo."
+          title="Prezzi materiali Cambielli nel preventivo"
+          subtitle='Vale solo per le voci Materiali del fornitore "Cambielli" (tante voci di catalogo): con il prezzo unificato restano elencate, ma senza un prezzo per singolo articolo, solo un totale unico a fine gruppo. I materiali degli altri fornitori (es. "fornitura e posa" di muratore/idraulico) mostrano sempre il loro prezzo.'
         />
         <CardBody>
           <Button
@@ -278,7 +285,7 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
               })
             }
           >
-            {unifyMaterials ? "Mostra prezzo per ogni voce materiale" : "Unifica prezzo materiali"}
+            {unifyMaterials ? "Mostra prezzo per ogni voce materiale Cambielli" : "Unifica prezzo materiali Cambielli"}
           </Button>
         </CardBody>
       </Card>
@@ -323,7 +330,7 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
           </thead>
           <tbody>
             {printRows.map(({ item, price }, i) => {
-              const hidePrice = unifyMaterials && item.category.group === "MATERIALI";
+              const hidePrice = unifyMaterials && isUnifiableMaterial(item.category.group, item.vendor?.name);
               const qty = item.quantity ?? null;
               const unitPrice = qty ? price / qty : null;
               const isMq = item.unit === "mq";
