@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { trpc } from "../lib/trpc";
 import { formatCurrency, formatDate } from "../lib/format";
-import { parseCsvWithHeader } from "../lib/csv";
+import { parseCsvWithHeader, buildCsv, downloadTextFile } from "../lib/csv";
 import { costCategoryGroupSchema } from "@flipplan/shared";
 import { Card, CardBody, CardHeader } from "../components/ui/Card";
 import { Input, Label, Select, Textarea } from "../components/ui/Field";
@@ -300,6 +300,30 @@ export default function PriceListPage() {
                 {bulkImport.isPending ? "Importazione..." : `Conferma importazione (${importRows.length})`}
               </Button>
             )}
+            <Button
+              variant="secondary"
+              disabled={!scopedItems || scopedItems.length === 0}
+              onClick={() => {
+                if (!scopedItems) return;
+                const csv = buildCsv(
+                  ["group", "category", "name", "unit", "unitPrice", "vendor", "specification", "referenceQuantity", "notes"],
+                  scopedItems.map((item) => ({
+                    group: item.category.group,
+                    category: item.category.name,
+                    name: item.name,
+                    unit: item.unit ?? "",
+                    unitPrice: item.unitPrice,
+                    vendor: item.vendor?.name ?? "",
+                    specification: item.specification ?? "",
+                    referenceQuantity: item.referenceQuantity ?? "",
+                    notes: item.notes ?? "",
+                  })),
+                );
+                downloadTextFile(`${LIBRARY_LABEL[libraryScope]}.csv`, csv);
+              }}
+            >
+              Esporta CSV ({scopedItems?.length ?? 0} voci{vendorFilter ? ", filtrate per fornitore" : ""})
+            </Button>
           </div>
           {importError && <p className="mt-2 text-sm text-red-600">{importError}</p>}
           {importResult && (

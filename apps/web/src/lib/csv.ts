@@ -56,3 +56,29 @@ export function parseCsvWithHeader(text: string): Record<string, string>[] {
     return obj;
   });
 }
+
+/** Serializza un valore come cella CSV (RFC 4180): tra apici solo se contiene virgola/apice/newline. */
+function toCsvCell(value: string | number | null | undefined): string {
+  const s = value === null || value === undefined ? "" : String(value);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/** Costruisce un CSV (con header) da righe di oggetti, nell'ordine delle colonne indicato. */
+export function buildCsv(columns: string[], rows: Record<string, string | number | null | undefined>[]): string {
+  const lines = [columns.join(",")];
+  for (const row of rows) {
+    lines.push(columns.map((c) => toCsvCell(row[c])).join(","));
+  }
+  return lines.join("\r\n");
+}
+
+/** Avvia il download di un file di testo (CSV) nel browser. */
+export function downloadTextFile(filename: string, content: string, mimeType = "text/csv;charset=utf-8") {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
