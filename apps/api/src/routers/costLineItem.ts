@@ -131,4 +131,19 @@ export const costLineItemRouter = router({
 
     return { created, categoriesCreated, vendorsCreated, failed };
   }),
+
+  // Corregge in blocco l'IVA di tutte le voci di costo di un fornitore in un
+  // deal (es. dopo un import CSV con l'aliquota sbagliata, per non dover
+  // cancellare e reimportare tutto, ne' modificare voce per voce). Non tocca
+  // le voci senza fornitore o di altri fornitori.
+  bulkUpdateVatByVendor: protectedProcedure
+    .input(z.object({ dealId: z.string(), vendorId: z.string(), vatRatePct: z.number().min(0).max(100) }))
+    .mutation(async ({ ctx, input }) => {
+      await assertDealAccess(ctx.user.tenantId, input.dealId);
+      const result = await prisma.costLineItem.updateMany({
+        where: { dealId: input.dealId, vendorId: input.vendorId },
+        data: { vatRatePct: input.vatRatePct },
+      });
+      return { updated: result.count };
+    }),
 });

@@ -353,6 +353,8 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
         </CardBody>
       </Card>
 
+      <FixVatByVendorCard dealId={deal.id} vendors={vendors.data} />
+
       <BulkAddFromLibrary
         dealId={deal.id}
         deal={deal}
@@ -553,6 +555,55 @@ function CostLineItemRow({
         </button>
       </td>
     </tr>
+  );
+}
+
+/**
+ * Corregge in blocco l'IVA% di tutte le voci di costo già inserite per un
+ * fornitore in questo deal (es. un import CSV fatto con l'aliquota
+ * sbagliata): evita di dover cancellare e reimportare tutto, o modificare
+ * voce per voce. Non crea/modifica nulla in libreria prezzi.
+ */
+function FixVatByVendorCard({ dealId, vendors }: { dealId: string; vendors: Vendor[] | undefined }) {
+  const utils = trpc.useUtils();
+  const [vendorId, setVendorId] = useState("");
+  const [vatRatePct, setVatRatePct] = useState("0");
+  const bulkUpdateVat = trpc.costLineItem.bulkUpdateVatByVendor.useMutation({
+    onSuccess: () => utils.deal.get.invalidate({ id: dealId }),
+  });
+
+  return (
+    <Card>
+      <CardHeader
+        title="Correggi IVA per fornitore"
+        subtitle="Cambia in blocco l'IVA% di tutte le voci di costo già inserite per un fornitore in questo deal (es. dopo un import CSV con l'aliquota sbagliata)."
+      />
+      <CardBody className="flex flex-wrap items-end gap-3">
+        <div className="min-w-[200px]">
+          <Label>Fornitore</Label>
+          <Select value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
+            <option value="">Seleziona...</option>
+            {(vendors ?? []).map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="w-32">
+          <Label>Nuova IVA (%)</Label>
+          <Input type="number" value={vatRatePct} onChange={(e) => setVatRatePct(e.target.value)} />
+        </div>
+        <Button
+          variant="secondary"
+          disabled={!vendorId || bulkUpdateVat.isPending}
+          onClick={() => bulkUpdateVat.mutate({ dealId, vendorId, vatRatePct: Number(vatRatePct) })}
+        >
+          {bulkUpdateVat.isPending ? "Applicazione..." : "Applica a tutte le voci di questo fornitore"}
+        </Button>
+        {bulkUpdateVat.data && <Badge tone="success">{bulkUpdateVat.data.updated} voci aggiornate</Badge>}
+      </CardBody>
+    </Card>
   );
 }
 
