@@ -137,6 +137,7 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
         )}
 
         {/* Spese di acquisizione */}
+        <div className="break-inside-avoid">
         <table className="mt-5 w-full border-collapse">
           <thead>
             <tr className="bg-cyan-400 text-left text-white">
@@ -166,8 +167,10 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
             </tr>
           </tbody>
         </table>
+        </div>
 
         {/* Spese di detenzione */}
+        <div className="break-inside-avoid">
         <table className="mt-3 w-full border-collapse">
           <thead>
             <tr className="bg-cyan-400 text-left text-white">
@@ -199,8 +202,10 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
             </tr>
           </tbody>
         </table>
+        </div>
 
         {/* Materiale */}
+        <div className="break-inside-avoid">
         <table className="mt-3 w-full border-collapse">
           <thead>
             <tr className="bg-cyan-400 text-left text-white">
@@ -218,8 +223,10 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
             </tr>
           </tbody>
         </table>
+        </div>
 
         {/* Lavorazioni per fornitore */}
+        <div className="break-inside-avoid">
         <table className="mt-3 w-full border-collapse">
           <thead>
             <tr className="bg-cyan-400 text-left text-white">
@@ -260,8 +267,10 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
             </tr>
           </tbody>
         </table>
+        </div>
 
         {/* Enti esterni */}
+        <div className="break-inside-avoid">
         <table className="mt-3 w-full border-collapse">
           <thead>
             <tr className="bg-cyan-400 text-left text-white">
@@ -291,9 +300,11 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
             </tr>
           </tbody>
         </table>
+        </div>
 
         {/* Altro (solo se presente) */}
         {altroItems.length > 0 && (
+          <div className="break-inside-avoid">
           <table className="mt-3 w-full border-collapse">
             <thead>
               <tr className="bg-cyan-400 text-left text-white">
@@ -315,9 +326,11 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
               </tr>
             </tbody>
           </table>
+          </div>
         )}
 
         {/* Totale costi operazione: non cambia tra scenari */}
+        <div className="break-inside-avoid">
         <table className="mt-3 w-full border-collapse">
           <tbody>
             <tr className="bg-cyan-400 font-bold text-white">
@@ -326,8 +339,10 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
             </tr>
           </tbody>
         </table>
+        </div>
 
         {/* Riepilogo per scenario: prezzo di vendita e guadagno cambiano, i costi sopra no */}
+        <div className="break-inside-avoid">
         <table className="mt-3 w-full border-collapse">
           <thead>
             <tr className="bg-cyan-400 text-left text-white">
@@ -429,6 +444,7 @@ export default function BusinessPlanTab({ deal }: { deal: DealDetail }) {
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
