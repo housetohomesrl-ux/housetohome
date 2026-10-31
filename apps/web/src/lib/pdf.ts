@@ -3,6 +3,10 @@ const PDF_OPTIONS = {
   image: { type: "jpeg" as const, quality: 0.98 },
   html2canvas: { scale: 2, useCORS: true },
   jsPDF: { unit: "mm" as const, format: "a4", orientation: "portrait" as const },
+  // Evita che una riga di tabella (o un paragrafo delle condizioni) venga
+  // tagliata a metà tra una pagina e l'altra: va tutta sulla pagina
+  // successiva piuttosto che spezzarsi.
+  pagebreak: { mode: ["css", "legacy"], avoid: ["tr", "td"] },
 };
 
 /** Genera e scarica un PDF a partire da un nodo DOM già stilizzato (stesso contenuto della stampa), senza passare dal dialogo di stampa del browser. Libreria caricata solo al click, per non appesantire il bundle iniziale. */

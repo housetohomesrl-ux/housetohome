@@ -293,7 +293,10 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
       </Card>
 
       {/* Documento stampabile: stessa intestazione/colori/logo del modulo House to Home Srl. */}
-      <div ref={printRef} className="bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm print:p-[20mm] print:shadow-none">
+      <div
+        ref={printRef}
+        className="bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm [&_tr]:break-inside-avoid print:p-[20mm] print:shadow-none"
+      >
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-base font-bold tracking-wide">HOUSETOHOME SRL</h1>
@@ -308,7 +311,9 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
           </div>
           <img src={logoUrl} alt="House to Home Srl" className="h-24 shrink-0" />
           <div className="w-56 shrink-0 text-right">
-            <div className="inline-block bg-cyan-400 px-3 py-0.5 font-semibold text-white">Spett.le</div>
+            <div className="inline-block whitespace-nowrap bg-cyan-400 px-3 py-1 font-semibold leading-normal text-white">
+              Spett.le
+            </div>
             <div className="mt-1">{deal.clientName}</div>
             <div>{deal.clientAddress || deal.address}</div>
             <div className="mt-4">Data: {deal.quoteDate ? formatDateIt(deal.quoteDate) : formatDateIt(new Date())}</div>

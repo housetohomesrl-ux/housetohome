@@ -137,7 +137,7 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
                 if (el) printRefs.current.set(vendor.id, el);
                 else printRefs.current.delete(vendor.id);
               }}
-              className="mt-2 bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm print:p-[20mm] print:shadow-none"
+              className="mt-2 bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm [&_tr]:break-inside-avoid print:p-[20mm] print:shadow-none"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -153,7 +153,9 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
                 </div>
                 <img src={logoUrl} alt="House to Home Srl" className="h-24 shrink-0" />
                 <div className="w-56 shrink-0 text-right">
-                  <div className="inline-block bg-cyan-400 px-3 py-0.5 font-semibold text-white">Spett.le</div>
+                  <div className="inline-block whitespace-nowrap bg-cyan-400 px-3 py-1 font-semibold leading-normal text-white">
+                    Spett.le
+                  </div>
                   <div className="mt-1">{vendor.name}</div>
                   <div>Contratto per i lavori in {deal.address || deal.name}</div>
                   <div className="mt-4">Data: {formatDateIt(new Date())}</div>
