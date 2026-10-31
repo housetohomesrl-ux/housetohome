@@ -327,14 +327,17 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
             "cuscinetto" che inserisce per spingerle alla pagina dopo non è
             HTML valido dentro un <tbody>, e il risultato è una riga
             tagliata/bordi sfalsati). Con dei <div> normali l'inserimento è
-            valido e ogni riga resta intera sulla stessa pagina. */}
-        <div className="mt-5 border-l border-t border-slate-300">
-          <div className="grid grid-cols-[1fr_4rem_5.25rem_4.5rem_5.25rem] bg-cyan-400 text-left text-white">
-            <div className="border-b border-r border-slate-300 px-2 py-1">DESCRIZIONE LAVORI</div>
-            <div className="border-b border-r border-slate-300 px-2 py-1 text-right">MQ</div>
-            <div className="border-b border-r border-slate-300 px-2 py-1 text-right">PREZZO</div>
-            <div className="border-b border-r border-slate-300 px-2 py-1 text-right">QTÀ</div>
-            <div className="border-b border-r border-slate-300 px-2 py-1 text-right">
+            valido e ogni riga resta intera sulla stessa pagina. Ogni riga ha
+            un bordo completo su tutti e 4 i lati (non solo un bordo
+            condiviso a sinistra/sopra per l'intera tabella), con -mt-px per
+            non raddoppiare lo spessore tra una riga e l'altra. */}
+        <div className="mt-5">
+          <div className="grid grid-cols-[1fr_4rem_5.25rem_4.5rem_5.25rem] border border-slate-300 bg-cyan-400 text-left text-white">
+            <div className="border-r border-slate-300 px-2 py-1">DESCRIZIONE LAVORI</div>
+            <div className="border-r border-slate-300 px-2 py-1 text-right">MQ</div>
+            <div className="border-r border-slate-300 px-2 py-1 text-right">PREZZO</div>
+            <div className="border-r border-slate-300 px-2 py-1 text-right">QTÀ</div>
+            <div className="px-2 py-1 text-right">
               TOTALE
               <br />€
             </div>
@@ -346,38 +349,31 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
             const isMq = item.unit === "mq";
             return (
               <Fragment key={item.id}>
-                <div className="grid grid-cols-[1fr_4rem_5.25rem_4.5rem_5.25rem] break-inside-avoid">
-                  <div className="border-b border-r border-slate-300 px-2 py-1">{item.description}</div>
-                  <div className="border-b border-r border-slate-300 px-2 py-1 text-right">{qty && isMq ? qty : ""}</div>
-                  <div className="border-b border-r border-slate-300 px-2 py-1 text-right">
+                <div className="-mt-px grid grid-cols-[1fr_4rem_5.25rem_4.5rem_5.25rem] break-inside-avoid border border-slate-300">
+                  <div className="border-r border-slate-300 px-2 py-1">{item.description}</div>
+                  <div className="border-r border-slate-300 px-2 py-1 text-right">{qty && isMq ? qty : ""}</div>
+                  <div className="border-r border-slate-300 px-2 py-1 text-right">
                     {!hidePrice && unitPrice !== null ? formatCurrency(unitPrice, true) : ""}
                   </div>
-                  <div className="border-b border-r border-slate-300 px-2 py-1 text-right">
+                  <div className="border-r border-slate-300 px-2 py-1 text-right">
                     {qty && !isMq ? `${qty}${item.unit ? ` ${item.unit}` : ""}` : ""}
                   </div>
-                  <div className="border-b border-r border-slate-300 px-2 py-1 text-right">
-                    {hidePrice ? "" : formatCurrency(price, true)}
-                  </div>
+                  <div className="px-2 py-1 text-right">{hidePrice ? "" : formatCurrency(price, true)}</div>
                 </div>
                 {unifyMaterials && i === lastMaterialIndex && materialsTotal > 0 && (
-                  <div className="grid grid-cols-[1fr_4rem_5.25rem_4.5rem_5.25rem] break-inside-avoid font-semibold">
-                    <div className="border-b border-r border-slate-300 px-2 py-1 text-right" style={{ gridColumn: "span 4" }}>
+                  <div className="-mt-px grid grid-cols-[1fr_4rem_5.25rem_4.5rem_5.25rem] break-inside-avoid border border-slate-300 font-semibold">
+                    <div className="border-r border-slate-300 px-2 py-1 text-right" style={{ gridColumn: "span 4" }}>
                       Totale materiale
                     </div>
-                    <div className="border-b border-r border-slate-300 px-2 py-1 text-right">
-                      {formatCurrency(materialsTotal, true)}
-                    </div>
+                    <div className="px-2 py-1 text-right">{formatCurrency(materialsTotal, true)}</div>
                   </div>
                 )}
               </Fragment>
             );
           })}
           {rows.length === 0 && (
-            <div className="grid grid-cols-[1fr_4rem_5.25rem_4.5rem_5.25rem]">
-              <div
-                className="border-b border-r border-slate-300 px-2 py-6 text-center text-slate-400"
-                style={{ gridColumn: "1 / -1" }}
-              >
+            <div className="-mt-px grid grid-cols-[1fr_4rem_5.25rem_4.5rem_5.25rem] border border-slate-300">
+              <div className="px-2 py-6 text-center text-slate-400" style={{ gridColumn: "1 / -1" }}>
                 Nessuna voce ancora inserita nella scheda Ristrutturazione.
               </div>
             </div>

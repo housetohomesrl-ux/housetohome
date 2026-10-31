@@ -215,17 +215,15 @@ export default function SiteSurveyTab({ deal }: { deal: DealDetail }) {
                     In seguito al sopralluogo, vi chiediamo cortesemente un preventivo per le seguenti lavorazioni.
                   </p>
 
-                  <div className="mt-3 border-l border-t border-slate-300">
-                    <div className="grid grid-cols-[1fr_8rem] bg-cyan-400 text-left text-white">
-                      <div className="border-b border-r border-slate-300 px-2 py-1">DESCRIZIONE LAVORI</div>
-                      <div className="border-b border-r border-slate-300 px-2 py-1 text-right">RIFERIMENTO</div>
+                  <div className="mt-3">
+                    <div className="grid grid-cols-[1fr_8rem] border border-slate-300 bg-cyan-400 text-left text-white">
+                      <div className="border-r border-slate-300 px-2 py-1">DESCRIZIONE LAVORI</div>
+                      <div className="px-2 py-1 text-right">RIFERIMENTO</div>
                     </div>
                     {items.map((item) => (
-                      <div key={item.id} className="grid grid-cols-[1fr_8rem] break-inside-avoid">
-                        <div className="border-b border-r border-slate-300 px-2 py-1">{item.name}</div>
-                        <div className="border-b border-r border-slate-300 px-2 py-1 text-right text-slate-500">
-                          {item.referenceQuantity ?? ""}
-                        </div>
+                      <div key={item.id} className="-mt-px grid grid-cols-[1fr_8rem] break-inside-avoid border border-slate-300">
+                        <div className="border-r border-slate-300 px-2 py-1">{item.name}</div>
+                        <div className="px-2 py-1 text-right text-slate-500">{item.referenceQuantity ?? ""}</div>
                       </div>
                     ))}
                   </div>

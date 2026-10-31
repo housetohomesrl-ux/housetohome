@@ -164,12 +164,13 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
 
               {/* Griglia di div al posto di <table>/<tr>: vedi nota in
                   PreventivoTab.tsx sul bug di html2pdf.js con le righe che
-                  non ci stanno su una pagina. */}
-              <div className="mt-5 border-l border-t border-slate-300">
-                <div className="grid grid-cols-[1fr_5rem_6rem] bg-cyan-400 text-left text-white">
-                  <div className="border-b border-r border-slate-300 px-2 py-1">DESCRIZIONE LAVORI</div>
-                  <div className="border-b border-r border-slate-300 px-2 py-1 text-right">QTÀ</div>
-                  <div className="border-b border-r border-slate-300 px-2 py-1 text-right">
+                  non ci stanno su una pagina. Ogni riga ha un bordo completo
+                  (non solo un bordo condiviso per l'intera tabella). */}
+              <div className="mt-5">
+                <div className="grid grid-cols-[1fr_5rem_6rem] border border-slate-300 bg-cyan-400 text-left text-white">
+                  <div className="border-r border-slate-300 px-2 py-1">DESCRIZIONE LAVORI</div>
+                  <div className="border-r border-slate-300 px-2 py-1 text-right">QTÀ</div>
+                  <div className="px-2 py-1 text-right">
                     TOTALE
                     <br />€
                   </div>
@@ -177,14 +178,12 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
                 {vendorItems.map((item) => {
                   const qty = item.quantity ?? null;
                   return (
-                    <div key={item.id} className="grid grid-cols-[1fr_5rem_6rem] break-inside-avoid">
-                      <div className="border-b border-r border-slate-300 px-2 py-1">{item.description}</div>
-                      <div className="border-b border-r border-slate-300 px-2 py-1 text-right">
+                    <div key={item.id} className="-mt-px grid grid-cols-[1fr_5rem_6rem] break-inside-avoid border border-slate-300">
+                      <div className="border-r border-slate-300 px-2 py-1">{item.description}</div>
+                      <div className="border-r border-slate-300 px-2 py-1 text-right">
                         {qty ? `${qty}${item.unit ? ` ${item.unit}` : ""}` : ""}
                       </div>
-                      <div className="border-b border-r border-slate-300 px-2 py-1 text-right">
-                        {formatCurrency(rowTotal(item), true)}
-                      </div>
+                      <div className="px-2 py-1 text-right">{formatCurrency(rowTotal(item), true)}</div>
                     </div>
                   );
                 })}
