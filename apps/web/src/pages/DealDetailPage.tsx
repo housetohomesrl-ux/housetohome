@@ -16,6 +16,7 @@ import ClientResultsTab from "./deal/ClientResultsTab";
 import PreventivoTab from "./deal/PreventivoTab";
 import VendorContractsTab from "./deal/VendorContractsTab";
 import SiteListTab from "./deal/SiteListTab";
+import SiteSurveyTab from "./deal/SiteSurveyTab";
 import BusinessPlanTab from "./deal/BusinessPlanTab";
 
 export default function DealDetailPage() {
@@ -41,7 +42,12 @@ export default function DealDetailPage() {
     { id: "risultati", label: "Risultati" },
   ];
   const tabs = isClientJob
-    ? [...baseTabs, { id: "preventivo", label: "Preventivo cliente" }, { id: "contratti-fornitori", label: "Contratti fornitori" }]
+    ? [
+        ...baseTabs,
+        { id: "sopralluogo", label: "Lista sopralluogo" },
+        { id: "preventivo", label: "Preventivo cliente" },
+        { id: "contratti-fornitori", label: "Contratti fornitori" },
+      ]
     : [
         ...baseTabs,
         { id: "contratti-fornitori", label: "Contratti fornitori" },
@@ -82,6 +88,7 @@ export default function DealDetailPage() {
         {activeTab === "finanziamento" && <FinancingTab deal={deal.data} />}
         {activeTab === "vendita" && <SaleTab deal={deal.data} />}
         {activeTab === "risultati" && (isClientJob ? <ClientResultsTab deal={deal.data} /> : <ResultsTab deal={deal.data} />)}
+        {activeTab === "sopralluogo" && isClientJob && <SiteSurveyTab deal={deal.data} />}
         {activeTab === "preventivo" && isClientJob && <PreventivoTab deal={deal.data} />}
         {activeTab === "contratti-fornitori" && <VendorContractsTab deal={deal.data} />}
         {activeTab === "business-plan" && !isClientJob && <BusinessPlanTab deal={deal.data} />}

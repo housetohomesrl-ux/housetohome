@@ -355,6 +355,8 @@ export default function RenovationTab({ deal }: { deal: DealDetail }) {
 
       <FixVatByVendorCard dealId={deal.id} vendors={vendors.data} />
 
+      <SyncLibraryFromDealCard dealId={deal.id} />
+
       <BulkAddFromLibrary
         dealId={deal.id}
         deal={deal}
@@ -631,6 +633,124 @@ function FixVatByVendorCard({ dealId, vendors }: { dealId: string; vendors: Vend
           </Button>
           {bulkUpdateVat.data && <Badge tone="success">{bulkUpdateVat.data.updated} voci aggiornate</Badge>}
         </div>
+      </CardBody>
+    </Card>
+  );
+}
+
+const SYNC_ACTION_LABEL: Record<string, string> = {
+  update: "Aggiorna descrizione in libreria",
+  create: "Crea nuova voce in libreria",
+};
+
+/**
+ * Confronta le voci di costo di questo deal con la libreria prezzi, per
+ * portare in libreria le descrizioni più dettagliate scritte qui (o le voci
+ * che in libreria ancora mancano) — senza mai toccare i prezzi di libreria,
+ * che restano quelli già salvati (possono legittimamente differire da
+ * cantiere a cantiere).
+ */
+function SyncLibraryFromDealCard({ dealId }: { dealId: string }) {
+  const utils = trpc.useUtils();
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [hasCompared, setHasCompared] = useState(false);
+  const compare = trpc.priceListItem.compareDealWithLibrary.useQuery(
+    { dealId },
+    { enabled: false },
+  );
+  const apply = trpc.priceListItem.applyDealLibrarySync.useMutation({
+    onSuccess: () => {
+      utils.priceListItem.list.invalidate();
+      setSelected({});
+    },
+  });
+
+  const rows = (compare.data ?? []).filter((r) => r.action !== "none");
+
+  function runCompare() {
+    setHasCompared(true);
+    compare.refetch().then((res) => {
+      const next: Record<string, boolean> = {};
+      for (const row of res.data ?? []) {
+        if (row.action !== "none") next[row.costLineItemId] = true;
+      }
+      setSelected(next);
+    });
+  }
+
+  const selectedIds = Object.entries(selected)
+    .filter(([, v]) => v)
+    .map(([id]) => id);
+
+  return (
+    <Card>
+      <CardHeader
+        title="Aggiorna libreria con le voci di questo deal"
+        subtitle="Confronta le voci di costo di questo deal con la libreria prezzi: propone di aggiornare la descrizione delle voci già in libreria (più dettagliata qui) o di crearne di mancanti. I prezzi di libreria non vengono mai toccati."
+      />
+      <CardBody className="grid gap-3">
+        <div className="flex items-center gap-3">
+          <Button variant="secondary" disabled={compare.isFetching} onClick={runCompare}>
+            {compare.isFetching ? "Confronto..." : "Confronta con libreria"}
+          </Button>
+          {apply.data && (
+            <Badge tone="success">
+              {apply.data.updated} aggiornate, {apply.data.created} create
+            </Badge>
+          )}
+        </div>
+
+        {hasCompared && !compare.isFetching && rows.length === 0 && (
+          <p className="text-sm text-slate-400">Tutte le voci di questo deal sono già allineate alla libreria.</p>
+        )}
+
+        {rows.length > 0 && (
+          <>
+            <div className="max-h-96 overflow-y-auto rounded-md border border-slate-200">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-white">
+                  <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
+                    <th className="py-2 pl-3 pr-2" />
+                    <th className="py-2 pr-2">Voce del deal</th>
+                    <th className="py-2 pr-2">Azione</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={row.costLineItemId} className="border-b border-slate-100 align-top">
+                      <td className="py-2 pl-3 pr-2">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(selected[row.costLineItemId])}
+                          onChange={() =>
+                            setSelected((prev) => ({ ...prev, [row.costLineItemId]: !prev[row.costLineItemId] }))
+                          }
+                        />
+                      </td>
+                      <td className="py-2 pr-2">
+                        <div>{row.description}</div>
+                        <div className="text-xs text-slate-400">
+                          {row.categoryName}
+                          {row.vendorName ? ` — ${row.vendorName}` : ""}
+                        </div>
+                        {row.action === "update" && (
+                          <div className="mt-1 text-xs text-slate-400">Nome attuale in libreria: "{row.matchedName}"</div>
+                        )}
+                      </td>
+                      <td className="py-2 pr-2 text-xs">{SYNC_ACTION_LABEL[row.action] ?? row.action}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Button
+              disabled={selectedIds.length === 0 || apply.isPending}
+              onClick={() => apply.mutate({ dealId, costLineItemIds: selectedIds })}
+            >
+              {apply.isPending ? "Applicazione..." : `Applica selezionate (${selectedIds.length})`}
+            </Button>
+          </>
+        )}
       </CardBody>
     </Card>
   );

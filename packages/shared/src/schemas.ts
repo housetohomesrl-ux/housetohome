@@ -367,6 +367,12 @@ export const sendVendorContractEmailSchema = z.object({
   pdfBase64: z.string().min(1),
 });
 
+export const sendVendorQuoteRequestEmailSchema = z.object({
+  dealId: z.string(),
+  vendorId: z.string(),
+  pdfBase64: z.string().min(1),
+});
+
 export const companyLoanCreateSchema = z.object({
   name: z.string().min(1),
   companyOnly: z.boolean().optional(),

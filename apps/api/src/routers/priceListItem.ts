@@ -5,6 +5,7 @@ import { priceListBulkImportSchema, priceListItemCreateSchema } from "@flipplan/
 import { protectedProcedure, router } from "../trpc.js";
 import { serializeDecimals } from "../lib/serialize.js";
 import { syncFlipPriceListFromRistrutturazione } from "../lib/syncFlipPriceList.js";
+import { compareDealWithLibrary, applyDealLibrarySync } from "../lib/syncDealToLibrary.js";
 
 export const priceListItemRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -121,4 +122,19 @@ export const priceListItemRouter = router({
   syncFlipFromRistrutturazione: protectedProcedure.mutation(async ({ ctx }) => {
     return syncFlipPriceListFromRistrutturazione(ctx.user.tenantId);
   }),
+
+  // Confronta le voci di costo di un deal con la libreria prezzi, per capire
+  // quali descrizioni aggiornare (più dettagliate scritte nel deal) o quali
+  // voci mancano del tutto in libreria — vedi lib/syncDealToLibrary.ts.
+  compareDealWithLibrary: protectedProcedure
+    .input(z.object({ dealId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return compareDealWithLibrary(ctx.user.tenantId, input.dealId);
+    }),
+
+  applyDealLibrarySync: protectedProcedure
+    .input(z.object({ dealId: z.string(), costLineItemIds: z.array(z.string()) }))
+    .mutation(async ({ ctx, input }) => {
+      return applyDealLibrarySync(ctx.user.tenantId, input.dealId, input.costLineItemIds);
+    }),
 });

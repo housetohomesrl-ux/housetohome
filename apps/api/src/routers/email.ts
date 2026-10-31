@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@flipplan/db";
-import { sendQuoteEmailSchema, sendVendorContractEmailSchema } from "@flipplan/shared";
+import { sendQuoteEmailSchema, sendVendorContractEmailSchema, sendVendorQuoteRequestEmailSchema } from "@flipplan/shared";
 import { protectedProcedure, router } from "../trpc.js";
 import { assertDealAccess } from "../lib/tenantAccess.js";
 import { sendEmailWithPdfAttachment } from "../lib/mailer.js";
@@ -51,6 +51,30 @@ export const emailRouter = router({
       text: `Gentile ${vendor.name},\n\nin allegato il contratto per i lavori in ${deal.address || deal.name}.\n\nResto a disposizione per qualsiasi chiarimento.\n\nHouse to Home Srl`,
       pdfBase64: input.pdfBase64,
       attachmentFilename: `Contratto ${vendor.name} - ${deal.name}.pdf`,
+    });
+
+    return { success: true };
+  }),
+
+  // Manda la lista sopralluogo (voci flaggate per questo fornitore, senza
+  // prezzi) via email, per chiedergli di preventivarle.
+  sendVendorQuoteRequest: protectedProcedure.input(sendVendorQuoteRequestEmailSchema).mutation(async ({ ctx, input }) => {
+    await assertDealAccess(ctx.user.tenantId, input.dealId);
+    const [deal, vendor] = await Promise.all([
+      prisma.deal.findUniqueOrThrow({ where: { id: input.dealId } }),
+      prisma.vendor.findUniqueOrThrow({ where: { id: input.vendorId } }),
+    ]);
+    if (vendor.tenantId !== ctx.user.tenantId) throw new TRPCError({ code: "NOT_FOUND" });
+    if (!vendor.email) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Questo fornitore non ha un'email salvata (pagina Fornitori)." });
+    }
+
+    await sendEmailWithPdfAttachment({
+      to: vendor.email,
+      subject: `Richiesta preventivo — ${deal.address || deal.name}`,
+      text: `Gentile ${vendor.name},\n\nin allegato l'elenco delle lavorazioni emerse dal sopralluogo in ${deal.address || deal.name}. Vi chiediamo cortesemente di farci avere un preventivo per le voci elencate.\n\nResto a disposizione per qualsiasi chiarimento.\n\nHouse to Home Srl`,
+      pdfBase64: input.pdfBase64,
+      attachmentFilename: `Richiesta preventivo ${vendor.name} - ${deal.name}.pdf`,
     });
 
     return { success: true };
