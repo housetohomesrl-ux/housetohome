@@ -295,7 +295,7 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
       {/* Documento stampabile: stessa intestazione/colori/logo del modulo House to Home Srl. */}
       <div
         ref={printRef}
-        className="bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm [&_tr]:break-inside-avoid print:p-[20mm] print:shadow-none"
+        className="bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm print:p-[20mm] print:shadow-none"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -322,62 +322,73 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
           </div>
         </div>
 
-        <table className="mt-5 w-full border-collapse">
-          <thead>
-            <tr className="bg-cyan-400 text-left text-white">
-              <th className="border border-slate-300 px-2 py-1">DESCRIZIONE LAVORI</th>
-              <th className="border border-slate-300 px-2 py-1 text-right">MQ</th>
-              <th className="border border-slate-300 px-2 py-1 text-right">PREZZO</th>
-              <th className="border border-slate-300 px-2 py-1 text-right">QTÀ</th>
-              <th className="border border-slate-300 px-2 py-1 text-right">
-                TOTALE
-                <br />€
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {printRows.map(({ item, price }, i) => {
-              const hidePrice = unifyMaterials && isUnifiableMaterial(item.category.group, item.vendor?.name);
-              const qty = item.quantity ?? null;
-              const unitPrice = qty ? price / qty : null;
-              const isMq = item.unit === "mq";
-              return (
-                <Fragment key={item.id}>
-                  <tr>
-                    <td className="border border-slate-300 px-2 py-1">{item.description}</td>
-                    <td className="border border-slate-300 px-2 py-1 text-right">{qty && isMq ? qty : ""}</td>
-                    <td className="border border-slate-300 px-2 py-1 text-right">
-                      {!hidePrice && unitPrice !== null ? formatCurrency(unitPrice, true) : ""}
-                    </td>
-                    <td className="border border-slate-300 px-2 py-1 text-right">
-                      {qty && !isMq ? `${qty}${item.unit ? ` ${item.unit}` : ""}` : ""}
-                    </td>
-                    <td className="border border-slate-300 px-2 py-1 text-right">
-                      {hidePrice ? "" : formatCurrency(price, true)}
-                    </td>
-                  </tr>
-                  {unifyMaterials && i === lastMaterialIndex && materialsTotal > 0 && (
-                    <tr className="font-semibold">
-                      <td className="border border-slate-300 px-2 py-1 text-right" colSpan={4}>
-                        Totale materiale
-                      </td>
-                      <td className="border border-slate-300 px-2 py-1 text-right">{formatCurrency(materialsTotal, true)}</td>
-                    </tr>
-                  )}
-                </Fragment>
-              );
-            })}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={5} className="border border-slate-300 px-2 py-6 text-center text-slate-400">
-                  Nessuna voce ancora inserita nella scheda Ristrutturazione.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        {/* Griglia di div al posto di una <table>: html2pdf.js spezza male le
+            righe che non ci stanno su una pagina quando sono <tr> (il
+            "cuscinetto" che inserisce per spingerle alla pagina dopo non è
+            HTML valido dentro un <tbody>, e il risultato è una riga
+            tagliata/bordi sfalsati). Con dei <div> normali l'inserimento è
+            valido e ogni riga resta intera sulla stessa pagina. */}
+        <div className="mt-5 border-l border-t border-slate-300">
+          <div className="grid grid-cols-[1fr_4rem_5.25rem_4.5rem_5.25rem] bg-cyan-400 text-left text-white">
+            <div className="border-b border-r border-slate-300 px-2 py-1">DESCRIZIONE LAVORI</div>
+            <div className="border-b border-r border-slate-300 px-2 py-1 text-right">MQ</div>
+            <div className="border-b border-r border-slate-300 px-2 py-1 text-right">PREZZO</div>
+            <div className="border-b border-r border-slate-300 px-2 py-1 text-right">QTÀ</div>
+            <div className="border-b border-r border-slate-300 px-2 py-1 text-right">
+              TOTALE
+              <br />€
+            </div>
+          </div>
+          {printRows.map(({ item, price }, i) => {
+            const hidePrice = unifyMaterials && isUnifiableMaterial(item.category.group, item.vendor?.name);
+            const qty = item.quantity ?? null;
+            const unitPrice = qty ? price / qty : null;
+            const isMq = item.unit === "mq";
+            return (
+              <Fragment key={item.id}>
+                <div className="grid grid-cols-[1fr_4rem_5.25rem_4.5rem_5.25rem] break-inside-avoid">
+                  <div className="border-b border-r border-slate-300 px-2 py-1">{item.description}</div>
+                  <div className="border-b border-r border-slate-300 px-2 py-1 text-right">{qty && isMq ? qty : ""}</div>
+                  <div className="border-b border-r border-slate-300 px-2 py-1 text-right">
+                    {!hidePrice && unitPrice !== null ? formatCurrency(unitPrice, true) : ""}
+                  </div>
+                  <div className="border-b border-r border-slate-300 px-2 py-1 text-right">
+                    {qty && !isMq ? `${qty}${item.unit ? ` ${item.unit}` : ""}` : ""}
+                  </div>
+                  <div className="border-b border-r border-slate-300 px-2 py-1 text-right">
+                    {hidePrice ? "" : formatCurrency(price, true)}
+                  </div>
+                </div>
+                {unifyMaterials && i === lastMaterialIndex && materialsTotal > 0 && (
+                  <div className="grid grid-cols-[1fr_4rem_5.25rem_4.5rem_5.25rem] break-inside-avoid font-semibold">
+                    <div className="border-b border-r border-slate-300 px-2 py-1 text-right" style={{ gridColumn: "span 4" }}>
+                      Totale materiale
+                    </div>
+                    <div className="border-b border-r border-slate-300 px-2 py-1 text-right">
+                      {formatCurrency(materialsTotal, true)}
+                    </div>
+                  </div>
+                )}
+              </Fragment>
+            );
+          })}
+          {rows.length === 0 && (
+            <div className="grid grid-cols-[1fr_4rem_5.25rem_4.5rem_5.25rem]">
+              <div
+                className="border-b border-r border-slate-300 px-2 py-6 text-center text-slate-400"
+                style={{ gridColumn: "1 / -1" }}
+              >
+                Nessuna voce ancora inserita nella scheda Ristrutturazione.
+              </div>
+            </div>
+          )}
+        </div>
 
         {rows.length > 0 && (
+          // Un unico blocco che non si spezza tra due pagine: un div, non un
+          // <tr>, così l'inserimento del "cuscinetto" di html2pdf.js che lo
+          // spinge alla pagina dopo è HTML valido (vedi nota sopra).
+          <div className="break-inside-avoid">
           <table className="w-full border-collapse">
             <tbody>
               <tr className="bg-cyan-400 font-bold italic text-white">
@@ -423,6 +434,7 @@ export default function PreventivoTab({ deal }: { deal: DealDetail }) {
               </tr>
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

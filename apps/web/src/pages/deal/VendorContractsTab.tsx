@@ -137,7 +137,7 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
                 if (el) printRefs.current.set(vendor.id, el);
                 else printRefs.current.delete(vendor.id);
               }}
-              className="mt-2 bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm [&_tr]:break-inside-avoid print:p-[20mm] print:shadow-none"
+              className="mt-2 bg-white p-6 text-[11px] leading-snug text-slate-800 shadow-sm print:p-[20mm] print:shadow-none"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -162,33 +162,35 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
                 </div>
               </div>
 
-              <table className="mt-5 w-full border-collapse">
-                <thead>
-                  <tr className="bg-cyan-400 text-left text-white">
-                    <th className="border border-slate-300 px-2 py-1">DESCRIZIONE LAVORI</th>
-                    <th className="border border-slate-300 px-2 py-1 text-right">QTÀ</th>
-                    <th className="border border-slate-300 px-2 py-1 text-right">
-                      TOTALE
-                      <br />€
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {vendorItems.map((item) => {
-                    const qty = item.quantity ?? null;
-                    return (
-                      <tr key={item.id}>
-                        <td className="border border-slate-300 px-2 py-1">{item.description}</td>
-                        <td className="border border-slate-300 px-2 py-1 text-right">
-                          {qty ? `${qty}${item.unit ? ` ${item.unit}` : ""}` : ""}
-                        </td>
-                        <td className="border border-slate-300 px-2 py-1 text-right">{formatCurrency(rowTotal(item), true)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              {/* Griglia di div al posto di <table>/<tr>: vedi nota in
+                  PreventivoTab.tsx sul bug di html2pdf.js con le righe che
+                  non ci stanno su una pagina. */}
+              <div className="mt-5 border-l border-t border-slate-300">
+                <div className="grid grid-cols-[1fr_5rem_6rem] bg-cyan-400 text-left text-white">
+                  <div className="border-b border-r border-slate-300 px-2 py-1">DESCRIZIONE LAVORI</div>
+                  <div className="border-b border-r border-slate-300 px-2 py-1 text-right">QTÀ</div>
+                  <div className="border-b border-r border-slate-300 px-2 py-1 text-right">
+                    TOTALE
+                    <br />€
+                  </div>
+                </div>
+                {vendorItems.map((item) => {
+                  const qty = item.quantity ?? null;
+                  return (
+                    <div key={item.id} className="grid grid-cols-[1fr_5rem_6rem] break-inside-avoid">
+                      <div className="border-b border-r border-slate-300 px-2 py-1">{item.description}</div>
+                      <div className="border-b border-r border-slate-300 px-2 py-1 text-right">
+                        {qty ? `${qty}${item.unit ? ` ${item.unit}` : ""}` : ""}
+                      </div>
+                      <div className="border-b border-r border-slate-300 px-2 py-1 text-right">
+                        {formatCurrency(rowTotal(item), true)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
+              <div className="break-inside-avoid">
               <table className="w-full border-collapse">
                 <tbody>
                   <tr className="font-semibold">
@@ -219,6 +221,7 @@ export default function VendorContractsTab({ deal }: { deal: DealDetail }) {
                   </tr>
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         );
