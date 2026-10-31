@@ -29,7 +29,17 @@ const PDF_OPTIONS = {
  * e dopo: senza questo intervento il residuo è visibile su ogni pagina (e
  * cresce di pagina in pagina), con entrambi gli accorgimenti sparisce.
  */
-async function preparePdfWorker(element: HTMLElement, extraOptions: Record<string, unknown> = {}) {
+// html2pdf.js's Worker extends Promise: una funzione async che fa
+// "return worker" non restituisce l'oggetto al chiamante, perché JS
+// insegue/adotta la risoluzione di qualunque thenable viene ritornato da
+// una funzione async — il chiamante riceve così "undefined" (quello a cui
+// il worker si risolve internamente, non l'oggetto worker). Va incapsulato
+// in un oggetto per uscire da questo comportamento.
+async function preparePdfWorker(
+  element: HTMLElement,
+  extraOptions: Record<string, unknown> = {},
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- proprietà interne non esposte nei tipi di html2pdf.js
+): Promise<{ worker: any }> {
   const { default: html2pdf } = await import("html2pdf.js");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- proprietà interne non esposte nei tipi di html2pdf.js
   const worker = html2pdf().set({ ...PDF_OPTIONS, ...extraOptions }).from(element) as any;
@@ -44,18 +54,18 @@ async function preparePdfWorker(element: HTMLElement, extraOptions: Record<strin
       div.style.height = `${Math.ceil(h) + 6}px`;
     }
   });
-  return worker;
+  return { worker };
 }
 
 /** Genera e scarica un PDF a partire da un nodo DOM già stilizzato (stesso contenuto della stampa), senza passare dal dialogo di stampa del browser. Libreria caricata solo al click, per non appesantire il bundle iniziale. */
 export async function downloadElementAsPdf(element: HTMLElement, filename: string) {
-  const worker = await preparePdfWorker(element, { filename });
+  const { worker } = await preparePdfWorker(element, { filename });
   await worker.save();
 }
 
 /** Genera lo stesso PDF ma come stringa base64 (per allegarlo a un'email), senza scaricarlo. */
 export async function generatePdfBase64(element: HTMLElement): Promise<string> {
-  const worker = await preparePdfWorker(element);
+  const { worker } = await preparePdfWorker(element);
   const dataUri: string = await worker.outputPdf("datauristring");
   const commaIndex = dataUri.indexOf(",");
   return commaIndex >= 0 ? dataUri.slice(commaIndex + 1) : dataUri;
