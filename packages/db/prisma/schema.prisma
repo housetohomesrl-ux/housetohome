@@ -162,6 +162,7 @@ model Deal {
   businessPlanDeals  BusinessPlanDeal[]
   vendorPayments     DealVendorPayment[]
   quoteSnapshots     QuoteSnapshot[]
+  surveyChecklistEntries SurveyChecklistEntry[]
 
   @@index([tenantId, status])
   @@map("deals")
@@ -467,10 +468,28 @@ model PriceListItem {
 
   costLineItems CostLineItem[]
   templateItems CostTemplateItem[]
+  surveyChecklistEntries SurveyChecklistEntry[]
 
   @@index([tenantId])
   @@index([vendorId])
   @@map("price_list_items")
+}
+
+// Voci flaggate nella "Lista sopralluogo" di un deal (vedi SiteSurveyTab):
+// l'esistenza della riga È il flag, niente campo booleano. Usata per
+// ricordare la selezione tra una sessione e l'altra, finché non viene
+// mandata la richiesta di preventivo ai fornitori.
+model SurveyChecklistEntry {
+  id              String        @id @default(cuid())
+  dealId          String
+  deal            Deal          @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  priceListItemId String
+  priceListItem   PriceListItem @relation(fields: [priceListItemId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+
+  @@unique([dealId, priceListItemId])
+  @@index([dealId])
+  @@map("survey_checklist_entries")
 }
 
 // Pacchetto di voci della libreria prezzi riutilizzabile (es. "Bagno

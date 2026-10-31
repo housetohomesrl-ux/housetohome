@@ -17,6 +17,7 @@ import { revenueRouter } from "./revenue.js";
 import { emailRouter } from "./email.js";
 import { companyLoanRouter } from "./companyLoan.js";
 import { resultsRouter } from "./results.js";
+import { surveyChecklistRouter } from "./surveyChecklist.js";
 
 export const appRouter = router({
   auth: authRouter,
@@ -37,6 +38,7 @@ export const appRouter = router({
   email: emailRouter,
   companyLoan: companyLoanRouter,
   results: resultsRouter,
+  surveyChecklist: surveyChecklistRouter,
 });
 
 export type AppRouter = typeof appRouter;

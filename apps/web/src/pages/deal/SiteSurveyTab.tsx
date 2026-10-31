@@ -25,14 +25,17 @@ function vendorRank(name: string | undefined): number {
  * poi va trascritto nella scheda Ristrutturazione per costruire il
  * preventivo cliente vero e proprio.
  *
- * Le caselle flaggate sono solo nello stato locale della pagina (non
- * salvate): il flusso previsto è flaggare e generare/mandare subito la
- * lista durante o appena dopo il sopralluogo, nella stessa sessione.
+ * Le caselle flaggate sono salvate (per deal), per poter riprendere un
+ * sopralluogo lasciato a metà senza perdere la selezione.
  */
 export default function SiteSurveyTab({ deal }: { deal: DealDetail }) {
+  const utils = trpc.useUtils();
   const priceList = trpc.priceListItem.list.useQuery();
+  const checklist = trpc.surveyChecklist.list.useQuery({ dealId: deal.id });
+  const toggleChecklist = trpc.surveyChecklist.toggle.useMutation({
+    onSuccess: () => utils.surveyChecklist.list.invalidate({ dealId: deal.id }),
+  });
   const [search, setSearch] = useState("");
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [printingVendorId, setPrintingVendorId] = useState<string | null>(null);
   const [downloadingVendorId, setDownloadingVendorId] = useState<string | null>(null);
   const [sendingVendorId, setSendingVendorId] = useState<string | null>(null);
@@ -59,14 +62,16 @@ export default function SiteSurveyTab({ deal }: { deal: DealDetail }) {
     (a, b) => vendorRank(a.vendor?.name) - vendorRank(b.vendor?.name) || (a.vendor?.name ?? "zzz").localeCompare(b.vendor?.name ?? "zzz"),
   );
 
+  const checkedIds = new Set(checklist.data ?? []);
+
   function toggle(id: string) {
-    setChecked((prev) => ({ ...prev, [id]: !prev[id] }));
+    toggleChecklist.mutate({ dealId: deal.id, priceListItemId: id, checked: !checkedIds.has(id) });
   }
 
-  const checkedCount = Object.values(checked).filter(Boolean).length;
+  const checkedCount = checkedIds.size;
   const vendorsToSend = vendorGroups
     .filter((g) => g.vendor)
-    .map((g) => ({ vendor: g.vendor!, items: g.items.filter((i) => checked[i.id]) }))
+    .map((g) => ({ vendor: g.vendor!, items: g.items.filter((i) => checkedIds.has(i.id)) }))
     .filter((g) => g.items.length > 0);
 
   return (
@@ -96,7 +101,7 @@ export default function SiteSurveyTab({ deal }: { deal: DealDetail }) {
                   <input
                     type="checkbox"
                     className="h-5 w-5 shrink-0 accent-brand-600"
-                    checked={Boolean(checked[item.id])}
+                    checked={checkedIds.has(item.id)}
                     onChange={() => toggle(item.id)}
                   />
                   <span className="text-sm text-slate-800">{item.name}</span>
